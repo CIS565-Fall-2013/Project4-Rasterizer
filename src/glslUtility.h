@@ -4,6 +4,8 @@
 #ifndef GLSLUTILITY_H_
 #define GLSLUTILITY_H_
 
+#include <cstdlib>
+
 #ifdef __APPLE__
 	#include <GL/glfw.h>
 #else
