@@ -240,7 +240,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   float aspectRatio = resolution.x / resolution.y;
   glm::vec3 up(0,1,0);
   glm::vec3 center(0,0,0);
-  glm::vec3 eye(0,0,-1);
+  glm::vec3 eye(0,0,1);
   glm::mat4 projection = glm::perspective(fovy, aspectRatio, zNear, zFar);
   glm::mat4 view = glm::lookAt(eye, center, up);
   glm::mat4 cameraMat = projection*view;
