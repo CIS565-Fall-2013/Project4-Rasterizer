@@ -245,6 +245,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::mat4 view = glm::lookAt(eye, center, up);
   glm::mat4 cameraMat = projection*view;
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMat);
+  float* transformedVerts = new float[vbosize];
+  cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
+  delete transformedVerts;
 
   cudaDeviceSynchronize();
   //------------------------------
