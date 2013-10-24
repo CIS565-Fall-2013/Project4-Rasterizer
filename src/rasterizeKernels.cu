@@ -266,6 +266,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  triangle* assembledTris = new triangle[ibosize/3];
+  //cudaMemcpy( assembledTris, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost);
+  //delete assembledTris;
+  //cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
+  //delete transformedVerts;
 
   cudaDeviceSynchronize();
   //------------------------------
