@@ -147,7 +147,6 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat){
   }
 }
 
-//TODO: Implement primative assembly
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
@@ -168,9 +167,15 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 }
 
 //TODO: Implement a rasterization method, such as scanline.
+//NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
+//for now the normal can just be the cross product of the vectors that make up the face (flat shading).
+//NATHAN: add early-z here.
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+	  //use recursive flood fill starting at the CENTER of the triangle (interpolate using barycentric, map back to screen space)
+	  //take pixels, map them back to NDC, test to see if inside triangle (using barycentric)
+	  //i think the real speedup comes from backface culling - don't rasterize the triangle at all if the winding order is "wrong"
   }
 }
 
