@@ -136,9 +136,15 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 projection, glm::mat4 view){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){ //each thread acts per vertex.
+	  int vertNum = 3*index;
+	  glm::vec4 currVert(vbo[vertNum], vbo[vertNum+1], vbo[vertNum+2], 1);
+	  glm::vec4 projectedVert = cameraMat * currVert;
+	  vbo[vertNum] = projectedVert.x;
+	  vbo[vertNum+1] = projectedVert.y;
+	  vbo[vertNum+2] = projectedVert.z;
   }
 }
 
@@ -237,7 +243,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::vec3 eye(0,0,-1);
   glm::mat4 projection = glm::perspective(fovy, aspectRatio, zNear, zFar);
   glm::mat4 view = glm::lookAt(eye, center, up);
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, projection, view);
+  glm::mat4 cameraMat = projection*view;
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMat);
 
   cudaDeviceSynchronize();
   //------------------------------
