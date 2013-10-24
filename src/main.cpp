@@ -90,6 +90,7 @@ void runCuda(){
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
 
+  //color for the triangle
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
                     1.0, 0.0, 0.0};

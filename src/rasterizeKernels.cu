@@ -135,7 +135,6 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
   }
 }
 
-//TODO: Implement a vertex shader
 __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){ //each thread acts per vertex.
@@ -152,7 +151,19 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat){
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
-  if(index<primitivesCount){
+  if(index<primitivesCount){ //one thread per primitive
+	  int primNum = 3*index;
+	  triangle currTri;
+	  int ind0 = ibo[primNum];
+	  currTri.p0 = glm::vec3(vbo[3*ind0], vbo[3*ind0 + 1], vbo[3*ind0 + 2]);
+	  currTri.c0 = glm::vec3(cbo[3*ind0], cbo[3*ind0 + 1], cbo[3*ind0 + 2]);
+	  int ind1 = ibo[primNum + 1];
+	  currTri.p1 = glm::vec3(vbo[3*ind1], vbo[3*ind1 + 1], vbo[3*ind1 + 2]);
+	  currTri.c1 = glm::vec3(cbo[3*ind1], cbo[3*ind1 + 1], cbo[3*ind1 + 2]);
+	  int ind2 = ibo[primNum + 2];
+	  currTri.p2 = glm::vec3(vbo[3*ind2], vbo[3*ind2 + 1], vbo[3*ind2 + 2]);
+	  currTri.c2 = glm::vec3(cbo[3*ind2], cbo[3*ind2 + 1], cbo[3*ind2 + 2]);
+	  primitives[index] = currTri;
   }
 }
 
@@ -245,9 +256,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::mat4 view = glm::lookAt(eye, center, up);
   glm::mat4 cameraMat = projection*view;
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMat);
-  float* transformedVerts = new float[vbosize];
-  cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
-  delete transformedVerts;
+  //float* transformedVerts = new float[vbosize];
+  //cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
+  //delete transformedVerts;
 
   cudaDeviceSynchronize();
   //------------------------------
