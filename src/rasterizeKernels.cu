@@ -7,6 +7,7 @@
 #include <thrust/random.h>
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
+#include "glm/gtc/matrix_transform.hpp"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -135,9 +136,9 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 projection, glm::mat4 view){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<vbosize/3){
+  if(index<vbosize/3){ //each thread acts per vertex.
   }
 }
 
@@ -226,7 +227,17 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+  //hardcoding the camera for now:
+  float fovy = 45.0f;
+  float zNear = 0.1f;
+  float zFar = 100.0f;
+  float aspectRatio = resolution.x / resolution.y;
+  glm::vec3 up(0,1,0);
+  glm::vec3 center(0,0,0);
+  glm::vec3 eye(0,0,-1);
+  glm::mat4 projection = glm::perspective(fovy, aspectRatio, zNear, zFar);
+  glm::mat4 view = glm::lookAt(eye, center, up);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, projection, view);
 
   cudaDeviceSynchronize();
   //------------------------------

@@ -577,4 +577,8 @@ c:\users\nathan\cuda-rasterizer\src\glm/glm.hpp
 c:\users\nathan\cuda-rasterizer\src\glm\core/_fixes.hpp
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
 c:\users\nathan\cuda-rasterizer\src\cudaMat4.h
+c:\users\nathan\cuda-rasterizer\src\glm/gtc/matrix_transform.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\gtc\../glm.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\core/_fixes.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\gtc\matrix_transform.inl
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h
