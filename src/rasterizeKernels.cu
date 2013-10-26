@@ -141,9 +141,9 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat){
 	  int vertNum = 3*index;
 	  glm::vec4 currVert(vbo[vertNum], vbo[vertNum+1], vbo[vertNum+2], 1);
 	  glm::vec4 projectedVert = cameraMat * currVert;
-	  vbo[vertNum] = projectedVert.x;
-	  vbo[vertNum+1] = projectedVert.y;
-	  vbo[vertNum+2] = projectedVert.z;
+	  vbo[vertNum] = (projectedVert.x + 1)/2.0f; //shift to window NDC space (between 0 and 1)
+	  vbo[vertNum+1] = (projectedVert.y + 1)/2.0f; //shift to window NDC space (between 0 and 1)
+	  vbo[vertNum+2] = projectedVert.z; //no need to change this when shifting to window NDC space
   }
 }
 
@@ -272,10 +272,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
   triangle* assembledTris = new triangle[ibosize/3];
-  //cudaMemcpy( assembledTris, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost);
-  //delete assembledTris;
-  //cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
-  //delete transformedVerts;
+  cudaMemcpy( assembledTris, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost);
+  delete assembledTris;
 
   cudaDeviceSynchronize();
   //------------------------------
