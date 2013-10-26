@@ -188,13 +188,17 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   {
 	  triangle thisTriangle;
 	  
-	  thisTriangle.c0.x = cbo [ibo [index]];				thisTriangle.c0.y = cbo [ibo [index] + colourStep];					thisTriangle.c0.z = cbo [ibo [index] + (2*colourStep)];
-	  thisTriangle.c1.x = cbo [ibo [index+indexStep]];		thisTriangle.c1.y = cbo [ibo [index+indexStep] + colourStep];		thisTriangle.c1.z = cbo [ibo [index+indexStep] + (2*colourStep)];
-	  thisTriangle.c2.x = cbo [ibo [index+(2*indexStep)]];	thisTriangle.c2.y = cbo [ibo [index+(2*indexStep)] + colourStep];	thisTriangle.c2.z = cbo [ibo [index+(2*indexStep)] + (2*colourStep)];
+	  int curIndex = ibo [index];
+	  thisTriangle.c0.x = cbo [curIndex];	thisTriangle.c0.y = cbo [curIndex + colourStep];	thisTriangle.c0.z = cbo [curIndex + (2*colourStep)];
+	  thisTriangle.p0.x = vbo [curIndex];	thisTriangle.p0.y = vbo [curIndex + vertStep];		thisTriangle.p0.z = vbo [curIndex + (2*vertStep)];
 
-	  thisTriangle.p0.x = vbo [ibo [index]];				thisTriangle.p0.y = vbo [ibo [index] + vertStep];					thisTriangle.p0.z = vbo [ibo [index] + (2*vertStep)];
-	  thisTriangle.p1.x = vbo [ibo [index+indexStep]];		thisTriangle.p1.y = vbo [ibo [index+indexStep] + vertStep];			thisTriangle.p1.z = vbo [ibo [index+indexStep] + (2*vertStep)];
-	  thisTriangle.p2.x = vbo [ibo [index+(2*indexStep)]];	thisTriangle.p2.y = vbo [ibo [index+(2*indexStep)] + vertStep];		thisTriangle.p2.z =	vbo [ibo [index+(2*indexStep)] + (2*vertStep)];
+	  curIndex = ibo [index+indexStep];
+	  thisTriangle.c1.x = cbo [curIndex];	thisTriangle.c1.y = cbo [curIndex + colourStep];	thisTriangle.c1.z = cbo [curIndex + (2*colourStep)];
+	  thisTriangle.p1.x = vbo [curIndex];	thisTriangle.p1.y = vbo [curIndex + vertStep];		thisTriangle.p1.z = vbo [curIndex + (2*vertStep)];
+
+	  curIndex = ibo [index+(2*indexStep)];
+	  thisTriangle.c2.x = cbo [curIndex];	thisTriangle.c2.y = cbo [curIndex + colourStep];	thisTriangle.c2.z = cbo [curIndex + (2*colourStep)];
+	  thisTriangle.p2.x = vbo [curIndex];	thisTriangle.p2.y = vbo [curIndex + vertStep];		thisTriangle.p2.z =	vbo [curIndex + (2*vertStep)];
 	  
 	  primitives [index] = thisTriangle;
   }
