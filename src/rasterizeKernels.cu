@@ -207,9 +207,38 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 //TODO: Implement a rasterization method, such as scanline.
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution)
 {
+  extern __shared__ triangle primitiveShared [];
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount)
   {
+	  primitiveShared [threadIdx.x] = primitives [index];
+	  primitiveShared [threadIdx.x].p0.x /= primitiveShared [threadIdx.x].p0.w;
+	  primitiveShared [threadIdx.x].p0.y /= primitiveShared [threadIdx.x].p0.w;
+	  primitiveShared [threadIdx.x].p0.z /= primitiveShared [threadIdx.x].p0.w;
+
+	  primitiveShared [threadIdx.x].p1.x /= primitiveShared [threadIdx.x].p1.w;
+	  primitiveShared [threadIdx.x].p1.y /= primitiveShared [threadIdx.x].p1.w;
+	  primitiveShared [threadIdx.x].p1.z /= primitiveShared [threadIdx.x].p1.w;
+
+	  primitiveShared [threadIdx.x].p2.x /= primitiveShared [threadIdx.x].p2.w;
+	  primitiveShared [threadIdx.x].p2.y /= primitiveShared [threadIdx.x].p2.w;
+	  primitiveShared [threadIdx.x].p2.z /= primitiveShared [threadIdx.x].p2.w;
+
+
+  }
+
+  __syncthreads ();
+
+  if(index<primitivesCount)
+  {
+	  fragment	curFragment;
+	  curFragment.position.z = 1e6;
+	  // First, throw out all back facing tris (Back Face Culling).
+	  // Here, we simply do nothing if we find such a tri.
+	  if (calculateSignedArea (primitiveShared [threadIdx.x]) > 0)
+	  {
+		  primitiveShared [threadIdx.x].;
+	  }
   }
 }
 
