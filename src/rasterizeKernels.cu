@@ -25,6 +25,7 @@ void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
   if( cudaSuccess != err) {
     fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) ); 
+	std::cin.get ();
     exit(EXIT_FAILURE); 
   }
 } 
@@ -135,50 +136,108 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize)
+{
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<vbosize/3){
+  __shared__ glm::mat4 model;
+  __shared__ glm::mat4 view;
+  __shared__ glm::mat4 projection;
+  __shared__ glm::mat4	ModelViewProjection;
+  __shared__ int	step;
+
+  if ((threadIdx.x == 0) && (threadIdx.y == 0))
+  {
+	  model = glm::mat4 (1.0f);
+	  view = glm::mat4 (1.0f);
+	  projection = glm::mat4 (1.0f);
+
+	  ModelViewProjection = projection * view * model;
+	  step = vbosize/3;
+  }
+
+  __syncthreads ();
+
+  if(index<vbosize/3)
+  {
+	  glm::vec4 currentVertex (vbo [index], vbo [index+step], vbo [index+(2*step)], 1.0f);
+	  currentVertex = ModelViewProjection * currentVertex;
+	  vbo [index] = currentVertex.x;	vbo [index+step] = currentVertex.y;	vbo [index+(2*step)] = currentVertex.z;
   }
 }
 
-//TODO: Implement primative assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+//TODO: Implement primitive assembly
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives)
+{
+  __shared__ int colourStep;
+  __shared__ int indexStep;		// = primitivesCount.
+  __shared__ int vertStep;
+  
+  if ((threadIdx.x == 0) && (threadIdx.y == 0))
+  {
+	  colourStep = cbosize / 3;
+	  vertStep = vbosize/3;
+	  indexStep = ibosize / 3;
+  }
+
+  __syncthreads ();
+
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  int primitivesCount = ibosize/3;
-  if(index<primitivesCount){
+//  int primitivesCount = ibosize/3;
+
+  if(index < indexStep/*primitivesCount*/)
+  {
+	  triangle thisTriangle;
+	  
+	  thisTriangle.c0.x = cbo [ibo [index]];				thisTriangle.c0.y = cbo [ibo [index] + colourStep];					thisTriangle.c0.z = cbo [ibo [index] + (2*colourStep)];
+	  thisTriangle.c1.x = cbo [ibo [index+indexStep]];		thisTriangle.c1.y = cbo [ibo [index+indexStep] + colourStep];		thisTriangle.c1.z = cbo [ibo [index+indexStep] + (2*colourStep)];
+	  thisTriangle.c2.x = cbo [ibo [index+(2*indexStep)]];	thisTriangle.c2.y = cbo [ibo [index+(2*indexStep)] + colourStep];	thisTriangle.c2.z = cbo [ibo [index+(2*indexStep)] + (2*colourStep)];
+
+	  thisTriangle.p0.x = vbo [ibo [index]];				thisTriangle.p0.y = vbo [ibo [index] + vertStep];					thisTriangle.p0.z = vbo [ibo [index] + (2*vertStep)];
+	  thisTriangle.p1.x = vbo [ibo [index+indexStep]];		thisTriangle.p1.y = vbo [ibo [index+indexStep] + vertStep];			thisTriangle.p1.z = vbo [ibo [index+indexStep] + (2*vertStep)];
+	  thisTriangle.p2.x = vbo [ibo [index+(2*indexStep)]];	thisTriangle.p2.y = vbo [ibo [index+(2*indexStep)] + vertStep];		thisTriangle.p2.z =	vbo [ibo [index+(2*indexStep)] + (2*vertStep)];
+	  
+	  primitives [index] = thisTriangle;
   }
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution)
+{
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<primitivesCount){
+  if(index<primitivesCount)
+  {
   }
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
+{
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
-  if(x<=resolution.x && y<=resolution.y){
+  if(x<=resolution.x && y<=resolution.y)
+  {
+	  ;
   }
 }
 
 //Writes fragment colors to the framebuffer
-__global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* framebuffer){
+__global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* framebuffer)
+{
 
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
 
-  if(x<=resolution.x && y<=resolution.y){
+  if(x<=resolution.x && y<=resolution.y)
+  {
     framebuffer[index] = depthbuffer[index].color;
   }
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize)
+{
 
   // set up crucial magic
   int tileSize = 8;
@@ -261,7 +320,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   checkCUDAError("Kernel failed!");
 }
 
-void kernelCleanup(){
+void kernelCleanup()
+{
   cudaFree( primitives );
   cudaFree( device_vbo );
   cudaFree( device_cbo );

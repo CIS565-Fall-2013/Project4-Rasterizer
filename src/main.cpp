@@ -26,6 +26,7 @@ int main(int argc, char** argv){
 
   if(!loadedScene){
     cout << "Usage: mesh=[obj file]" << endl;
+	std::cin.get ();
     return 0;
   }
 
