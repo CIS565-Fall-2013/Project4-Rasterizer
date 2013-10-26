@@ -135,14 +135,16 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
   }
 }
 
-__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){ //each thread acts per vertex.
 	  int vertNum = 3*index;
 	  glm::vec4 currVert(vbo[vertNum], vbo[vertNum+1], vbo[vertNum+2], 1);
 	  glm::vec4 projectedVert = cameraMat * currVert;
-	  vbo[vertNum] = (projectedVert.x + 1)/2.0f; //shift to window NDC space (between 0 and 1)
-	  vbo[vertNum+1] = (projectedVert.y + 1)/2.0f; //shift to window NDC space (between 0 and 1)
+	  float xWinNDC = (projectedVert.x + 1)/2.0f; //shift to window NDC space (between 0 and 1)
+	  float yWinNDC = (projectedVert.y + 1)/2.0f; //shift to window NDC space (between 0 and 1)
+	  vbo[vertNum] = xWinNDC * resolution.x;
+	  vbo[vertNum+1] = yWinNDC * resolution.y;
 	  vbo[vertNum+2] = projectedVert.z; //no need to change this when shifting to window NDC space
   }
 }
@@ -166,6 +168,10 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   }
 }
 
+__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, glm::vec2 resolution){
+	return -1; //error
+}
+
 //TODO: Implement a rasterization method, such as scanline.
 //NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
 //for now the normal can just be the cross product of the vectors that make up the face (flat shading).
@@ -173,6 +179,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+	  //first rasterize the OUTLINES of the triangle
+
 	  //use recursive flood fill starting at the CENTER of the triangle (interpolate using barycentric, map back to screen space)
 	  //take pixels, map them back to NDC, test to see if inside triangle (using barycentric)
 	  //i think the real speedup comes from backface culling - don't rasterize the triangle at all if the winding order is "wrong"
@@ -260,10 +268,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::mat4 projection = glm::perspective(fovy, aspectRatio, zNear, zFar);
   glm::mat4 view = glm::lookAt(eye, center, up);
   glm::mat4 cameraMat = projection*view;
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMat);
-  //float* transformedVerts = new float[vbosize];
-  //cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
-  //delete transformedVerts;
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMat, resolution);
+  float* transformedVerts = new float[vbosize];
+  cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
+  delete transformedVerts;
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -279,6 +287,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
+  //first draw the outlines of the triangle
+  //drawOutlinesKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+
   rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
 
   cudaDeviceSynchronize();
