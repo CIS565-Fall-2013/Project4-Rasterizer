@@ -224,10 +224,13 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 	  //first rasterize the OUTLINES of the triangle
-
+	  triangle currTri = primitives[index];
+	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri);
 	  //use recursive flood fill starting at the CENTER of the triangle (interpolate using barycentric, map back to screen space)
 	  //take pixels, map them back to NDC, test to see if inside triangle (using barycentric)
-	  //i think the real speedup comes from backface culling - don't rasterize the triangle at all if the winding order is "wrong"
+	  //i think the real speedup comes from backface culling - don't rasterize the triangle at all if the the winding order isn't facing the camera or something.
   }
 }
 
