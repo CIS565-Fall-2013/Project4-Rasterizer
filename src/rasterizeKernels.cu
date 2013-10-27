@@ -191,6 +191,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat, 
 	  int vertNum = 3*index;
 	  glm::vec4 currVert(vbo[vertNum], vbo[vertNum+1], vbo[vertNum+2], 1);
 	  glm::vec4 projectedVert = cameraMat * currVert;
+	  projectedVert = (1/projectedVert.w) * projectedVert; //perspective divide
 	  float xWinNDC = (projectedVert.x + 1)/2.0f; //shift to window NDC space (between 0 and 1)
 	  float yWinNDC = (projectedVert.y + 1)/2.0f; //shift to window NDC space (between 0 and 1)
 	  vbo[vertNum] = xWinNDC * resolution.x;
