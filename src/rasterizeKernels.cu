@@ -150,15 +150,37 @@ __device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragm
 }
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
+//returns the number of pixels drawn
 __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, glm::vec2 resolution, triangle currTri){
 	float X, Y, Xinc, Yinc, LENGTH;
-	int i;
 	Xinc = finish.x - start.x;
-	Yinc = finish.y - finish.y;
+	Yinc = finish.y - start.y;
+	int pixelsDrawn = 0;
+	//if both zero, then we just draw a point.
 	if( (abs(Xinc) < NATHANS_EPSILON) && (abs(Yinc) < NATHANS_EPSILON) ){
-		
-	}
-	return -1; //TODO: change this to an actual result
+		writePointInTriangle(currTri, glm::vec2(start.x, start.y), depthBuffer, resolution);
+		pixelsDrawn++;
+	} else { //this is a line segment
+		//LENGTH is the greater of Xinc, Yinc
+		if(abs(Yinc) > abs(Xinc)){
+			LENGTH = abs(Yinc);
+			Xinc = Xinc / LENGTH; //note float division
+			Yinc = 1.0; //step along Y by pixels
+		} else {
+			LENGTH = abs(Xinc);
+			Yinc = Yinc / LENGTH; //note float division
+			Xinc = 1.0; //step along X by pixels
+		}
+		X = start.x;
+		Y = start.y;
+		for(int i = 0; i <= roundf(LENGTH); i++){ //do this at least once
+			writePointInTriangle(currTri, glm::vec2(X, Y), depthBuffer, resolution);
+			pixelsDrawn++;
+			X += Xinc;
+			Y += Yinc;
+		}
+	} //end else 'this is a line segment'
+	return pixelsDrawn;
 }
 
 __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat, glm::vec2 resolution){
