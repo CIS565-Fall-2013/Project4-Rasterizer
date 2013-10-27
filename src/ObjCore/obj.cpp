@@ -56,9 +56,9 @@ void obj::buildVBOs(){
 			for(int i=2; i<face.size(); i++){
 				glm::vec4 p1 = points[face[i-1]];
 				glm::vec4 p2 = points[face[i]];
-				VBOvec.push_back(p0[0]) ; VBOvec.push_back(p0[1]); VBOvec.push_back(p0[2]); //VBOvec.push_back(1.0f);
-				VBOvec.push_back(p1[0]); VBOvec.push_back(p1[1]); VBOvec.push_back(p1[2]); //VBOvec.push_back(1.0f);
-				VBOvec.push_back(p2[0]); VBOvec.push_back(p2[1]); VBOvec.push_back(p2[2]); //VBOvec.push_back(1.0f);
+				VBOvec.push_back(p0[0]) ; VBOvec.push_back(p0[1]); VBOvec.push_back(p0[2]); VBOvec.push_back(1.0f);
+				VBOvec.push_back(p1[0]); VBOvec.push_back(p1[1]); VBOvec.push_back(p1[2]); VBOvec.push_back(1.0f);
+				VBOvec.push_back(p2[0]); VBOvec.push_back(p2[1]); VBOvec.push_back(p2[2]); VBOvec.push_back(1.0f);
 
 				if(genNormals==false){
 					vector<int> facenormal = facenormals[k];
@@ -70,9 +70,9 @@ void obj::buildVBOs(){
 					glm::vec3 a = glm::vec3(p1[0], p1[1], p1[2]) - glm::vec3(p0[0], p0[1], p0[2]);
 					glm::vec3 b = glm::vec3(p2[0], p2[1], p2[2]) - glm::vec3(p0[0], p0[1], p0[2]);
 					glm::vec3 n = glm::normalize(glm::cross(a,b));
-					NBOvec.push_back(n[0]); NBOvec.push_back(n[1]); NBOvec.push_back(n[2]); //NBOvec.push_back(0.0f);
-					NBOvec.push_back(n[0]); NBOvec.push_back(n[1]); NBOvec.push_back(n[2]); //NBOvec.push_back(0.0f);
-					NBOvec.push_back(n[0]); NBOvec.push_back(n[1]); NBOvec.push_back(n[2]); //NBOvec.push_back(0.0f);
+					NBOvec.push_back(n[0]); NBOvec.push_back(n[1]); NBOvec.push_back(n[2]); NBOvec.push_back(0.0f);
+					NBOvec.push_back(n[0]); NBOvec.push_back(n[1]); NBOvec.push_back(n[2]); NBOvec.push_back(0.0f);
+					NBOvec.push_back(n[0]); NBOvec.push_back(n[1]); NBOvec.push_back(n[2]); NBOvec.push_back(0.0f);
 				}
 
 				IBOvec.push_back(index+0); IBOvec.push_back(index+1); IBOvec.push_back(index+2);

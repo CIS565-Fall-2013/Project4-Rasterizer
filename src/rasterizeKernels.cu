@@ -153,16 +153,16 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize)
 	  projection = glm::mat4 (1.0f);
 
 	  ModelViewProjection = projection * view * model;
-	  step = vbosize/3;
+	  step = vbosize/4;
   }
 
   __syncthreads ();
 
-  if(index<vbosize/3)
+  if(index<step)
   {
-	  glm::vec4 currentVertex (vbo [index], vbo [index+step], vbo [index+(2*step)], 1.0f);
+	  glm::vec4 currentVertex (vbo [index], vbo [index+step], vbo [index+(2*step)], vbo [index+(3*step)]);
 	  currentVertex = ModelViewProjection * currentVertex;
-	  vbo [index] = currentVertex.x;	vbo [index+step] = currentVertex.y;	vbo [index+(2*step)] = currentVertex.z;
+	  vbo [index] = currentVertex.x;	vbo [index+step] = currentVertex.y;	vbo [index+(2*step)] = currentVertex.z;	vbo [index+(3*step)] = currentVertex.w;
   }
 }
 
@@ -176,7 +176,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
 	  colourStep = cbosize / 3;
-	  vertStep = vbosize/3;
+	  vertStep = vbosize/4;
 	  indexStep = ibosize / 3;
   }
 
@@ -191,15 +191,15 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  
 	  int curIndex = ibo [index];
 	  thisTriangle.c0.x = cbo [curIndex];	thisTriangle.c0.y = cbo [curIndex + colourStep];	thisTriangle.c0.z = cbo [curIndex + (2*colourStep)];
-	  thisTriangle.p0.x = vbo [curIndex];	thisTriangle.p0.y = vbo [curIndex + vertStep];		thisTriangle.p0.z = vbo [curIndex + (2*vertStep)];
+	  thisTriangle.p0.x = vbo [curIndex];	thisTriangle.p0.y = vbo [curIndex + vertStep];		thisTriangle.p0.z = vbo [curIndex + (2*vertStep)];		thisTriangle.p0.w = vbo [curIndex + (3*vertStep)];
 
 	  curIndex = ibo [index+indexStep];
 	  thisTriangle.c1.x = cbo [curIndex];	thisTriangle.c1.y = cbo [curIndex + colourStep];	thisTriangle.c1.z = cbo [curIndex + (2*colourStep)];
-	  thisTriangle.p1.x = vbo [curIndex];	thisTriangle.p1.y = vbo [curIndex + vertStep];		thisTriangle.p1.z = vbo [curIndex + (2*vertStep)];
+	  thisTriangle.p1.x = vbo [curIndex];	thisTriangle.p1.y = vbo [curIndex + vertStep];		thisTriangle.p1.z = vbo [curIndex + (2*vertStep)];		thisTriangle.p1.w = vbo [curIndex + (3*vertStep)];
 
 	  curIndex = ibo [index+(2*indexStep)];
 	  thisTriangle.c2.x = cbo [curIndex];	thisTriangle.c2.y = cbo [curIndex + colourStep];	thisTriangle.c2.z = cbo [curIndex + (2*colourStep)];
-	  thisTriangle.p2.x = vbo [curIndex];	thisTriangle.p2.y = vbo [curIndex + vertStep];		thisTriangle.p2.z =	vbo [curIndex + (2*vertStep)];
+	  thisTriangle.p2.x = vbo [curIndex];	thisTriangle.p2.y = vbo [curIndex + vertStep];		thisTriangle.p2.z =	vbo [curIndex + (2*vertStep)];		thisTriangle.p2.w = vbo [curIndex + (3*vertStep)];
 	  
 	  primitives [index] = thisTriangle;
   }
@@ -322,17 +322,25 @@ __global__ void rasterizationKernel (triangle* primitive, fragment* depthbuffer,
 				  // Then, check if the pixel is inside tri.
 				  if (isBarycentricCoordInBounds (baryCoord))
 				  {  
-					  curFragment.color = baryCoord.r * currentPrim.c0 + 
-										  baryCoord.b * currentPrim.c1 + 
-										  baryCoord.g * currentPrim.c2;
+					  curFragment.color = baryCoord.x * currentPrim.c0 + 
+										  baryCoord.y * currentPrim.c1 + 
+										  baryCoord.z * currentPrim.c2;
 
 //					  curFragment.normal =	baryCoord.r * currentPrim.c0 + 
 //											baryCoord.b * currentPrim.c1 + 
 //											baryCoord.g * currentPrim.c2;
 					  
-					  curFragment.position = baryCoord.x * currentPrim.p0 + 
-											 baryCoord.y * currentPrim.p1 + 
-											 baryCoord.z * currentPrim.p2;
+					  curFragment.position.x =	baryCoord.x * currentPrim.p0.x + 
+												baryCoord.y * currentPrim.p1.x + 
+												baryCoord.z * currentPrim.p2.x;
+
+					  curFragment.position.y =	baryCoord.x * currentPrim.p0.y + 
+												baryCoord.y * currentPrim.p1.y + 
+												baryCoord.z * currentPrim.p2.y;
+
+					  curFragment.position.z =	baryCoord.x * currentPrim.p0.z + 
+												baryCoord.y * currentPrim.p1.z + 
+												baryCoord.z * currentPrim.p2.z;
 
 					  if (zBufferShared [threadIdx.x].position.z > curFragment.position.z)
 						  zBufferShared [threadIdx.x] = curFragment;
@@ -387,9 +395,6 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
 
-  float *perspectiveDivider = NULL;
-  cudaMalloc((void**)&perspectiveDivider, sizeof(float));
-
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
@@ -418,7 +423,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   tileSize = 32;
-  int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
+  int primitiveBlocks = ceil(((float)vbosize/4)/((float)tileSize));
 
   //------------------------------
   //vertex shader
@@ -437,15 +442,15 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   // Map to Screen Space
   //------------------------------
-  convertToScreenSpace<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, resolution);
+  convertToScreenSpace<<<primitiveBlocks, tileSize, tileSize>>>(primitives, ibosize/3, resolution);
   checkCUDAError("Conversion to Screen Space failed!");
   cudaDeviceSynchronize();
 
   //-----------------------------------------
   // Rasterization - rasterize each primitive
   //-----------------------------------------
-  for (int i = 0; i < (ibosize / 3);  i++)
-	  rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock>>>>(primitives+i, depthbuffer, resolution);
+  for (int i = 0; i<(ibosize / 3);  i++)
+	  rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y>>>>(&primitives[i], depthbuffer, resolution);
   checkCUDAError("Rasterization failed!");
   cudaDeviceSynchronize();
   //------------------------------
