@@ -40,6 +40,7 @@ using namespace std;
 //-------------------------------
 //------------GL STUFF-----------
 //-------------------------------
+glm::vec3 camPos;
 int frame;
 int fpstracker;
 double seconds;
