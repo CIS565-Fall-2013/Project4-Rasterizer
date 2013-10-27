@@ -325,9 +325,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::mat4 model = glm::rotate(glm::mat4(1), angleDeg, glm::vec3(0,1,0));
   glm::mat4 cameraMat = projection*view*model;
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMat, resolution);
-  float* transformedVerts = new float[vbosize];
-  cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
-  delete transformedVerts;
+  //float* transformedVerts = new float[vbosize];
+  //cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
+  //delete transformedVerts;
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -335,9 +335,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
-  triangle* assembledTris = new triangle[ibosize/3];
-  cudaMemcpy( assembledTris, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost);
-  delete assembledTris;
+  //triangle* assembledTris = new triangle[ibosize/3];
+  //cudaMemcpy( assembledTris, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost);
+  //delete assembledTris;
 
   cudaDeviceSynchronize();
   //------------------------------
