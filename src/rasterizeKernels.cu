@@ -97,6 +97,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       fragment f = frag;
       f.position.x = x;
       f.position.y = y;
+	  f.position.z = 1e6;
       buffer[index] = f;
     }
 }
@@ -204,8 +205,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   }
 }
 
-//TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution)
+// Converts all triangls to screen space.
+__global__ void convertToScreenSpace(triangle* primitives, int primitivesCount, glm::vec2 resolution)
 {
   extern __shared__ triangle primitiveShared [];
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -257,9 +258,11 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  
 	  primitiveShared [threadIdx.x].p2.x *= resolution.x;
 	  primitiveShared [threadIdx.x].p2.y *= resolution.y;
+
+	  primitives [index] = primitiveShared [threadIdx.x];
   }
 
-  __syncthreads ();
+//  __syncthreads ();
 
   //if(index<primitivesCount)
   //{
@@ -276,12 +279,78 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   //}
 }
 
+// Core rasterization.
+__global__ void rasterizationKernel (triangle* primitive, fragment* depthbuffer, glm::vec2 resolution)
+{
+  extern __shared__ fragment zBufferShared [];
+  __shared__ triangle	currentPrim;
+  __shared__ glm::vec2  bBoxMin;
+  __shared__ glm::vec2	bBoxMax;
+
+  if ((threadIdx.x == 0) && (threadIdx.y == 0))
+	  currentPrim = *primitive; 
+  int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+  int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+  int index = (y * resolution.x) + x;
+
+  if (index < (resolution.x*resolution.y))
+	  zBufferShared [threadIdx.x] = depthbuffer [index];
+
+  if ((threadIdx.x == 0) && (threadIdx.y == 0))
+  {
+		// Calculate the bounding box of primitive.
+		bBoxMin.x = min (currentPrim.p0.x, min (currentPrim.p1.x, currentPrim.p2.x));
+		bBoxMax.x = max (currentPrim.p0.x, max (currentPrim.p1.x, currentPrim.p2.x));
+
+  		bBoxMin.y = min (currentPrim.p0.y, min (currentPrim.p1.y, currentPrim.p2.y));
+		bBoxMax.y = max (currentPrim.p0.y, max (currentPrim.p1.y, currentPrim.p2.y));
+  }
+  __syncthreads ();
+
+  if ((x < resolution.x) && (y < resolution.y))
+  {
+	  // Throw out current primitive if it's back facing (Back Face Culling).
+	  // Here, we simply do nothing.
+	  if (calculateSignedArea (currentPrim) > 0)
+	  {
+		  // Next, check if the pixel handled by the current thread is inside the bounding box of tri.
+		  if ((x >= bBoxMin.x) && (x <= bBoxMax.x))
+			  if ((y >= bBoxMin.y) && (y <= bBoxMax.y))
+			  {
+				  fragment	curFragment;
+				  glm::vec3 baryCoord = calculateBarycentricCoordinate (currentPrim, glm::vec2 (x,y));
+				  // Then, check if the pixel is inside tri.
+				  if (isBarycentricCoordInBounds (baryCoord))
+				  {  
+					  curFragment.color = baryCoord.r * currentPrim.c0 + 
+										  baryCoord.b * currentPrim.c1 + 
+										  baryCoord.g * currentPrim.c2;
+
+//					  curFragment.normal =	baryCoord.r * currentPrim.c0 + 
+//											baryCoord.b * currentPrim.c1 + 
+//											baryCoord.g * currentPrim.c2;
+					  
+					  curFragment.position = baryCoord.x * currentPrim.p0 + 
+											 baryCoord.y * currentPrim.p1 + 
+											 baryCoord.z * currentPrim.p2;
+
+					  if (zBufferShared [threadIdx.x].position.z > curFragment.position.z)
+						  zBufferShared [threadIdx.x] = curFragment;
+				  }
+			  }
+
+		  depthbuffer [index] = zBufferShared [threadIdx.x];
+	  }
+  }
+}
+
 //TODO: Implement a fragment shader
 __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 {
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
+  
   if(x<=resolution.x && y<=resolution.y)
   {
 	  ;
@@ -305,7 +374,6 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize)
 {
-
   // set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -318,6 +386,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //set up depthbuffer
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
+
+  float *perspectiveDivider = NULL;
+  cudaMalloc((void**)&perspectiveDivider, sizeof(float));
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
@@ -353,26 +424,35 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //vertex shader
   //------------------------------
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
-
+  checkCUDAError("Vertex shader failed!");
   cudaDeviceSynchronize();
   //------------------------------
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
-
+  checkCUDAError("Primitive Assembly failed!");
   cudaDeviceSynchronize();
-  //------------------------------
-  //rasterization
-  //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
 
+  //------------------------------
+  // Map to Screen Space
+  //------------------------------
+  convertToScreenSpace<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, resolution);
+  checkCUDAError("Conversion to Screen Space failed!");
+  cudaDeviceSynchronize();
+
+  //-----------------------------------------
+  // Rasterization - rasterize each primitive
+  //-----------------------------------------
+  for (int i = 0; i < (ibosize / 3);  i++)
+	  rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock>>>>(primitives+i, depthbuffer, resolution);
+  checkCUDAError("Rasterization failed!");
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
   //------------------------------
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
-
+  checkCUDAError("Fragment shader failed!");
   cudaDeviceSynchronize();
   //------------------------------
   //write fragments to framebuffer

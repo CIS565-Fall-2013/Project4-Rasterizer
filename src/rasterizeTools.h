@@ -75,4 +75,100 @@ __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle 
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
 }
 
+__host__ __device__ void clipToScreenTransform (triangle &primitive, glm::vec2 resolution)
+{
+	// Convert clip space coordinates to NDC (a.k.a. Perspective divide).
+	primitive.p0.x /= primitive.p0.w;
+	primitive.p0.y /= primitive.p0.w;
+	primitive.p0.z /= primitive.p0.w;
+
+	primitive.p1.x /= primitive.p1.w;
+	primitive.p1.y /= primitive.p1.w;
+	primitive.p1.z /= primitive.p1.w;
+
+	primitive.p2.x /= primitive.p2.w;
+	primitive.p2.y /= primitive.p2.w;
+	primitive.p2.z /= primitive.p2.w;
+
+	// Rescale NDC to be in the range 0.0 to 1.0.
+	primitive.p0.x += 1.0f;
+	primitive.p0.x /= 2.0f;
+	primitive.p0.y += 1.0f;
+	primitive.p0.y /= 2.0f;
+	primitive.p0.z += 1.0f;
+	primitive.p0.z /= 2.0f;
+
+	primitive.p1.x += 1.0f;
+	primitive.p1.x /= 2.0f;
+	primitive.p1.y += 1.0f;
+	primitive.p1.y /= 2.0f;
+	primitive.p1.z += 1.0f;
+	primitive.p1.z /= 2.0f;
+
+	primitive.p2.x += 1.0f;
+	primitive.p2.x /= 2.0f;
+	primitive.p2.y += 1.0f;
+	primitive.p2.y /= 2.0f;
+	primitive.p2.z += 1.0f;
+	primitive.p2.z /= 2.0f;
+
+	// Now multiply with resolution to get screen co-ordinates.
+	primitive.p0.x *= resolution.x;
+	primitive.p0.y *= resolution.y;
+	  
+	primitive.p1.x *= resolution.x;
+	primitive.p1.y *= resolution.y;
+	  
+	primitive.p2.x *= resolution.x;
+	primitive.p2.y *= resolution.y;
+}
+
+__host__ __device__ void screenToClipTransform (triangle &primitive, glm::vec2 resolution)
+{
+	// Divide with resolution to get NDC.
+	primitive.p0.x /= resolution.x;
+	primitive.p0.y /= resolution.y;
+	  
+	primitive.p1.x /= resolution.x;
+	primitive.p1.y /= resolution.y;
+	  
+	primitive.p2.x /= resolution.x;
+	primitive.p2.y /= resolution.y;
+
+	// Rescale NDC to be in the range -1.0 to 1.0.
+	primitive.p0.x *= 2.0f;
+	primitive.p0.x -= 1.0f;
+	primitive.p0.y *= 2.0f;
+	primitive.p0.y -= 1.0f;
+	primitive.p0.z *= 2.0f;
+	primitive.p0.z -= 1.0f;
+
+	primitive.p1.x *= 2.0f;
+	primitive.p1.x -= 1.0f;
+	primitive.p1.y *= 2.0f;
+	primitive.p1.y -= 1.0f;
+	primitive.p1.z *= 2.0f;
+	primitive.p1.z -= 1.0f;
+
+	primitive.p2.x *= 2.0f;
+	primitive.p2.x -= 1.0f;
+	primitive.p2.y *= 2.0f;
+	primitive.p2.y -= 1.0f;
+	primitive.p2.z *= 2.0f;
+	primitive.p2.z -= 1.0f;
+
+	// Convert NDC to clip space coordinates
+	primitive.p0.x *= primitive.p0.w;
+	primitive.p0.y *= primitive.p0.w;
+	primitive.p0.z *= primitive.p0.w;
+
+	primitive.p1.x *= primitive.p1.w;
+	primitive.p1.y *= primitive.p1.w;
+	primitive.p1.z *= primitive.p1.w;
+
+	primitive.p2.x *= primitive.p2.w;
+	primitive.p2.y *= primitive.p2.w;
+	primitive.p2.z *= primitive.p2.w;
+}
+
 #endif
