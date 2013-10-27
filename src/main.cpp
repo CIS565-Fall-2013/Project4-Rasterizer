@@ -200,10 +200,10 @@ void runCuda(){
 	   case(100): //D
          camPos.x += 0.1f;  
          break;
-	   case(81): //Q
+	   case(113): //Q
          camPos.z -= 0.1f;  
          break;
-	   case(69): //E
+	   case(101): //E
          camPos.z += 0.1f;  
          break;
     }
