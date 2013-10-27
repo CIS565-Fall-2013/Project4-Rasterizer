@@ -21,7 +21,9 @@
 #include <time.h>
 #include "glslUtility.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "rasterizeKernels.h"
+#include "structs.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
 
@@ -61,6 +63,24 @@ int* ibo;
 int ibosize;
 
 //-------------------------------
+//--------CAMERA STUFF-----------
+//-------------------------------
+// Camera Parameters
+camera cam;
+float zNear = 1.0f;
+float zFar = 100.0f;
+
+// Transformation
+glm::mat4* model;
+glm::mat4* view;
+glm::mat4* projection;
+cudaMat4* transformModel2Projection;
+
+// Mouse Interaction
+int lastX = 0;
+int lastY = 0;
+
+//-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------
 
@@ -83,6 +103,7 @@ void runCuda();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void special_function(int key, int x, int y);
 #endif
 
 //-------------------------------

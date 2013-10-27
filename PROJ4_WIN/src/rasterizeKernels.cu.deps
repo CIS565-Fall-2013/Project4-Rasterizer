@@ -1,18 +1,18 @@
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\host_config.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\sal.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\sal.h
 c:\program files (x86)\microsoft visual studio 10.0\vc\include\codeanalysis\sourceannotations.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\vadefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\vadefs.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\builtin_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\device_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\host_defines.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\driver_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\host_defines.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\limits.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stddef.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\limits.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stddef.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\surface_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\driver_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\texture_types.h
@@ -68,12 +68,12 @@ c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\surface_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\texture_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\vector_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\host_defines.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\string.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\time.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wtime.inl
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\time.inl
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\string.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\time.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wtime.inl
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\time.inl
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\math_functions.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\builtin_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\device_types.h
@@ -82,16 +82,16 @@ c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\surface_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\texture_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\vector_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\host_defines.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\math.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stdlib.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cmath
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\yvals.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\use_ansi.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\math.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstdlib
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\math.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stdlib.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cmath
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\yvals.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\use_ansi.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\math.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstdlib
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\cuda_surface_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\builtin_types.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\device_types.h
@@ -239,9 +239,9 @@ c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\host_defines.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\vector_functions.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\device_launch_parameters.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\vector_types.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stdio.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\swprintf.inl
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stdio.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\swprintf.inl
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config.h
@@ -259,81 +259,81 @@ C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/co
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/hd_warning_disable.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/cstdint.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/discard_block_engine.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iostream
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\istream
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ostream
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ios
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xlocnum
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\climits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstdio
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\streambuf
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xiosbase
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xlocale
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstring
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stdexcept
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\exception
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstddef
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstddef
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\eh.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\malloc.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstring
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmemory
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\new
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xutility
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\utility
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iosfwd
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cwchar
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wchar.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdbg.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\type_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\limits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ymath.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cfloat
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\float.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtwrn.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xtr1common
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\typeinfo
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xlocinfo
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xlocinfo.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ctype.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\locale.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xdebug
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\system_error
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cerrno
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\errno.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\share.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iostream
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\istream
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ostream
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ios
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xlocnum
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\climits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstdio
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\streambuf
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xiosbase
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xlocale
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstring
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\stdexcept
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\exception
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstddef
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstddef
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\eh.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\malloc.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstring
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmemory
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\new
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xutility
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\utility
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iosfwd
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cwchar
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wchar.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdbg.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\type_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\limits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ymath.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cfloat
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\float.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtwrn.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xtr1common
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxtype_traits
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\typeinfo
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xlocinfo
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xlocinfo.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ctype.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\locale.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xdebug
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\system_error
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cerrno
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\errno.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\share.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/random_core_access.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/discard_block_engine.inl
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/linear_congruential_engine.h
@@ -363,217 +363,228 @@ C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/no
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/normal_distribution_base.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/normal_distribution.inl
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\math_constants.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\rasterizeKernels.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\rasterizeKernels.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm/glm.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/_fixes.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/setup.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/_detail.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\setup.hpp
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cassert
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\assert.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/type.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_half.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_half.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_detail.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_half.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\setup.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\setup.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_detail.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_gentype.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec1.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_gentype.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle_func.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec1.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec2.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec2.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec3.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec3.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec4.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec4.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x2.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_gentype.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x2.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x3.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x3.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x4.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x4.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x2.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x2.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x3.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x3.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x4.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x4.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x2.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x2.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x3.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x3.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x4.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x4.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_trigonometric.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_trigonometric.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_exponential.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_exponential.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_common.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_fixes.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_common.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_packing.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_packing.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_geometric.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_geometric.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_matrix.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_matrix.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_vector_relational.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_detail.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_vector_relational.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_integer.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_integer.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_noise.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_noise.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/_swizzle.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/setup.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/_detail.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\setup.hpp
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cassert
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\assert.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/type.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_half.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_half.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_detail.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_float.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_half.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\setup.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_int.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\setup.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_detail.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_gentype.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_size.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec1.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_gentype.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_float.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_int.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_size.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_swizzle.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_swizzle_func.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec1.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec2.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_float.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_int.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_size.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_swizzle.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec2.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec3.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_float.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_int.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_size.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_swizzle.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec3.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec4.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_float.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_int.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_size.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_swizzle.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_vec4.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat2x2.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_gentype.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat2x2.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat2x3.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat2x3.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat2x4.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat2x4.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat3x2.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat3x2.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat3x3.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat3x3.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat3x4.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat3x4.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat4x2.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat4x2.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat4x3.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat4x3.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat4x4.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\type_mat4x4.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_trigonometric.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_trigonometric.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_vectorize.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_exponential.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_exponential.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_vectorize.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_common.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_fixes.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_common.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_vectorize.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_packing.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_packing.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_geometric.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_geometric.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_vectorize.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_matrix.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_matrix.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_vectorize.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_vector_relational.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_detail.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_vector_relational.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_integer.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_integer.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\_vectorize.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/func_noise.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core\func_noise.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\./core/_swizzle.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/gtc/matrix_transform.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\gtc\../glm.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\gtc\matrix_transform.inl
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\rasterizeTools.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm/glm.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/_fixes.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\utilities.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm/glm.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/_fixes.hpp
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\algorithm
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\memory
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\intrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\setjmp.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\immintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\nmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\smmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\tmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\pmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\emmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mm3dnow.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iterator
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\sstream
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\string
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\vector
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfunctional
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\cudaMat4.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm/glm.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/_fixes.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\rasterizeTools.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\utilities.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\algorithm
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\memory
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\intrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\setjmp.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\immintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\nmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\smmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\tmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\pmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\emmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ammintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mm3dnow.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iterator
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\sstream
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\string
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\vector
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfunctional
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\structs.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\cudaMat4.h
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h

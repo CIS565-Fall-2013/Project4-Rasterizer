@@ -135,9 +135,13 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, const cudaMat4* transform){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
+    glm::vec3 newVertex = multiplyMV(*transform, glm::vec4(vbo[3 * index], vbo[3 * index + 1], vbo[3 * index + 2], 1.0f));
+    vbo[3 * index]     = newVertex.x;
+	vbo[3 * index + 1] = newVertex.y;
+	vbo[3 * index + 2] = newVertex.z;
   }
 }
 
@@ -146,6 +150,16 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
+    // The actual indices of vertices are stored in the index buffer object.
+    const int* vertexIndex = &ibo[3 * index];
+    primitives[index].p0 = glm::vec3(vbo[3 * vertexIndex[0]], vbo[3 * vertexIndex[0] +1], vbo[3 * vertexIndex[0] + 2]);
+	primitives[index].p1 = glm::vec3(vbo[3 * vertexIndex[1]], vbo[3 * vertexIndex[1] +1], vbo[3 * vertexIndex[1] + 2]);
+	primitives[index].p2 = glm::vec3(vbo[3 * vertexIndex[2]], vbo[3 * vertexIndex[2] +1], vbo[3 * vertexIndex[2] + 2]);
+
+    // The size of cbo is nine, only needs to give the nine RGB values to the color in the triangle variable's color vector.
+    primitives[index].c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
+	primitives[index].c1 = glm::vec3(cbo[3], cbo[4], cbo[5]);
+	primitives[index].c2 = glm::vec3(cbo[6], cbo[7], cbo[8]);
   }
 }
 
@@ -153,6 +167,39 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+    // Initialize triangle and min max vectors so as to obtain the bounds.
+    triangle currentTriangle = primitives[index];
+	glm::vec3 minPoint, maxPoint;
+	getAABBForTriangle(currentTriangle, minPoint, maxPoint);
+    
+	// Clipping the points outside the  image inside.
+    minPoint.x = minPoint.x < 0 ? 0 : minPoint.x;
+    minPoint.y = minPoint.y < 0 ? 0 : minPoint.y;
+	maxPoint.x = maxPoint.x > resolution.x ? 0 : maxPoint.x;
+	maxPoint.y = maxPoint.y > resolution.y ? 0 : maxPoint.y;
+
+    // Loop and rasterize the interpolated area across the current primitive.
+    int idx;
+	float depth = 0;
+    for (int y = minPoint.y; y < maxPoint.y; ++ y) {
+      for (int x = minPoint.x; x < minPoint.x; ++ x) {
+        idx = y * resolution.x + x; 
+        glm::vec3 barycentricCoordinates = calculateBarycentricCoordinate(currentTriangle, glm::vec2(x, y));
+        
+        // Determine whether the current pixel is within the bounds of the current primitive
+        if (isBarycentricCoordInBounds(barycentricCoordinates)) {
+          depth = getZAtCoordinate(barycentricCoordinates, currentTriangle);
+          // Depth Test
+		  if(depth < depthbuffer[index].position.z) {
+              depthbuffer[index].position.x = x;
+              depthbuffer[index].position.y = y;
+              depthbuffer[index].position.z = depth;
+			  depthbuffer[index].normal = glm::normalize(glm::cross(currentTriangle.p0 - currentTriangle.p1, currentTriangle.p0 - currentTriangle.p1));
+			  depthbuffer[index].color = barycentricCoordinates.x * currentTriangle.c0 + barycentricCoordinates.y * currentTriangle.c1 + barycentricCoordinates.z * currentTriangle.c2;
+		  }
+		}
+	  } // for x
+	} // for y
   }
 }
 
@@ -178,8 +225,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
-
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform){
+  
   // set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -208,14 +255,17 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitives = NULL;
   cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
 
+  // Index Buffer Object
   device_ibo = NULL;
   cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
   cudaMemcpy( device_ibo, ibo, ibosize*sizeof(int), cudaMemcpyHostToDevice);
 
+  // Vertex Buffer Object
   device_vbo = NULL;
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
+  // Color Buffer Object
   device_cbo = NULL;
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
@@ -226,7 +276,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, transform);
 
   cudaDeviceSynchronize();
   //------------------------------

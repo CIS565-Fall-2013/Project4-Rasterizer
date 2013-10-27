@@ -2,6 +2,7 @@
 // Written by Yining Karl Li, Copyright (c) 2012 University of Pennsylvania
 
 #include "main.h"
+#include "structs.h"
 
 //-------------------------------
 //-------------MAIN--------------
@@ -29,6 +30,17 @@ int main(int argc, char** argv){
     return 0;
   }
 
+  // Initialization of camera parameters
+  cam.position = glm::vec3(1.0f, 1.0f, 1.35f);
+  cam.up       = glm::vec3(0.0f, 0.0f, 1.0f);
+  cam.fovy     = 60.0f;
+
+  // Initialize transformation
+  model      = new glm::mat4(1.0f);
+  view       = new glm::mat4(glm::lookAt(cam.position, glm::vec3(0.0f), cam.up));
+  projection = new glm::mat4(glm::perspective(cam.fovy, (float)width / height, zNear, zFar));
+  transformModel2Projection  = new cudaMat4(utilityCore::glmMat4ToCudaMat4(*projection * *view * *model));
+
   frame = 0;
   seconds = time (NULL);
   fpstracker = 0;
@@ -44,7 +56,7 @@ int main(int argc, char** argv){
   #else
   init(argc, argv);
   #endif
-
+  
   initCuda();
 
   initVAO();
@@ -71,6 +83,7 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+    glutSpecialFunc(special_function);
 
     glutMainLoop();
   #endif
@@ -81,6 +94,7 @@ int main(int argc, char** argv){
 //-------------------------------
 //---------RUNTIME STUFF---------
 //-------------------------------
+
 
 void runCuda(){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
@@ -99,8 +113,12 @@ void runCuda(){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+  // Update view and model to projection transform matrices in each step when interacting with keyboard or mouse
+  /**view = glm::lookAt(cam.position, glm::vec3(0.0f), cam.up);
+  *transformModel2Projection = utilityCore::glmMat4ToCudaMat4(*projection * *view * *model);
+  */
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -146,9 +164,11 @@ void runCuda(){
   }
 
 #else
-
+bool pauseFlag = false;
   void display(){
-    runCuda();
+    //if(!pauseFlag)
+      runCuda();
+
 	time_t seconds2 = time (NULL);
 
     if(seconds2-seconds >= 1){
@@ -159,7 +179,7 @@ void runCuda(){
 
     }
 
-    string title = "CIS565 Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS";
+    string title = "CIS565 Rasterizer of Qiong Wang| "+ utilityCore::convertIntToString((int)fps) + "FPS";
     glutSetWindowTitle(title.c_str());
 
     glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);
@@ -183,7 +203,34 @@ void runCuda(){
        case(27):
          shut_down(1);    
          break;
+	   case(' '):
+         pauseFlag = ! pauseFlag;
+		 break;
+
     }
+  }
+
+  void special_function(int key, int x, int y)
+  {// callback function for glutSpecialFunc
+    switch (key)
+    {
+      case(GLUT_KEY_UP):
+        cam.position -= 0.1f * cam.position;        
+        initCuda();
+        break;
+      case(GLUT_KEY_DOWN):
+        cam.position += 0.1f * cam.position;
+        initCuda();
+        break;
+	  case(GLUT_KEY_LEFT):
+        //need added
+        break;
+	  case(GLUT_KEY_RIGHT):
+		//need added;
+        break;
+    }
+    // glutPostRedisplay();
+    return;
   }
 
 #endif
