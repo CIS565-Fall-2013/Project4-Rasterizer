@@ -212,6 +212,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   if(index<primitivesCount)
   {
 	  primitiveShared [threadIdx.x] = primitives [index];
+	  
+	  // Convert clip space coordinates to NDC (a.k.a. Perspective divide).
 	  primitiveShared [threadIdx.x].p0.x /= primitiveShared [threadIdx.x].p0.w;
 	  primitiveShared [threadIdx.x].p0.y /= primitiveShared [threadIdx.x].p0.w;
 	  primitiveShared [threadIdx.x].p0.z /= primitiveShared [threadIdx.x].p0.w;
@@ -224,22 +226,54 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  primitiveShared [threadIdx.x].p2.y /= primitiveShared [threadIdx.x].p2.w;
 	  primitiveShared [threadIdx.x].p2.z /= primitiveShared [threadIdx.x].p2.w;
 
+	  // Rescale NDC to be in the range 0.0 to 1.0.
+	  primitiveShared [threadIdx.x].p0.x += 1.0f;
+	  primitiveShared [threadIdx.x].p0.x /= 2.0f;
+	  primitiveShared [threadIdx.x].p0.y += 1.0f;
+	  primitiveShared [threadIdx.x].p0.y /= 2.0f;
+	  primitiveShared [threadIdx.x].p0.z += 1.0f;
+	  primitiveShared [threadIdx.x].p0.z /= 2.0f;
 
+	  primitiveShared [threadIdx.x].p1.x += 1.0f;
+	  primitiveShared [threadIdx.x].p1.x /= 2.0f;
+	  primitiveShared [threadIdx.x].p1.y += 1.0f;
+	  primitiveShared [threadIdx.x].p1.y /= 2.0f;
+	  primitiveShared [threadIdx.x].p1.z += 1.0f;
+	  primitiveShared [threadIdx.x].p1.z /= 2.0f;
+
+	  primitiveShared [threadIdx.x].p2.x += 1.0f;
+	  primitiveShared [threadIdx.x].p2.x /= 2.0f;
+	  primitiveShared [threadIdx.x].p2.y += 1.0f;
+	  primitiveShared [threadIdx.x].p2.y /= 2.0f;
+	  primitiveShared [threadIdx.x].p2.z += 1.0f;
+	  primitiveShared [threadIdx.x].p2.z /= 2.0f;
+
+	  // Now multiply with resolution to get screen co-ordinates.
+	  primitiveShared [threadIdx.x].p0.x *= resolution.x;
+	  primitiveShared [threadIdx.x].p0.y *= resolution.y;
+	  
+	  primitiveShared [threadIdx.x].p1.x *= resolution.x;
+	  primitiveShared [threadIdx.x].p1.y *= resolution.y;
+	  
+	  primitiveShared [threadIdx.x].p2.x *= resolution.x;
+	  primitiveShared [threadIdx.x].p2.y *= resolution.y;
   }
 
   __syncthreads ();
 
-  if(index<primitivesCount)
-  {
-	  fragment	curFragment;
-	  curFragment.position.z = 1e6;
-	  // First, throw out all back facing tris (Back Face Culling).
-	  // Here, we simply do nothing if we find such a tri.
-	  if (calculateSignedArea (primitiveShared [threadIdx.x]) > 0)
-	  {
-		  primitiveShared [threadIdx.x].;
-	  }
-  }
+  //if(index<primitivesCount)
+  //{
+	 // fragment	curFragment;
+	 // curFragment.position.z = 1e6;
+	 // // First, throw out all back facing tris (Back Face Culling).
+	 // // Here, we simply do nothing if we find such a tri.
+	 // if (calculateSignedArea (primitiveShared [threadIdx.x]) > 0)
+	 // {
+		//  // Next, check if the pixel handled by the current thread is inside the bounding box of tri.
+		//  if (
+		//  primitiveShared [threadIdx.x].;
+	 // }
+  //}
 }
 
 //TODO: Implement a fragment shader
