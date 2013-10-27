@@ -10,19 +10,20 @@
 int main(int argc, char** argv){
 
   bool loadedScene = false;
-  for(int i=1; i<argc; i++){
+  //for(int i=1; i<argc; i++){
     string header; string data;
-    istringstream liness(argv[i]);
-    getline(liness, header, '='); getline(liness, data, '=');
-    if(strcmp(header.c_str(), "mesh")==0){
+    //istringstream liness(argv[i]);
+    //getline(liness, header, '='); getline(liness, data, '=');
+    //if(strcmp(header.c_str(), "mesh")==0){
       //renderScene = new scene(data);
+	  data = "../../objs/cow.obj";
       mesh = new obj();
       objLoader* loader = new objLoader(data, mesh);
       mesh->buildVBOs();
       delete loader;
       loadedScene = true;
-    }
-  }
+    //}
+  //}
 
   if(!loadedScene){
     cout << "Usage: mesh=[obj file]" << endl;
@@ -89,23 +90,56 @@ void runCuda(){
 
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
+  
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+ 
 
-  float newcbo[] = {0.0, 1.0, 0.0, 
+  float newcbo[] = {1.0, 1.0, 0.0, 
+                    0.0, 1.0, 1.0, 
+                    1.0, 0.0, 1.0,
+  
+					0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
+                    1.0, 0.0, 0.0,
+  
+					0.0, 1.0, 0.0, 
+                    0.0, 0.0, 1.0, 
+                    };
   cbo = newcbo;
-  cbosize = 9;
+  cbosize = 24;
 
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
+  
+  //Time
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord( start, 0);
+
+  /* for(int i = 0; i < vbosize/3; i++)
+  {
+	  cout<<vbo[i*3]<<" "<<vbo[i*3+1]<<" "<<vbo[i*3+2]<<endl;
+  }*/
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, projection*modelView, viewPort, lightPos, cameraPosition, lookat);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
   cbo = NULL;
   ibo = NULL;
+  nbo = NULL;
+
+
+  cudaEventRecord( stop, 0);
+  cudaEventSynchronize( stop );
+
+  float seconds = 0.0f;
+  cudaEventElapsedTime( &seconds, start, stop);
+  
+  printf("time %f \n", seconds);
 
   frame++;
   fpstracker++;
@@ -253,6 +287,12 @@ void initCuda(){
 
   initPBO(&pbo);
 
+  modelView = glm::lookAt(cameraPosition, lookat, up);
+  projection = glm::perspective(fovy, float(width) / float(height), 0.1f, 10.f);  
+  viewPort[0] = glm::vec4(-float(width)/2,0,0,0.0f);
+  viewPort[1] = glm::vec4(0,-(float)height/2,0,0.0f);
+  viewPort[2] = glm::vec4(0,0,1.f/2.0f,0.0f);
+  viewPort[3] = glm::vec4((float)width/2,(float)height/2,1.0f/2.0f,1.0f);
   // Clean up on program exit
   atexit(cleanupCuda);
 
