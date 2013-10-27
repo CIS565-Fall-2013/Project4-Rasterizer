@@ -155,6 +155,8 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 	float X, Y, Xinc, Yinc, LENGTH;
 	Xinc = finish.x - start.x;
 	Yinc = finish.y - start.y;
+	int sgnXinc = Xinc > 0 ? 1 : -1;
+	int sgnYinc = Yinc > 0 ? 1 : -1;
 	int pixelsDrawn = 0;
 	//if both zero, then we just draw a point.
 	if( (abs(Xinc) < NATHANS_EPSILON) && (abs(Yinc) < NATHANS_EPSILON) ){
@@ -165,11 +167,11 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 		if(abs(Yinc) > abs(Xinc)){
 			LENGTH = abs(Yinc);
 			Xinc = Xinc / LENGTH; //note float division
-			Yinc = 1.0; //step along Y by pixels
+			Yinc = sgnYinc * 1.0; //step along Y by pixels
 		} else {
 			LENGTH = abs(Xinc);
 			Yinc = Yinc / LENGTH; //note float division
-			Xinc = 1.0; //step along X by pixels
+			Xinc = sgnXinc * 1.0; //step along X by pixels
 		}
 		X = start.x;
 		Y = start.y;
