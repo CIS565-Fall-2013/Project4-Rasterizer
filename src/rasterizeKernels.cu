@@ -8,6 +8,7 @@
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
 #include "glm/gtc/matrix_transform.hpp"
+#define NATHANS_EPSILON 0.0001
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -135,6 +136,31 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
   }
 }
 
+//"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be writte to
+__device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution){
+	fragment currFrag;
+	currFrag.color = currTri.c0; //assume the tri is all one color for now.
+	glm::vec3 currBaryCoords = calculateBarycentricCoordinate(currTri, xyCoords);
+	float fragZ = getZAtCoordinate(currBaryCoords, currTri);
+	currFrag.position = glm::vec3(xyCoords.x, xyCoords.y, fragZ);
+	int pixX = roundf(xyCoords.x);
+	int pixY = roundf(xyCoords.y);
+	//TODO: incorporate the normal in here **somewhere**
+	writeToDepthbuffer(pixX, pixY, currFrag, depthBuffer, resolution);
+}
+
+//Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
+__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, glm::vec2 resolution, triangle currTri){
+	float X, Y, Xinc, Yinc, LENGTH;
+	int i;
+	Xinc = finish.x - start.x;
+	Yinc = finish.y - finish.y;
+	if( (abs(Xinc) < NATHANS_EPSILON) && (abs(Yinc) < NATHANS_EPSILON) ){
+		
+	}
+	return -1; //TODO: change this to an actual result
+}
+
 __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMat, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){ //each thread acts per vertex.
@@ -166,10 +192,6 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  currTri.c2 = glm::vec3(cbo[3*ind2], cbo[3*ind2 + 1], cbo[3*ind2 + 2]);
 	  primitives[index] = currTri;
   }
-}
-
-__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, glm::vec2 resolution){
-	return -1; //error
 }
 
 //TODO: Implement a rasterization method, such as scanline.
