@@ -263,7 +263,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float angleDeg){
 
   // set up crucial magic
   int tileSize = 8;
@@ -321,7 +321,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::vec3 eye(0,0,1);
   glm::mat4 projection = glm::perspective(fovy, aspectRatio, zNear, zFar);
   glm::mat4 view = glm::lookAt(eye, center, up);
-  glm::mat4 cameraMat = projection*view;
+  //float angleRad = angleDeg * PI/180;
+  glm::mat4 model = glm::rotate(glm::mat4(1), angleDeg, glm::vec3(0,1,0));
+  glm::mat4 cameraMat = projection*view*model;
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMat, resolution);
   float* transformedVerts = new float[vbosize];
   cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);

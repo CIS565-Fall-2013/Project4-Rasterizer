@@ -101,7 +101,8 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  float angleDeg = frame%360; //rotation angle of the model in degrees
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, angleDeg);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
