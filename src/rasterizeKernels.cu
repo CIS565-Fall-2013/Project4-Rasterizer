@@ -146,7 +146,7 @@ __device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragm
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
-	writeToDepthbuffer(pixX, pixY, currFrag, depthBuffer, resolution);
+	writeToDepthbuffer(pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution);
 }
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
