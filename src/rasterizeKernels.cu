@@ -276,7 +276,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  glm::vec3 p2;
 	  //we want to sort p0, p1, p2, such that p0 has the highest y-value, p1 second highest, p2 lowest. 
 	  //There are 6 possible permutations:
-	  if(p0.y >= p1.y && p0.y >= p2.y){ //p0 has greatest y
+	  if(p0.y > p1.y && p0.y > p2.y){ //p0 has greatest y
 		  if(p1.y > p2.y){ //p0.y >= p1.y >= p2.y
 			  p0 = currTri.p0;
 			  p1 = currTri.p1;
@@ -286,7 +286,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  p1 = currTri.p2;
 			  p2 = currTri.p1;
 		  }
-	  } else if( p1.y >= p0.y && p1.y >= p2.y) { //p1 has greatest y
+	  } else if( p1.y > p0.y && p1.y > p2.y) { //p1 has greatest y
 		  if(p0.y > p2.y){ //p1.y >= p0.y >= p2.y
 			  p0 = currTri.p1;
 			  p1 = currTri.p0;
@@ -317,13 +317,14 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
 	  float triHeight = (p2.y - p0.y);
+	  //printf("P0's y %f, P1's y %f P2's y %f\n", p0.y, p1.y, p2.y);
 	  if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
 		  float topHeight = (p1.y - p0.y);
 		  glm::vec2 gradToMiddle, gradToBottom;
 		  glm::vec2 rasterStart, rasterEnd;
-		  gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, 1);
+		  gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, -1);
 		  if( abs(topHeight) > NATHANS_EPSILON ){ //top is not flat
-			  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, 1);
+			  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, -1);
 			  rasterStart = glm::vec2(p0);
 			  rasterEnd = glm::vec2(p0);
 			  while(rasterStart.y >= p1.y && rasterEnd.y >= p1.y){
@@ -337,7 +338,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  }
 		  float bottomHeight = (p2.y - p1.y);
 		  if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
-			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight,1);
+			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, -1);
 			  while(rasterStart.y >= p2.y && rasterEnd.y >= p2.y){
 				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri);
 				  rasterStart += gradToBottom;
