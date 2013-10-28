@@ -304,6 +304,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  p2 = currTri.p1;
 		  }
 	  }
+
+	  rasterizeHorizLine(glm::vec2(500.2, 100.7), glm::vec2(200.5, 100.7), depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  
 	  /*int numPixels = rasterizeLine(p0, p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  numPixels += rasterizeLine(p1, p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
