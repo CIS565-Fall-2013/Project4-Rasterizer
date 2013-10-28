@@ -135,51 +135,107 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+//Transform incoming vertex position from model to clip coordinates.
+//Use model matrix to transform into model space. Use view matrix to transform into camera space. Then,
+//use projection matrix to transform into clip space. Next, convert to NDC. Lastly, convert to window coordinates
+__global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 mvp, vec2 reso, mat4 viewport)
+{
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<vbosize/3){
+
+  if(index<vbosize/3)
+  {
+	  const int vboId1 = index * 3;
+	  const int vboId2 = vboId1 + 1;
+	  const int vboId3 = vboId2 + 2;
+
+	  vec4 hPoint = vec4(vbo[vboId1], vbo[vboId2], vbo[vboId3], 1.0);
+	  
+	  // to clip
+	  hPoint = mvp * hPoint;
+	  float wClip = hPoint.w;
+
+	  // to ndc
+	  vec4 ndcPoint = vec4(hPoint.x / wClip, hPoint.y / wClip, hPoint.z / wClip, hPoint.w / wClip);
+	  
+	  // to window
+	  vec4 windowPoint = viewport * ndcPoint;
+	 
+	  vbo[vboId1] = windowPoint.x;
+	  vbo[vboId2] = windowPoint.y;
+	  vbo[vboId3] = windowPoint.z;
   }
 }
 
 //TODO: Implement primative assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+//Given the vbo, cbo, ibo, group them into triangles and output the result
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives)
+{
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
-  if(index<primitivesCount){
+
+  if(index<primitivesCount)
+  {
+	  // ibo indices
+	  const int iboId1 = index * 3;
+	  const int iboId2 = index * 3 + 1;
+	  const int iboId3 = index * 3 + 2;
+
+	  // vbo indices for each ibo index
+	  const int vboId11 = iboId1;
+	  const int vboId12 = iboId1 + 1;
+	  const int vboId13 = iboId1 + 2;
+
+	  const int vboId21 = iboId2;
+	  const int vboId22 = iboId2 + 1;
+	  const int vboId23 = iboId2 + 2;
+
+	  const int vboId31 = iboId3;
+	  const int vboId32 = iboId3 + 1;
+	  const int vboId33 = iboId3 + 2;
+	  
+	  // 	  
   }
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution)
+{
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<primitivesCount){
+  if(index<primitivesCount)
+  {
+
   }
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
+{
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
-  if(x<=resolution.x && y<=resolution.y){
+  if(x<=resolution.x && y<=resolution.y)
+  {
+
   }
 }
 
 //Writes fragment colors to the framebuffer
-__global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* framebuffer){
+__global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* framebuffer)
+{
 
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
 
-  if(x<=resolution.x && y<=resolution.y){
+  if(x<=resolution.x && y<=resolution.y)
+  {
     framebuffer[index] = depthbuffer[index].color;
   }
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
-
+void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize)
+{
   // set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -226,7 +282,17 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+
+  // copy over camera information
+  mat4 modelMatrix(1);
+  mat4 viewMatrix = cam->view;
+  mat4 projectionMatrix = cam->projection;
+  mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+  vec2 reso = cam->resolution;
+  mat4 viewport = cam->viewport;
+
+  // launch vertex shader kernel
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, mvp, reso, viewport);
 
   cudaDeviceSynchronize();
   //------------------------------

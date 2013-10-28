@@ -21,7 +21,9 @@
 #include <time.h>
 #include "glslUtility.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "rasterizeKernels.h"
+#include "rasterizeStructs.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
 
@@ -36,6 +38,11 @@
 #endif
 
 using namespace std;
+using glm::vec2;
+using glm::vec3;
+using glm::mat4;
+using glm::perspective;
+using glm::lookAt;
 
 //-------------------------------
 //------------GL STUFF-----------
@@ -59,6 +66,8 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+
+camera* cam;
 
 //-------------------------------
 //----------CUDA STUFF-----------
@@ -96,6 +105,7 @@ void runCuda();
 #endif
 
 void initPBO(GLuint* pbo);
+void initCamera();
 void initCuda();
 void initTextures();
 void initVAO();

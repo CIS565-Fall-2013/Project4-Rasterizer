@@ -8,6 +8,7 @@
 #include <thrust/random.h>
 #include <cuda.h>
 #include <cmath>
+#include "rasterizeStructs.h"
 #include "glm/glm.hpp"
 
 #if CUDA_VERSION >= 5000
@@ -16,7 +17,12 @@
     #include <cutil_math.h>
 #endif
 
+using glm::mat4;
+using glm::vec4;
+using glm::vec3;
+using glm::vec2;
+
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize);
+void cudaRasterizeCore(camera* cam, uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize);
 
 #endif //RASTERIZEKERNEL_H

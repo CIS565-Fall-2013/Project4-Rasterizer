@@ -1,4 +1,4 @@
--------------------------------------------------------------------------------
+﻿-------------------------------------------------------------------------------
 CIS565: Project 4: CUDA Rasterizer
 -------------------------------------------------------------------------------
 Fall 2013
@@ -184,3 +184,9 @@ file in the root directory detailing the following
 * A list of all third-party code used.
 * This Readme file edited as described above in the README section.
 
+---
+REFERENCES
+---
+[OpenGL Rendering Pipeline](http://www.songho.ca/opengl/gl_pipeline.html)
+[OpenGL Transformation](http://www.songho.ca/opengl/gl_transform.html)
+[The Viewport Transformation](http://glasnost.itcarlow.ie/~powerk/GeneralGraphicsNotes/projection/viewport_transformation.html)

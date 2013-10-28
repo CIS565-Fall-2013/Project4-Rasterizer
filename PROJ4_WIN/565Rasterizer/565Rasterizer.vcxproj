@@ -17,6 +17,7 @@
     <ClInclude Include="..\..\src\ObjCore\obj.h" />
     <ClInclude Include="..\..\src\ObjCore\objloader.h" />
     <ClInclude Include="..\..\src\rasterizeKernels.h" />
+    <ClInclude Include="..\..\src\rasterizeStructs.h" />
     <ClInclude Include="..\..\src\rasterizeTools.h" />
     <ClInclude Include="..\..\src\utilities.h" />
   </ItemGroup>
@@ -30,6 +31,10 @@
   <ItemGroup>
     <CudaCompile Include="..\..\src\rasterizeKernels.cu" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\passthroughFS.glsl" />
+    <None Include="shaders\passthroughVS.glsl" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FF21CA49-522E-4E86-B508-EE515B248FC4}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -41,12 +46,14 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v110</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">

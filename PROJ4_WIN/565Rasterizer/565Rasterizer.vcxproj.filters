@@ -25,6 +25,9 @@
     <ClInclude Include="..\..\src\utilities.h">
       <Filter>headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\rasterizeStructs.h">
+      <Filter>headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\ObjCore\obj.cpp">
@@ -53,10 +56,21 @@
     <Filter Include="headers">
       <UniqueIdentifier>{ff2076c3-2be2-4a20-89ed-1f27da7b052a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{b66d28ac-5e36-43db-92c7-5d776e9ae34b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="..\..\src\rasterizeKernels.cu">
       <Filter>source</Filter>
     </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\passthroughFS.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\passthroughVS.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
