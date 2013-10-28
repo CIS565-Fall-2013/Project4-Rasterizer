@@ -362,8 +362,12 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int index = x + (y * resolution.x);
   if(x > 0 && y > 0 && x<=resolution.x && y<=resolution.y){
 	  fragment currFrag = depthbuffer[index];
-	  currFrag.color = currFrag.color * (-0.801f - currFrag.position.z) * 100.0f;
-	  printf("Frag z: %f\n", currFrag.position.z);
+	  //currFrag.color = currFrag.color * (-0.801f - currFrag.position.z) * 100.0f;
+	  float depthCoeff = (1.0f - (-0.7f - currFrag.position.z)/(-0.7f - (-0.8f)));
+	  currFrag.color = currFrag.color * depthCoeff;
+	  if(currFrag.position.z > -1000){
+		 //printf("Depth multiplier: %f\n", depthCoeff);
+	  }
 	  depthbuffer[index] = currFrag;
   }
 }
