@@ -43,23 +43,22 @@ __host__ __device__ unsigned int hash(unsigned int a){
     return a;
 }
 
-//atomic min for floats. Got this from the NVIDIA forums: https://devtalk.nvidia.com/default/topic/492068/atomicmin-with-float/
-//AND MODIFIED IT TO BE CORRECT ZOMG... the IF STATEMENT HAZ TO BE INSIDE!!! TROLOLO
-__device__ float fatomicMax(float *addr, float value)
-
+//atomic min for floats. Got the idea from NVIDIA forums: https://devtalk.nvidia.com/default/topic/492068/atomicmin-with-float/
+//but I reimplemented it myself by taking the code for atomicAdd in the class slides and modifying it myself (without looking at what was
+//in the forum post).	
+//It probably came out almost identical to the one in the forum post anyway, since the forum post and the class slides
+//are based on the same example
+__device__ float fatomicMax(float *address, float val)
 {
-        float old = *addr, assumed;
-        do
-        {
-			if(old >= value) { //value that's already there is bigger than this fragment's depth (closer to eye).
-				return old; 
-			} else { //fragment is closer to eye than what's already there
-				assumed = old;	
-				old = atomicCAS((unsigned int*)addr, __float_as_int(assumed), __float_as_int(value));
-			}
-        }while(old!=assumed);
-
-        return old;
+	int old = *address, assumed;
+	do {
+		if( old > val ){ //value is not greater (closer to eye) than the old one.
+			return old;
+		}
+		assumed = old;
+		old = __int_as_float( atomicCAS((int*)address, __float_as_int(assumed), __float_as_int(val)) );
+	} while (assumed != old);
+	return old;
 }
 
 //Writes a given fragment to a fragment buffer at a given location
@@ -253,19 +252,14 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, float* tmp_depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
-	  //first rasterize the OUTLINES of the triangle
 	  triangle currTri = primitives[index];
+	  //glm::vec3 p0 = currTri.p0;
+	  //glm::vec3 p1 = currTri.p1;
+	  //glm::vec3 p2 = currTri.p2;
+
 	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  //int numPixels = rasterizeLine(currTri.p1, currTri.p0, depthbuffer, resolution, currTri);
-	  //numPixels += rasterizeLine(currTri.p2, currTri.p1, depthbuffer, resolution, currTri);
-	  //numPixels += rasterizeLine(currTri.p0, currTri.p2, depthbuffer, resolution, currTri);
-
-
-	  //use recursive flood fill starting at the CENTER of the triangle (interpolate using barycentric, map back to screen space)
-	  //take pixels, map them back to NDC, test to see if inside triangle (using barycentric)
-	  //i think the real speedup comes from backface culling - don't rasterize the triangle at all if the the winding order isn't facing the camera or something.
   }
 }
 
