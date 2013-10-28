@@ -53,7 +53,7 @@ void obj::buildVBOs(){
  
 			glm::vec4 p0 = points[face[0]];
 			
-			for(int i=2; i<face.size(); i++){
+			for(int i=2; i<face.size(); i++){// for triangle, execute once
 				glm::vec4 p1 = points[face[i-1]];
 				glm::vec4 p2 = points[face[i]];
 				VBOvec.push_back(p0[0]) ; VBOvec.push_back(p0[1]); VBOvec.push_back(p0[2]); //VBOvec.push_back(1.0f);

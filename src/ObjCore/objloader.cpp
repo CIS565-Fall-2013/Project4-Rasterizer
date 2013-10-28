@@ -26,7 +26,7 @@ objLoader::objLoader(string filename, obj* newMesh){
                 line="42";
             }
 			istringstream liness(line);
-			if(line[0]=='v' && line[1]=='t'){
+			if(line[0]=='v' && line[1]=='t'){ //load textures
 				string v;
 				string x;
 				string y;
@@ -36,7 +36,7 @@ objLoader::objLoader(string filename, obj* newMesh){
 				getline(liness, y, ' ');
 				getline(liness, z, ' ');
 				geomesh->addTextureCoord(glm::vec3(::atof(x.c_str()), ::atof(y.c_str()), ::atof(z.c_str())));
-			}else if(line[0]=='v' && line[1]=='n'){
+			}else if(line[0]=='v' && line[1]=='n'){ //load normals
 				string v;
 				string x;
 				string y;
@@ -46,7 +46,7 @@ objLoader::objLoader(string filename, obj* newMesh){
 				getline(liness, y, ' ');
 				getline(liness, z, ' ');
 				geomesh->addNormal(glm::vec3(::atof(x.c_str()), ::atof(y.c_str()), ::atof(z.c_str())));
-			}else if(line[0]=='v'){
+			}else if(line[0]=='v'){//load vertices
 				string v;
 				string x;
 				string y;
@@ -56,12 +56,12 @@ objLoader::objLoader(string filename, obj* newMesh){
 				getline(liness, y, ' ');
 				getline(liness, z, ' ');
 				geomesh->addPoint(glm::vec3(::atof(x.c_str()), ::atof(y.c_str()), ::atof(z.c_str())));
-			}else if(line[0]=='f'){
+			}else if(line[0]=='f'){//load faces
 				string v;
 				getline(liness, v, ' ');
 				string delim1 = "//";
 				string delim2 = "/";
-				if(std::string::npos != line.find("//")){
+				if(std::string::npos != line.find("//")){ //  f v1//vn1 v2//vn2 v3//vn3 
 					//std::cout << "Vertex-Normal Format" << std::endl;
 					vector<int> pointList;
 					vector<int> normalList;
@@ -78,7 +78,7 @@ objLoader::objLoader(string filename, obj* newMesh){
 					}
 					geomesh->addFace(pointList);
 					geomesh->addFaceNormal(normalList);
-				}else if(std::string::npos != line.find("/")){
+				}else if(std::string::npos != line.find("/")){ //  f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 
 					vector<int> pointList;
 					vector<int> normalList;
 					vector<int> texturecoordList;
@@ -100,7 +100,7 @@ objLoader::objLoader(string filename, obj* newMesh){
 					geomesh->addFace(pointList);
 					geomesh->addFaceNormal(normalList);
 					geomesh->addFaceTexture(texturecoordList);
-				}else{
+				}else{ //  f v1 v2 v3 v4
 					string v;
 					vector<int> pointList;
 					while(getline(liness, v, ' ')){

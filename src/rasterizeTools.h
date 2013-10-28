@@ -10,15 +10,25 @@
 #include "cudaMat4.h"
 
 struct triangle {
+  // for rasterization
   glm::vec3 p0;
   glm::vec3 p1;
   glm::vec3 p2;
+  // for eye space lighting
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
+
+  glm::vec3 eyeCoords0;
+  glm::vec3 eyeCoords1;
+  glm::vec3 eyeCoords2;
+
+  glm::vec3 eyeNormal0;
+  glm::vec3 eyeNormal1;
+  glm::vec3 eyeNormal2;
 };
 
-struct fragment{
+struct varying{ // interface between vertex shader and fragment shader
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
@@ -45,7 +55,8 @@ __host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, g
 
 //LOOK: calculates the signed area of a given triangle
 __host__ __device__ float calculateSignedArea(triangle tri){
-  return 0.5*((tri.p2.x - tri.p0.x)*(tri.p1.y - tri.p0.y) - (tri.p1.x - tri.p0.x)*(tri.p2.y - tri.p0.y));
+//  return 0.5*((tri.p2.x - tri.p0.x)*(tri.p1.y - tri.p0.y) - (tri.p1.x - tri.p0.x)*(tri.p2.y - tri.p0.y));
+	return 0.5*((tri.p1.x - tri.p0.x)*(tri.p2.y - tri.p0.y) - (tri.p2.x - tri.p0.x)*(tri.p1.y - tri.p0.y));
 }
 
 //LOOK: helper function for calculating barycentric coordinates

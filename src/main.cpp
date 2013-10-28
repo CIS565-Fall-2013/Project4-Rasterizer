@@ -17,7 +17,7 @@ int main(int argc, char** argv){
     if(strcmp(header.c_str(), "mesh")==0){
       //renderScene = new scene(data);
       mesh = new obj();
-      objLoader* loader = new objLoader(data, mesh);
+      objLoader* loader = new objLoader(data, mesh); // objLoader class for encapsulation
       mesh->buildVBOs();
       delete loader;
       loadedScene = true;
@@ -33,17 +33,21 @@ int main(int argc, char** argv){
   seconds = time (NULL);
   fpstracker = 0;
 
+  projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);
+  view = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0), glm::vec3(0,1,0));
+//  projection = projection * view;
+
   // Launch CUDA/GL
-  #ifdef __APPLE__
+#ifdef __APPLE__
   // Needed in OSX to force use of OpenGL3.2 
   glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
   glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
   glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   init();
-  #else
+#else
   init(argc, argv);
-  #endif
+#endif
 
   initCuda();
 
@@ -56,7 +60,7 @@ int main(int argc, char** argv){
   glUseProgram(passthroughProgram);
   glActiveTexture(GL_TEXTURE0);
 
-  #ifdef __APPLE__
+#ifdef __APPLE__
     // send into GLFW main loop
     while(1){
       display();
@@ -68,12 +72,12 @@ int main(int argc, char** argv){
     }
 
     glfwTerminate();
-  #else
-    glutDisplayFunc(display);
-    glutKeyboardFunc(keyboard);
+#else
+  glutDisplayFunc(display);
+  glutKeyboardFunc(keyboard);
 
-    glutMainLoop();
-  #endif
+  glutMainLoop();
+#endif
   kernelCleanup();
   return 0;
 }
@@ -90,6 +94,9 @@ void runCuda(){
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
 
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
                     1.0, 0.0, 0.0};
@@ -100,7 +107,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, projection, view, zNear, zFar, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -164,6 +171,13 @@ void runCuda(){
 
     glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);
     glBindTexture(GL_TEXTURE_2D, displayImage);
+
+	// Note: glTexSubImage2D will perform a format conversion if the
+	// buffer is a different format from the texture. We created the
+	// texture with format GL_RGBA8. In glTexSubImage2D we specified
+	// GL_BGRA and GL_UNSIGNED_INT. This is a fast-path combination
+
+	// Note: NULL indicates the data resides in device memory
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, 
         GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
@@ -172,8 +186,9 @@ void runCuda(){
     // VAO, shader program, and texture already bound
     glDrawElements(GL_TRIANGLES, 6,  GL_UNSIGNED_SHORT, 0);
 
+	glutSwapBuffers();
     glutPostRedisplay();
-    glutSwapBuffers();
+    
   }
 
   void keyboard(unsigned char key, int x, int y)
@@ -350,5 +365,6 @@ void shut_down(int return_code){
   #ifdef __APPLE__
   glfwTerminate();
   #endif
+  getchar();
   exit(return_code);
 }
