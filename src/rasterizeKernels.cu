@@ -166,8 +166,9 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
-__device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution){
+__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution){
 	fragment currFrag;
+	currFrag.triIdx = triIdx;
 	currFrag.color = currTri.c0; //assume the tri is all one color for now.
 	glm::vec3 currBaryCoords = calculateBarycentricCoordinate(currTri, xyCoords);
 	float fragZ = getZAtCoordinate(currBaryCoords, currTri);
@@ -180,21 +181,21 @@ __device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragm
 }
 
 //rasterize between startX and endX, inclusive
-__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri){
-	int Xinc = roundf(end.x) - roundf(start.x);
-	int sgnXinc = Xinc > 0 ? 1 : -1;
-	int numPixels = abs(Xinc) + 1; //+1 to be inclusive
-	int currX = roundf(start.x);
-	int Y = roundf(start.y); //Y should be the same for the whole line
-	for(int i = 0; i < numPixels; i++){
-		writePointInTriangle(currTri, glm::vec2(currX, Y), depthBuffer, tmp_depthBuffer, resolution);
-		currX += sgnXinc; //either increase or decrease currX depending on direction
-	}
-}
+//__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri){
+//	int Xinc = roundf(end.x) - roundf(start.x);
+//	int sgnXinc = Xinc > 0 ? 1 : -1;
+//	int numPixels = abs(Xinc) + 1; //+1 to be inclusive
+//	int currX = roundf(start.x);
+//	int Y = roundf(start.y); //Y should be the same for the whole line
+//	for(int i = 0; i < numPixels; i++){
+//		writePointInTriangle(currTri, glm::vec2(currX, Y), depthBuffer, tmp_depthBuffer, resolution);
+//		currX += sgnXinc; //either increase or decrease currX depending on direction
+//	}
+//}
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
 //returns the number of pixels drawn
-__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri){
+__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx){
 	float X, Y, Xinc, Yinc, LENGTH;
 	Xinc = finish.x - start.x;
 	Yinc = finish.y - start.y;
@@ -203,7 +204,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 	int pixelsDrawn = 0;
 	//if both zero, then we just draw a point.
 	if( (abs(Xinc) < NATHANS_EPSILON) && (abs(Yinc) < NATHANS_EPSILON) ){
-		writePointInTriangle(currTri, glm::vec2(start.x, start.y), depthBuffer, tmp_depthBuffer, resolution);
+		writePointInTriangle(currTri, triIdx, glm::vec2(start.x, start.y), depthBuffer, tmp_depthBuffer, resolution);
 		pixelsDrawn++;
 	} else { //this is a line segment
 		//LENGTH is the greater of Xinc, Yinc
@@ -219,7 +220,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 		X = start.x;
 		Y = start.y;
 		for(int i = 0; i <= roundf(LENGTH); i++){ //do this at least once
-			writePointInTriangle(currTri, glm::vec2(X, Y), depthBuffer, tmp_depthBuffer, resolution);
+			writePointInTriangle(currTri, triIdx, glm::vec2(X, Y), depthBuffer, tmp_depthBuffer, resolution);
 			pixelsDrawn++;
 			X += Xinc;
 			Y += Yinc;
@@ -261,6 +262,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  primitives[index] = currTri;
   }
 }
+
+//__global__ void scanlineMarchKernel(
 
 //TODO: Implement a rasterization method, such as scanline.
 //NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
@@ -311,9 +314,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  
-	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
@@ -458,9 +461,12 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //rasterization
   //------------------------------
   //first draw the outlines of the triangle
-  //drawOutlinesKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
-
   rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, tmp_zbuffer, resolution);
+  cudaDeviceSynchronize();
+  //next, march through all scanlines
+  //int scanlineBlocks = ceil(resolution.y/(float)tileSize);
+  //scanlineMarchKernel<<<scanlineBlocks, tileSize>>>(primitives, depthbuffer, tmp_zbuffer, resolution);
+
 
   cudaDeviceSynchronize();
   //------------------------------
