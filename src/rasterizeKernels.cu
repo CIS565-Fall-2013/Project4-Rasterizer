@@ -50,7 +50,7 @@ __host__ __device__ unsigned int hash(unsigned int a){
 //are based on the same example
 __device__ float fatomicMax(float *address, float val)
 {
-	int old = *address, assumed;
+	float old = *address, assumed;
 	do {
 		if( old > val ){ //value is not greater (closer to eye) than the old one.
 			return old;
