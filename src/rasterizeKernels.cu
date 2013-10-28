@@ -18,6 +18,7 @@
 
 glm::vec3* framebuffer;
 fragment* depthbuffer;
+float* tmp_zbuffer;
 float* device_vbo;
 float* device_cbo;
 int* device_ibo;
@@ -42,9 +43,25 @@ __host__ __device__ unsigned int hash(unsigned int a){
     return a;
 }
 
+//atomic min for floats. Got this from the NVIDIA forums: https://devtalk.nvidia.com/default/topic/492068/atomicmin-with-float/
+//AND MODIFIED IT TO BE CORRECT ZOMG... the IF STATEMENT HAZ TO BE INSIDE!!! TROLOLO
+__device__ float fatomicMin(float *addr, float value)
+
+{
+        float old = *addr, assumed;
+        do
+        {
+			if(old <= value) return old;
+			assumed = old;	
+			old = atomicCAS((unsigned int*)addr, __float_as_int(assumed), __float_as_int(value));
+        }while(old!=assumed);
+
+        return old;
+}
+
 //Writes a given fragment to a fragment buffer at a given location
 __host__ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution){
-  if(x > 0 && y > 0 && x<resolution.x && y<resolution.y){
+  if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
     int index = (y*resolution.x) + x;
     depthbuffer[index] = frag;
   }
@@ -90,7 +107,7 @@ __global__ void clearImage(glm::vec2 resolution, glm::vec3* image, glm::vec3 col
 }
 
 //Kernel that clears a given fragment buffer with a given fragment
-__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag){
+__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag, float* tmp_buffer){
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
     int index = x + (y * resolution.x);
@@ -99,6 +116,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       f.position.x = x;
       f.position.y = y;
       buffer[index] = f;
+	  tmp_buffer[index] = f.position.z;
     }
 }
 
@@ -280,6 +298,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
 
+  tmp_zbuffer = NULL;
+  cudaMalloc((void**)&tmp_zbuffer, (int)resolution.x*(int)resolution.y*sizeof(float));
+
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
@@ -287,7 +308,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
-  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
+  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag, tmp_zbuffer);
 
   //------------------------------
   //memory stuff
@@ -379,5 +400,6 @@ void kernelCleanup(){
   cudaFree( device_ibo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
+  cudaFree( tmp_zbuffer );
 }
 
