@@ -43,6 +43,17 @@ __host__ __device__ unsigned int hash(unsigned int a){
     return a;
 }
 
+__host__ __device__ void printVec4(glm::vec4 m){
+//    std::cout << m[0] << " " << m[1] << " " << m[2] << " " << m[3] << std::endl;
+	printf("%f, %f, %f, %f;\n", m[0], m[1], m[2], m[3]);
+}
+
+__host__ __device__ void printVec3(glm::vec3 m){
+//    std::cout << m[0] << " " << m[1] << " " << m[2] << std::endl;
+	printf("%f, %f, %f;\n", m[0], m[1], m[2]);
+}
+
+
 __host__ __device__ glm::vec3 generateRandomNumberFromThread(float time, int index)
 {
     thrust::default_random_engine rng(hash(index*time));
@@ -209,12 +220,12 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 	  getAABBForTriangle(thisTriangle, triMin, triMax);
 	  
 	  // if wholly outside of rendering area, discard
+/*
 	  if(triMin.x > resolution.x || triMin.y > resolution.y || triMin.z > zFar || 
 		 triMax.x < 0            || triMax.y < 0            || triMax.z < zNear) return; // all out-of-screen tris not culled 
 	  // if degenerate, skip
 	  else if(abs(calculateSignedArea(thisTriangle)) < 1e-6) return;
-	  // else
-	  else {
+	  else {*/
 		  glm::vec2 pixelCoords;
 		  glm::vec3 barycentricCoords;
 		  int pixelIndex;
@@ -223,24 +234,31 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 			  for(int i = 0; i < resolution.x; ++i)
 			  {
 				  pixelCoords = glm::vec2(float(i+0.5), float(j+0.5));
-				  // if outside of bounding box, do not rasterize
-				  if(pixelCoords.x < triMin.x || pixelCoords.x > triMax.x || pixelCoords.y < triMin.y || pixelCoords.y > triMax.y) return;
-				  // else if inside triangle, rasterize
-				  else
+				  if(index == 0)
 				  {
+/*
+					  printVec3(triMin);
+					  printVec3(triMax);*/
+				  }
+				  // if outside of bounding box, do not rasterize
+//				  if(pixelCoords.x < triMin.x || pixelCoords.x > triMax.x || pixelCoords.y < triMin.y || pixelCoords.y > triMax.y) return;
+				  // else if inside triangle, rasterize
+/*
+				  else
+				  {*/
 					  barycentricCoords = calculateBarycentricCoordinate(thisTriangle, pixelCoords);
-					  pixelIndex = i + (j * resolution.x);
+					  pixelIndex = resolution.x - 1 - i + ((resolution .y  - 1 - j) * resolution.x);
 					  if(isBarycentricCoordInBounds(barycentricCoords))
 					  {
 						  interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;						  
-						  interpVariables[pixelIndex].normal = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
-						  interpVariables[pixelIndex].color = barycentricCoords.x * thisTriangle.c0 + barycentricCoords.y * thisTriangle.c1 + barycentricCoords.z * thisTriangle.c2; 
+						  interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
+						  interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
 					  }
 
-				  }
+//				  }
 			  }
 		  }
-	  }
+//	  }
 
 
   }
@@ -339,7 +357,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
   //rasterization
   //------------------------------
   rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, interpVariables, resolution, zNear, zFar); // launch for every primitive
-
+  checkCUDAError("Kernel failed!");
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader

@@ -111,9 +111,11 @@ void utilityCore::printMat4(glm::mat4 m){
 }
 
 void utilityCore::printVec4(glm::vec4 m){
-    std::cout << m[0] << " " << m[1] << " " << m[2] << " " << m[3] << std::endl;
+//    std::cout << m[0] << " " << m[1] << " " << m[2] << " " << m[3] << std::endl;
+	printf("%f, %f, %f, %f;\n", m[0], m[1], m[2], m[3]);
 }
 
 void utilityCore::printVec3(glm::vec3 m){
-    std::cout << m[0] << " " << m[1] << " " << m[2] << std::endl;
+//    std::cout << m[0] << " " << m[1] << " " << m[2] << std::endl;
+	printf("%f, %f, %f;\n", m[0], m[1], m[2]);
 }

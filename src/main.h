@@ -75,7 +75,7 @@ float zFar = 100.0f;
 
 glm::mat4 projection;
 glm::mat4 view;
-glm::vec3 cameraPosition(3.5,3.5,3);
+glm::vec3 cameraPosition(0,0,1);
 glm::vec3 lightPosition(3.5,3.5,3);
 //-------------------------------
 //-------------MAIN--------------

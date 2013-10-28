@@ -365,6 +365,6 @@ void shut_down(int return_code){
   #ifdef __APPLE__
   glfwTerminate();
   #endif
-  getchar();
+//  getchar();
   exit(return_code);
 }
