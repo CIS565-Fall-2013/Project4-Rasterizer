@@ -255,8 +255,27 @@ C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/co
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\host_defines.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/debug.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/compiler_fence.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\intrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\setjmp.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\immintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wmmintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\nmmintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\smmintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\tmmintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\pmmintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\emmintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmmintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\malloc.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ammintrin.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mm3dnow.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/forceinline.h
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/hd_warning_disable.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/cstdint.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/discard_block_engine.h
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iostream
@@ -275,8 +294,6 @@ C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\exception
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstddef
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstddef
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\eh.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\malloc.h
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstring
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmemory
@@ -360,143 +377,132 @@ C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/de
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/uniform_real_distribution.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/uniform_real_distribution.inl
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/normal_distribution.h
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/normal_distribution_base.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/normal_distribution.inl
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\math_constants.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\rasterizeKernels.h
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\rasterizeKernels.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm/glm.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/_fixes.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/setup.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/_detail.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\setup.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm/glm.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core/_fixes.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core/setup.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/_detail.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\setup.hpp
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cassert
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\assert.h
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/type.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_half.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_half.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_detail.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_half.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\setup.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\setup.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_detail.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_gentype.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec1.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_gentype.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle_func.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec1.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec2.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec2.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec3.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec3.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec4.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_float.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_int.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_size.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_swizzle.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_vec4.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x2.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_gentype.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x2.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x3.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x3.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x4.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat2x4.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x2.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x2.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x3.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x3.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x4.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat3x4.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x2.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x2.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x3.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x3.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x4.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\type_mat4x4.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_trigonometric.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_trigonometric.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_exponential.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_exponential.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_common.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_fixes.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_common.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_packing.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_packing.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_geometric.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_geometric.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_matrix.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_matrix.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_vector_relational.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_detail.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_vector_relational.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_integer.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_integer.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\_vectorize.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/func_noise.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core\func_noise.inl
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\./core/_swizzle.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/type.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_half.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_half.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_detail.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_float.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_half.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\setup.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_int.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\setup.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_detail.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_gentype.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_size.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec1.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_gentype.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_float.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_int.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_size.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_swizzle.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_swizzle_func.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec1.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec2.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_float.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_int.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_size.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_swizzle.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec2.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec3.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_float.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_int.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_size.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_swizzle.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec3.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec4.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_float.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_int.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_size.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_swizzle.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_vec4.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat2x2.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_gentype.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat2x2.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat2x3.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat2x3.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat2x4.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat2x4.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat3x2.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat3x2.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat3x3.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat3x3.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat3x4.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat3x4.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat4x2.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat4x2.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat4x3.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat4x3.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat4x4.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\type_mat4x4.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_trigonometric.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_trigonometric.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_vectorize.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_exponential.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_exponential.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_vectorize.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_common.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_fixes.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_common.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_vectorize.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_packing.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_packing.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_geometric.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_geometric.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_vectorize.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_matrix.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_matrix.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_vectorize.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_vector_relational.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_detail.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_vector_relational.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_integer.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_integer.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\_vectorize.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/func_noise.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core\func_noise.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\./core/_swizzle.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm/gtc/matrix_transform.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\gtc\../glm.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core/_fixes.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\gtc\matrix_transform.inl
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\cudaMat4.h
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm/glm.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core/_fixes.hpp
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\rasterizeTools.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm/glm.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/_fixes.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\utilities.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm/glm.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/_fixes.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\rasterizeTools.h
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm/glm.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core/_fixes.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\utilities.h
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm/glm.hpp
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\glm\core/_fixes.hpp
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\algorithm
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\memory
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\intrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\setjmp.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\immintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\nmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\smmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\tmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\pmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\emmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mm3dnow.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
@@ -571,9 +577,6 @@ C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\sstream
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\string
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\vector
 C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfunctional
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\cudaMat4.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm/glm.hpp
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\glm\core/_fixes.hpp
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
-c:\users\liam\downloads\project3-rasterizer-master\project3-rasterizer-master\src\cudaMat4.h
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\cudaMat4.h
+d:\a_upenn\2013fall\cis565\projects2013\cuda-rasterizer\src\cudaMat4.h
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h

@@ -6,7 +6,7 @@
 #include <limits>
 
 #define EPSILON std::numeric_limits<double>::epsilon()
-
+#define OUTPUT	0
 using namespace std;
 
 obj::obj(){
@@ -56,15 +56,22 @@ void obj::buildVBOs(){
 			for(int i=2; i<face.size(); i++){
 				glm::vec4 p1 = points[face[i-1]];
 				glm::vec4 p2 = points[face[i]];
-				VBOvec.push_back(p0[0]) ; VBOvec.push_back(p0[1]); VBOvec.push_back(p0[2]); //VBOvec.push_back(1.0f);
-				VBOvec.push_back(p1[0]); VBOvec.push_back(p1[1]); VBOvec.push_back(p1[2]); //VBOvec.push_back(1.0f);
+				VBOvec.push_back(p0[0]) ; VBOvec.push_back(p0[1]); VBOvec.push_back(p0[2]); //VBOvec.push_back(1.0f);				
+				VBOvec.push_back(p1[0]); VBOvec.push_back(p1[1]); VBOvec.push_back(p1[2]); //VBOvec.push_back(1.0f);				
 				VBOvec.push_back(p2[0]); VBOvec.push_back(p2[1]); VBOvec.push_back(p2[2]); //VBOvec.push_back(1.0f);
-
+#if OUTPUT == 1
+				std::cout<<p1[0]<<" "<<p1[1]<<" "<<p1[2]<<std::endl;
+				std::cout<<p0[0]<<" "<<p0[1]<<" "<<p0[2]<<std::endl;
+				std::cout<<p2[0]<<" "<<p2[1]<<" "<<p2[2]<<std::endl;
+#endif
 				if(genNormals==false){
 					vector<int> facenormal = facenormals[k];
 					NBOvec.push_back(normals[facenormal[0]][0]); NBOvec.push_back(normals[facenormal[0]][1]); NBOvec.push_back(normals[facenormal[0]][2]); //NBOvec.push_back(0.0f);
 					NBOvec.push_back(normals[facenormal[i-1]][0]); NBOvec.push_back(normals[facenormal[i-1]][1]); NBOvec.push_back(normals[facenormal[i-1]][2]); //NBOvec.push_back(0.0f);
 					NBOvec.push_back(normals[facenormal[i]][0]); NBOvec.push_back(normals[facenormal[i]][1]); NBOvec.push_back(normals[facenormal[i]][2]); //NBOvec.push_back(0.0f);
+
+
+					
 				}else{
                     
 					glm::vec3 a = glm::vec3(p1[0], p1[1], p1[2]) - glm::vec3(p0[0], p0[1], p0[2]);
@@ -81,7 +88,9 @@ void obj::buildVBOs(){
 			}
 		}
  	}
-	
+#ifdef OUTPUT == 1
+	std::cout<<"vbo,nbo,ibo set up in obj.cpp/n color set to .4,.4,.4 here"<<std::endl;
+#endif
 	vbo = new float[VBOvec.size()];
 	nbo = new float[NBOvec.size()];
 	ibo = new int[IBOvec.size()];
@@ -163,7 +172,9 @@ void obj::addPoint(glm::vec3 point){
     }
     
     points.push_back(glm::vec4(point[0], point[1], point[2], 1));
-    
+#ifdef OUTPUT == 1
+	std::cout<<point[0]<<" "<<point[1]<<" "<<point[2]<<std::endl;
+#endif
 	compareMaxMin(point[0], point[1], point[2]);
 }
 

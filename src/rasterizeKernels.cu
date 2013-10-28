@@ -15,11 +15,12 @@
 #endif
 
 glm::vec3* framebuffer;
-fragment* depthbuffer;
+fragment* depthbuffer; 
 float* device_vbo;
 float* device_cbo;
 int* device_ibo;
 triangle* primitives;
+
 
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
@@ -135,9 +136,12 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize,cudaMat4 projectionMatrix){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
+	  glm::vec4 vertex(vbo[index*3],vbo[index*3+1],vbo[index*3+2],1.0);
+	  glm::vec3 newVertex = multiplyMV(projectionMatrix,vertex);
+	  vbo[index*3] = newVertex[0]; vbo[index*3+1] = newVertex[1]; vbo[index*3+2] = newVertex[2];
   }
 }
 
@@ -178,7 +182,10 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize,
+	cudaMat4 projectionMatrix	
+	)
+{
 
   // set up crucial magic
   int tileSize = 8;
@@ -226,7 +233,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize,projectionMatrix); 
 
   cudaDeviceSynchronize();
   //------------------------------

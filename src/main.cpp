@@ -3,6 +3,7 @@
 
 #include "main.h"
 
+using namespace utilityCore;
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -46,6 +47,15 @@ int main(int argc, char** argv){
   #endif
 
   initCuda();
+
+  //ADD matrix setup
+  glm::mat4 projectionM = glm::perspective(fovy,float(width)/float(height),zNear,zFar);
+  view = glm::lookAt(cameraPostion,glm::vec3(0),glm::vec3(0,0,1));//eye,center,up
+  projectionM = projectionM * view;
+
+  projection = glmMat4ToCudaMat4(projectionM);
+
+
 
   initVAO();
   initTextures();
@@ -100,7 +110,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,projection);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
