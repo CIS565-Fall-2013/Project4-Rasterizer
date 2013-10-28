@@ -32,7 +32,7 @@ int main(int argc, char** argv){
 
   // Initialization of camera parameters
   cam.position = glm::vec3(1.0f, 1.0f, 1.35f);
-  cam.up       = glm::vec3(0.0f, 0.0f, 1.0f);
+  cam.up       = glm::vec3(0.0f, -1.0f, 0.0f);
   cam.fovy     = 60.0f;
 
   // Initialize transformation
@@ -114,9 +114,9 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   // Update view and model to projection transform matrices in each step when interacting with keyboard or mouse
-  /**view = glm::lookAt(cam.position, glm::vec3(0.0f), cam.up);
+  *view = glm::lookAt(cam.position, glm::vec3(0.0f), cam.up);
   *transformModel2Projection = utilityCore::glmMat4ToCudaMat4(*projection * *view * *model);
-  */
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection);
   cudaGLUnmapBufferObject(pbo);
@@ -179,7 +179,7 @@ bool pauseFlag = false;
 
     }
 
-    string title = "CIS565 Rasterizer of Qiong Wang| "+ utilityCore::convertIntToString((int)fps) + "FPS";
+    string title = "CIS565 Rasterizer of Qiong Wang | "+ utilityCore::convertIntToString((int)fps) + "FPS";
     glutSetWindowTitle(title.c_str());
 
     glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);

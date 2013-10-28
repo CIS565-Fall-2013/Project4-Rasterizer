@@ -137,8 +137,9 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 //TODO: Implement a vertex shader
 __global__ void vertexShadeKernel(float* vbo, int vbosize, const cudaMat4* transform){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<vbosize/3){
+  if(index < vbosize/3){
     glm::vec3 newVertex = multiplyMV(*transform, glm::vec4(vbo[3 * index], vbo[3 * index + 1], vbo[3 * index + 2], 1.0f));
+
     vbo[3 * index]     = newVertex.x;
 	vbo[3 * index + 1] = newVertex.y;
 	vbo[3 * index + 2] = newVertex.z;
@@ -167,8 +168,13 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
-    // Initialize triangle and min max vectors so as to obtain the bounds.
+    // Initialize triangle and back face culling if the normal of z is point to the back
     triangle currentTriangle = primitives[index];
+	glm::vec3 normal = glm::normalize(glm::cross(currentTriangle.p1 - currentTriangle.p0, currentTriangle.p2 - currentTriangle.p0));
+	if (normal.z < 0)
+		return;
+	
+	// Add min max vectors so as to obtain the bounds.
 	glm::vec3 minPoint, maxPoint;
 	getAABBForTriangle(currentTriangle, minPoint, maxPoint);
     
@@ -194,7 +200,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
               depthbuffer[index].position.x = x;
               depthbuffer[index].position.y = y;
               depthbuffer[index].position.z = depth;
-			  depthbuffer[index].normal = glm::normalize(glm::cross(currentTriangle.p0 - currentTriangle.p1, currentTriangle.p0 - currentTriangle.p1));
+			  depthbuffer[index].normal = normal;
 			  depthbuffer[index].color = barycentricCoordinates.x * currentTriangle.c0 + barycentricCoordinates.y * currentTriangle.c1 + barycentricCoordinates.z * currentTriangle.c2;
 		  }
 		}
