@@ -177,8 +177,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   {
 	  // ibo indices
 	  const int iboId1 = index * 3;
-	  const int iboId2 = index * 3 + 1;
-	  const int iboId3 = index * 3 + 2;
+	  const int iboId2 = iboId1 + 1;
+	  const int iboId3 = iboId1 + 2;
 
 	  // vbo indices for each ibo index
 	  const int vboId11 = iboId1;
@@ -193,7 +193,32 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  const int vboId32 = iboId3 + 1;
 	  const int vboId33 = iboId3 + 2;
 	  
-	  // 	  
+	  // cbo indices
+	  const int cboId1 = index % 3;
+	  const int cboId2 = cboId1 + 1;
+	  const int cboId3 = cboId2 + 2;
+
+	  // retrieve vertices
+	  vec3 vert1 = vec3(vbo[vboId11], vbo[vboId12], vbo[vboId13]);
+	  vec3 vert2 = vec3(vbo[vboId21], vbo[vboId22], vbo[vboId23]);
+	  vec3 vert3 = vec3(vbo[vboId31], vbo[vboId32], vbo[vboId33]);
+
+	  // retrieve colors
+	  vec3 vert1Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+	  vec3 vert2Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+	  vec3 vert3Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+
+	  // build triangle
+	  triangle tri;
+
+	  tri.p0 = vert1;
+	  tri.p1 = vert2;
+	  tri.p2 = vert3;
+	  tri.c0 = vert1Color;
+	  tri.c1 = vert2Color;
+	  tri.c2 = vert3Color;
+
+	  primitives[index] = tri;
   }
 }
 
