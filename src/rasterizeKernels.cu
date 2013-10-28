@@ -45,26 +45,34 @@ __host__ __device__ unsigned int hash(unsigned int a){
 
 //atomic min for floats. Got this from the NVIDIA forums: https://devtalk.nvidia.com/default/topic/492068/atomicmin-with-float/
 //AND MODIFIED IT TO BE CORRECT ZOMG... the IF STATEMENT HAZ TO BE INSIDE!!! TROLOLO
-__device__ float fatomicMin(float *addr, float value)
+__device__ float fatomicMax(float *addr, float value)
 
 {
         float old = *addr, assumed;
         do
         {
-			if(old <= value) return old;
-			assumed = old;	
-			old = atomicCAS((unsigned int*)addr, __float_as_int(assumed), __float_as_int(value));
+			if(old >= value) { //value that's already there is bigger than this fragment's depth (closer to eye).
+				return old; 
+			} else { //fragment is closer to eye than what's already there
+				assumed = old;	
+				old = atomicCAS((unsigned int*)addr, __float_as_int(assumed), __float_as_int(value));
+			}
         }while(old!=assumed);
 
         return old;
 }
 
 //Writes a given fragment to a fragment buffer at a given location
-__host__ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution){
-  if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
-    int index = (y*resolution.x) + x;
-    depthbuffer[index] = frag;
-  }
+__device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution, float* tmp_depthbuffer){
+	int index = (y*resolution.x) + x;
+	if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
+		fatomicMax(&tmp_depthbuffer[index], frag.position.z);
+	}
+	__threadfence();
+	if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
+		if(frag.position.z == tmp_depthbuffer[index]) //if we are indeed the fragment with min Z, then write
+		depthbuffer[index] = frag;
+	}
 }
 
 //Reads a fragment from a given location in a fragment buffer
@@ -155,7 +163,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
-__device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution){
+__device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution){
 	fragment currFrag;
 	currFrag.color = currTri.c0; //assume the tri is all one color for now.
 	glm::vec3 currBaryCoords = calculateBarycentricCoordinate(currTri, xyCoords);
@@ -164,13 +172,13 @@ __device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragm
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
-	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution);
+	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution, tmp_depthBuffer);
 	//writeToDepthbuffer(pixX, pixY, currFrag, depthBuffer, resolution);
 }
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
 //returns the number of pixels drawn
-__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, glm::vec2 resolution, triangle currTri){
+__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri){
 	float X, Y, Xinc, Yinc, LENGTH;
 	Xinc = finish.x - start.x;
 	Yinc = finish.y - start.y;
@@ -179,7 +187,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 	int pixelsDrawn = 0;
 	//if both zero, then we just draw a point.
 	if( (abs(Xinc) < NATHANS_EPSILON) && (abs(Yinc) < NATHANS_EPSILON) ){
-		writePointInTriangle(currTri, glm::vec2(start.x, start.y), depthBuffer, resolution);
+		writePointInTriangle(currTri, glm::vec2(start.x, start.y), depthBuffer, tmp_depthBuffer, resolution);
 		pixelsDrawn++;
 	} else { //this is a line segment
 		//LENGTH is the greater of Xinc, Yinc
@@ -195,7 +203,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 		X = start.x;
 		Y = start.y;
 		for(int i = 0; i <= roundf(LENGTH); i++){ //do this at least once
-			writePointInTriangle(currTri, glm::vec2(X, Y), depthBuffer, resolution);
+			writePointInTriangle(currTri, glm::vec2(X, Y), depthBuffer, tmp_depthBuffer, resolution);
 			pixelsDrawn++;
 			X += Xinc;
 			Y += Yinc;
@@ -242,14 +250,14 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 //NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
 //for now the normal can just be the cross product of the vectors that make up the face (flat shading).
 //NATHAN: add early-z here.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, float* tmp_depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 	  //first rasterize the OUTLINES of the triangle
 	  triangle currTri = primitives[index];
-	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri);
+	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  //int numPixels = rasterizeLine(currTri.p1, currTri.p0, depthbuffer, resolution, currTri);
 	  //numPixels += rasterizeLine(currTri.p2, currTri.p1, depthbuffer, resolution, currTri);
 	  //numPixels += rasterizeLine(currTri.p0, currTri.p2, depthbuffer, resolution, currTri);
@@ -371,7 +379,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //first draw the outlines of the triangle
   //drawOutlinesKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
 
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, tmp_zbuffer, resolution);
 
   cudaDeviceSynchronize();
   //------------------------------
