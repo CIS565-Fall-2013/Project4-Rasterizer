@@ -64,15 +64,16 @@ __host__ __device__ unsigned int hash(unsigned int a){
 //Writes a given fragment to a fragment buffer at a given location
 __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution, float* tmp_depthbuffer){
 	int index = (y*resolution.x) + x;
-	if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
-		//fatomicMax(&tmp_depthbuffer[index], frag.position.z);
-		//atomicMax(&tmp_depthbuffer[index], frag.position.z);
-	}
+	//if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
+	//	//fatomicMax(&tmp_depthbuffer[index], frag.position.z);
+	//	//atomicMax(&tmp_depthbuffer[index], frag.position.z);
+	//}
 	//__threadfence();
 	if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
-		if(frag.position.z == tmp_depthbuffer[index]){//if we are indeed the fragment with min Z, then write
-			int leet = 1337;
-		}
+		//if(frag.position.z == tmp_depthbuffer[index]){//if we are indeed the fragment with min Z, then write
+		//	int leet = 1337;
+		//}
+		//printf("Frag z: %f\n", frag.position.z);
 		depthbuffer[index] = frag;
 	}
 }
@@ -173,6 +174,7 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 	glm::vec3 currBaryCoords = calculateBarycentricCoordinate(currTri, xyCoords);
 	float fragZ = getZAtCoordinate(currBaryCoords, currTri);
 	currFrag.position = glm::vec3(xyCoords.x, xyCoords.y, fragZ);
+		//printf("Frag z: %f\n", currFrag.position.z);
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
@@ -317,7 +319,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  if( p0.y > p1.y || p1.y > p2.y){
 		  printf("Trololo\n");
 	  }
-	  //printf("P0's y %f, P1's y %f P2's y %f\n", p0.y, p1.y, p2.y);
+	  //TODO: in the size-zero cases, I might have to draw a line.
 	  if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
 		  float topHeight = (p1.y - p0.y);
 		  glm::vec2 gradToMiddle, gradToBottom;
@@ -356,7 +358,11 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
-  if(x<=resolution.x && y<=resolution.y){
+  if(x > 0 && y > 0 && x<=resolution.x && y<=resolution.y){
+	  fragment currFrag = depthbuffer[index];
+	  currFrag.color = currFrag.color * (-0.801f - currFrag.position.z) * 100.0f;
+	  //printf("Frag z: %f\n", currFrag.position.z);
+	  depthbuffer[index] = currFrag;
   }
 }
 
