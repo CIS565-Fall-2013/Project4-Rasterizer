@@ -125,6 +125,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       fragment f = frag;
       f.position.x = x;
       f.position.y = y;
+	  f.triIdx = -1; //no triangle associated.
       buffer[index] = f;
 	  tmp_buffer[index] = f.position.z;
     }
@@ -271,81 +272,81 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  //based on notes from here: http://sol.gfxile.net/tri/index.html
 	  triangle currTri = primitives[index];
 
-	  glm::vec3 p0;
-	  glm::vec3 p1;
-	  glm::vec3 p2;
+	  //glm::vec3 p0;
+	  //glm::vec3 p1;
+	  //glm::vec3 p2;
 	  //we want to sort p0, p1, p2, such that p0 has the highest y-value, p1 second highest, p2 lowest. 
 	  //There are 6 possible permutations:
-	  if(p0.y > p1.y && p0.y > p2.y){ //p0 has greatest y
-		  if(p1.y > p2.y){ //p0.y >= p1.y >= p2.y
-			  p0 = currTri.p0;
-			  p1 = currTri.p1;
-			  p2 = currTri.p2;
-		  } else { //p0.y >= p2.y >= p1.y
-			  p0 = currTri.p0;
-			  p1 = currTri.p2;
-			  p2 = currTri.p1;
-		  }
-	  } else if( p1.y > p0.y && p1.y > p2.y) { //p1 has greatest y
-		  if(p0.y > p2.y){ //p1.y >= p0.y >= p2.y
-			  p0 = currTri.p1;
-			  p1 = currTri.p0;
-			  p2 = currTri.p2;
-		  } else { //p1.y >= p2.y >= p0.y
-			  p0 = currTri.p1;
-			  p1 = currTri.p2;
-			  p2 = currTri.p0;
-		  }
-	  } else { //p2 has greatest y
-		  if(p1.y > p0.y){ //p2.y >= p1.y >= p0.y
-			  p0 = currTri.p2;
-			  p1 = currTri.p1;
-			  p2 = currTri.p0;
-		  } else { //p2.y >= p0.y >= p1.y
-			  p0 = currTri.p2;
-			  p1 = currTri.p0;
-			  p2 = currTri.p1;
-		  }
-	  }
+	  //if(p0.y > p1.y && p0.y > p2.y){ //p0 has greatest y
+		 // if(p1.y > p2.y){ //p0.y >= p1.y >= p2.y
+			//  p0 = currTri.p0;
+			//  p1 = currTri.p1;
+			//  p2 = currTri.p2;
+		 // } else { //p0.y >= p2.y >= p1.y
+			//  p0 = currTri.p0;
+			//  p1 = currTri.p2;
+			//  p2 = currTri.p1;
+		 // }
+	  //} else if( p1.y > p0.y && p1.y > p2.y) { //p1 has greatest y
+		 // if(p0.y > p2.y){ //p1.y >= p0.y >= p2.y
+			//  p0 = currTri.p1;
+			//  p1 = currTri.p0;
+			//  p2 = currTri.p2;
+		 // } else { //p1.y >= p2.y >= p0.y
+			//  p0 = currTri.p1;
+			//  p1 = currTri.p2;
+			//  p2 = currTri.p0;
+		 // }
+	  //} else { //p2 has greatest y
+		 // if(p1.y > p0.y){ //p2.y >= p1.y >= p0.y
+			//  p0 = currTri.p2;
+			//  p1 = currTri.p1;
+			//  p2 = currTri.p0;
+		 // } else { //p2.y >= p0.y >= p1.y
+			//  p0 = currTri.p2;
+			//  p1 = currTri.p0;
+			//  p2 = currTri.p1;
+		 // }
+	  //}
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  
-	  //int numPixels = rasterizeLine(p0, p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  //numPixels += rasterizeLine(p1, p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  //numPixels += rasterizeLine(p2, p0, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
-	  float triHeight = (p2.y - p0.y);
-	  //printf("P0's y %f, P1's y %f P2's y %f\n", p0.y, p1.y, p2.y);
-	  if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
-		  float topHeight = (p1.y - p0.y);
-		  glm::vec2 gradToMiddle, gradToBottom;
-		  glm::vec2 rasterStart, rasterEnd;
-		  gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, -1);
-		  if( abs(topHeight) > NATHANS_EPSILON ){ //top is not flat
-			  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, -1);
-			  rasterStart = glm::vec2(p0);
-			  rasterEnd = glm::vec2(p0);
-			  while(rasterStart.y >= p1.y && rasterEnd.y >= p1.y){
-				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri);
-				  rasterStart += gradToBottom;
-				  rasterEnd += gradToMiddle;
-			  }
-		  } else { //top is flat, thus we don't start at a point, we start at a line
-			  rasterStart = glm::vec2(p0);
-			  rasterEnd = glm::vec2(p1);
-		  }
-		  float bottomHeight = (p2.y - p1.y);
-		  if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
-			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, -1);
-			  while(rasterStart.y >= p2.y && rasterEnd.y >= p2.y){
-				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri);
-				  rasterStart += gradToBottom;
-				  rasterEnd += gradMidToBot;
-			  }
-		  }
-	  }
+	  //float triHeight = (p2.y - p0.y);
+	  ////printf("P0's y %f, P1's y %f P2's y %f\n", p0.y, p1.y, p2.y);
+	  //if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
+		 // float topHeight = (p1.y - p0.y);
+		 // glm::vec2 gradToMiddle, gradToBottom;
+		 // glm::vec2 rasterStart, rasterEnd;
+		 // gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, -1);
+		 // if( abs(topHeight) > NATHANS_EPSILON ){ //top is not flat
+			//  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, -1);
+			//  rasterStart = glm::vec2(p0);
+			//  rasterEnd = glm::vec2(p0);
+			//  while(rasterStart.y >= p1.y && rasterEnd.y >= p1.y){
+			//	  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri);
+			//	  rasterStart += gradToBottom;
+			//	  rasterEnd += gradToMiddle;
+			//  }
+		 // } else { //top is flat, thus we don't start at a point, we start at a line
+			//  rasterStart = glm::vec2(p0);
+			//  rasterEnd = glm::vec2(p1);
+		 // }
+		 // float bottomHeight = (p2.y - p1.y);
+		 // if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
+			//  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, -1);
+			//  while(rasterStart.y >= p2.y && rasterEnd.y >= p2.y){
+			//	  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri);
+			//	  rasterStart += gradToBottom;
+			//	  rasterEnd += gradMidToBot;
+			//  }
+		 // }
+	  //}
   }
 }
 
