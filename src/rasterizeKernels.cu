@@ -48,28 +48,31 @@ __host__ __device__ unsigned int hash(unsigned int a){
 //in the forum post).	
 //It probably came out almost identical to the one in the forum post anyway, since the forum post and the class slides
 //are based on the same example
-__device__ float fatomicMax(float *address, float val)
-{
-	float old = *address, assumed;
-	do {
-		if( old > val ){ //value is not greater (closer to eye) than the old one.
-			return old;
-		}
-		assumed = old;
-		old = __int_as_float( atomicCAS((int*)address, __float_as_int(assumed), __float_as_int(val)) );
-	} while (assumed != old);
-	return old;
-}
+//__device__ float fatomicMax(float *address, float val)
+//{
+//	float old = *address, assumed;
+//	do {
+//		if( old > val ){ //value is not greater (closer to eye) than the old one.
+//			return old;
+//		}
+//		assumed = old;
+//		old = atomicCAS(address, assumed, val);
+//	} while (assumed != old);
+//	return old;
+//}
 
 //Writes a given fragment to a fragment buffer at a given location
 __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution, float* tmp_depthbuffer){
 	int index = (y*resolution.x) + x;
 	if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
-		fatomicMax(&tmp_depthbuffer[index], frag.position.z);
+		//fatomicMax(&tmp_depthbuffer[index], frag.position.z);
+		//atomicMax(&tmp_depthbuffer[index], frag.position.z);
 	}
-	__threadfence();
+	//__threadfence();
 	if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
-		if(frag.position.z == tmp_depthbuffer[index]) //if we are indeed the fragment with min Z, then write
+		if(frag.position.z == tmp_depthbuffer[index]){//if we are indeed the fragment with min Z, then write
+			int leet = 1337;
+		}
 		depthbuffer[index] = frag;
 	}
 }
@@ -305,29 +308,43 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  }
 	  }
 
-	  rasterizeHorizLine(glm::vec2(500.2, 100.7), glm::vec2(200.5, 100.7), depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  
-	  /*int numPixels = rasterizeLine(p0, p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(p1, p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(p2, p0, depthbuffer, tmp_depthbuffer, resolution, currTri);*/
+	  //int numPixels = rasterizeLine(p0, p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  //numPixels += rasterizeLine(p1, p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  //numPixels += rasterizeLine(p2, p0, depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
-	  //float triHeight = (p2.y - p0.y);
-	  //if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
-		 // float topHeight = (p1.y - p0.y);
-		 // float slope0, slope1;
-		 // glm::vec3 rasterStart, rasterEnd;
-		 // if( abs(topHeight) > NATHANS_EPSILON){ //top is not flat
-			//  slope0 = (p1.x - p0.x) / topHeight;
-			//  slope1 = (p2.x - p0.x) / triHeight;
-			//  rasterStart = p0;
-			//  rasterEnd = p0;
-			//  while(rasterStart.y >= p1.y && rasterEnd.y >= p1.y){
-			//	  
-			//  }
-		 // }
-	  //}
+	  float triHeight = (p2.y - p0.y);
+	  if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
+		  float topHeight = (p1.y - p0.y);
+		  glm::vec2 gradToMiddle, gradToBottom;
+		  glm::vec2 rasterStart, rasterEnd;
+		  gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, 1);
+		  if( abs(topHeight) > NATHANS_EPSILON ){ //top is not flat
+			  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, 1);
+			  rasterStart = glm::vec2(p0);
+			  rasterEnd = glm::vec2(p0);
+			  while(rasterStart.y >= p1.y && rasterEnd.y >= p1.y){
+				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri);
+				  rasterStart += gradToBottom;
+				  rasterEnd += gradToMiddle;
+			  }
+		  } else { //top is flat, thus we don't start at a point, we start at a line
+			  rasterStart = glm::vec2(p0);
+			  rasterEnd = glm::vec2(p1);
+		  }
+		  float bottomHeight = (p2.y - p1.y);
+		  if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
+			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight,1);
+			  while(rasterStart.y >= p2.y && rasterEnd.y >= p2.y){
+				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri);
+				  rasterStart += gradToBottom;
+				  rasterEnd += gradMidToBot;
+			  }
+		  }
+	  }
   }
 }
 
