@@ -44,7 +44,7 @@ __host__ __device__ unsigned int hash(unsigned int a){
 
 //Writes a given fragment to a fragment buffer at a given location
 __host__ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution){
-  if(x<resolution.x && y<resolution.y){
+  if(x > 0 && y > 0 && x<resolution.x && y<resolution.y){
     int index = (y*resolution.x) + x;
     depthbuffer[index] = frag;
   }
@@ -136,7 +136,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
   }
 }
 
-//"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be writte to
+//"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
 __device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution){
 	fragment currFrag;
 	currFrag.color = currTri.c0; //assume the tri is all one color for now.
@@ -147,6 +147,7 @@ __device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragm
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
 	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution);
+	//writeToDepthbuffer(pixX, pixY, currFrag, depthBuffer, resolution);
 }
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
@@ -228,12 +229,12 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   if(index<primitivesCount){
 	  //first rasterize the OUTLINES of the triangle
 	  triangle currTri = primitives[index];
-	  //int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri);
-	  //numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri);
-	  //numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri);
-	  int numPixels = rasterizeLine(currTri.p1, currTri.p0, depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(currTri.p2, currTri.p1, depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(currTri.p0, currTri.p2, depthbuffer, resolution, currTri);
+	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri);
+	  //int numPixels = rasterizeLine(currTri.p1, currTri.p0, depthbuffer, resolution, currTri);
+	  //numPixels += rasterizeLine(currTri.p2, currTri.p1, depthbuffer, resolution, currTri);
+	  //numPixels += rasterizeLine(currTri.p0, currTri.p2, depthbuffer, resolution, currTri);
 
 
 	  //use recursive flood fill starting at the CENTER of the triangle (interpolate using barycentric, map back to screen space)
