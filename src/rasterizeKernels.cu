@@ -276,43 +276,33 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  glm::vec3 p0;
 	  glm::vec3 p1;
 	  glm::vec3 p2;
-	  //we want to sort p0, p1, p2, such that p0 has the highest y-value, p1 second highest, p2 lowest. 
+	  //we want to sort p0, p1, p2, such that p0 has the lowest y-value, p1 middle, p2 highest. 
 	 // There are 6 possible permutations:
-	  if(p0.y > p1.y && p0.y > p2.y){ //p0 has greatest y
-		  if(p1.y > p2.y){ //p0.y >= p1.y >= p2.y
-			  p0 = currTri.p0;
-			  p1 = currTri.p1;
-			  p2 = currTri.p2;
-		  } else { //p0.y >= p2.y >= p1.y
-			  p0 = currTri.p0;
-			  p1 = currTri.p2;
-			  p2 = currTri.p1;
-		  }
-	  } else if( p1.y > p0.y && p1.y > p2.y) { //p1 has greatest y
-		  if(p0.y > p2.y){ //p1.y >= p0.y >= p2.y
-			  p0 = currTri.p1;
-			  p1 = currTri.p0;
-			  p2 = currTri.p2;
-		  } else { //p1.y >= p2.y >= p0.y
-			  p0 = currTri.p1;
-			  p1 = currTri.p2;
-			  p2 = currTri.p0;
-		  }
-	  } else { //p2 has greatest y
-		  if(p1.y > p0.y){ //p2.y >= p1.y >= p0.y
-			  p0 = currTri.p2;
-			  p1 = currTri.p1;
-			  p2 = currTri.p0;
-		  } else { //p2.y >= p0.y >= p1.y
-			  p0 = currTri.p2;
-			  p1 = currTri.p0;
-			  p2 = currTri.p1;
-		  }
+	  if( currTri.p2.y >= currTri.p1.y && currTri.p1.y >= currTri.p0.y ){ //p2 >= p1 >= p0
+		  p2 = currTri.p2; //highest
+		  p1 = currTri.p1; //middle 
+		  p0 = currTri.p0; //low
+	  } else if( currTri.p2.y >= currTri.p0.y && currTri.p0.y >= currTri.p1.y ){ //p2 >= p0 >= p1
+		  p2 = currTri.p2; // highest
+		  p1 = currTri.p0; //middle
+		  p0 = currTri.p1; //low
+	  } else if( currTri.p1.y >= currTri.p2.y && currTri.p2.y >= currTri.p0.y ){ //p1 >= p2 >= p0
+		  p2 = currTri.p1; // highest
+		  p1 = currTri.p2; //middle
+		  p0 = currTri.p0; //low
+	  } else if( currTri.p1.y >= currTri.p0.y && currTri.p0.y >= currTri.p2.y ){ //p1 >= p0 >= p2
+		  p2 = currTri.p1; // highest
+		  p1 = currTri.p0; //middle
+		  p0 = currTri.p2; //low
+	  } else if( currTri.p0.y >= currTri.p2.y && currTri.p2.y >= currTri.p1.y ){ //p0 >= p2 >= p1
+		  p2 = currTri.p0; // highest
+		  p1 = currTri.p2; //middle
+		  p0 = currTri.p1; //low
+	  } else { //p0 >= p1 >= p2
+		  p2 = currTri.p0; // highest
+		  p1 = currTri.p1; //middle
+		  p0 = currTri.p2; //low
 	  }
-
-	  glm::vec3 tmp = p0;
-	  p0 = p2;
-	  p2 = tmp;
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  
@@ -323,6 +313,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
 	  float triHeight = (p2.y - p0.y);
+
+	  if( p0.y > p1.y || p1.y > p2.y){
+		  printf("Trololo\n");
+	  }
 	  //printf("P0's y %f, P1's y %f P2's y %f\n", p0.y, p1.y, p2.y);
 	  if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
 		  float topHeight = (p1.y - p0.y);
