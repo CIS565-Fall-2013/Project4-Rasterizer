@@ -175,6 +175,19 @@ __device__ void writePointInTriangle(triangle currTri, glm::vec2 xyCoords, fragm
 	//writeToDepthbuffer(pixX, pixY, currFrag, depthBuffer, resolution);
 }
 
+//rasterize between startX and endX, inclusive
+__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri){
+	int Xinc = roundf(end.x) - roundf(start.x);
+	int sgnXinc = Xinc > 0 ? 1 : -1;
+	int numPixels = abs(Xinc) + 1; //+1 to be inclusive
+	int currX = roundf(start.x);
+	int Y = roundf(start.y); //Y should be the same for the whole line
+	for(int i = 0; i < numPixels; i++){
+		writePointInTriangle(currTri, glm::vec2(currX, Y), depthBuffer, tmp_depthBuffer, resolution);
+		currX += sgnXinc; //either increase or decrease currX depending on direction
+	}
+}
+
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
 //returns the number of pixels drawn
 __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri){
@@ -254,6 +267,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   if(index<primitivesCount){
 	  //based on notes from here: http://sol.gfxile.net/tri/index.html
 	  triangle currTri = primitives[index];
+
 	  glm::vec3 p0;
 	  glm::vec3 p1;
 	  glm::vec3 p2;
@@ -291,10 +305,27 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  }
 	  }
 	  
+	  /*int numPixels = rasterizeLine(p0, p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(p1, p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  numPixels += rasterizeLine(p2, p0, depthbuffer, tmp_depthbuffer, resolution, currTri);*/
+	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
+	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
-	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
-	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri);
+	  //float triHeight = (p2.y - p0.y);
+	  //if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
+		 // float topHeight = (p1.y - p0.y);
+		 // float slope0, slope1;
+		 // glm::vec3 rasterStart, rasterEnd;
+		 // if( abs(topHeight) > NATHANS_EPSILON){ //top is not flat
+			//  slope0 = (p1.x - p0.x) / topHeight;
+			//  slope1 = (p2.x - p0.x) / triHeight;
+			//  rasterStart = p0;
+			//  rasterEnd = p0;
+			//  while(rasterStart.y >= p1.y && rasterEnd.y >= p1.y){
+			//	  
+			//  }
+		 // }
+	  //}
   }
 }
 
