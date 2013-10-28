@@ -74,7 +74,9 @@ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthb
 		//	int leet = 1337;
 		//}
 		//printf("Frag z: %f\n", frag.position.z);
-		depthbuffer[index] = frag;
+		if(depthbuffer[index].position.z < frag.position.z){
+			depthbuffer[index] = frag;
+		}
 	}
 }
 
@@ -361,7 +363,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   if(x > 0 && y > 0 && x<=resolution.x && y<=resolution.y){
 	  fragment currFrag = depthbuffer[index];
 	  currFrag.color = currFrag.color * (-0.801f - currFrag.position.z) * 100.0f;
-	  //printf("Frag z: %f\n", currFrag.position.z);
+	  printf("Frag z: %f\n", currFrag.position.z);
 	  depthbuffer[index] = currFrag;
   }
 }
