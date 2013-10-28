@@ -332,6 +332,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 				  rasterStart += gradToBottom;
 				  rasterEnd += gradToMiddle;
 			  }
+			  rasterStart -= gradToBottom;
+			  rasterEnd = glm::vec2(p1);
 		  } else { //top is flat, thus we don't start at a point, we start at a line
 			  rasterStart = glm::vec2(p0);
 			  rasterEnd = glm::vec2(p1);
@@ -340,7 +342,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
 			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, 1);
 			  while(rasterStart.y <= p2.y && rasterEnd.y <= p2.y){
-				  //rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 				  rasterStart += gradToBottom;
 				  rasterEnd += gradMidToBot;
 			  }
