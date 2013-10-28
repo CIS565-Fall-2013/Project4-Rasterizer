@@ -252,10 +252,45 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, float* tmp_depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+	  //based on notes from here: http://sol.gfxile.net/tri/index.html
 	  triangle currTri = primitives[index];
-	  //glm::vec3 p0 = currTri.p0;
-	  //glm::vec3 p1 = currTri.p1;
-	  //glm::vec3 p2 = currTri.p2;
+	  glm::vec3 p0;
+	  glm::vec3 p1;
+	  glm::vec3 p2;
+	  //we want to sort p0, p1, p2, such that p0 has the highest y-value, p1 second highest, p2 lowest. 
+	  //There are 6 possible permutations:
+	  if(p0.y >= p1.y && p0.y >= p2.y){ //p0 has greatest y
+		  if(p1.y > p2.y){ //p0.y >= p1.y >= p2.y
+			  p0 = currTri.p0;
+			  p1 = currTri.p1;
+			  p2 = currTri.p2;
+		  } else { //p0.y >= p2.y >= p1.y
+			  p0 = currTri.p0;
+			  p1 = currTri.p2;
+			  p2 = currTri.p1;
+		  }
+	  } else if( p1.y >= p0.y && p1.y >= p2.y) { //p1 has greatest y
+		  if(p0.y > p2.y){ //p1.y >= p0.y >= p2.y
+			  p0 = currTri.p1;
+			  p1 = currTri.p0;
+			  p2 = currTri.p2;
+		  } else { //p1.y >= p2.y >= p0.y
+			  p0 = currTri.p1;
+			  p1 = currTri.p2;
+			  p2 = currTri.p0;
+		  }
+	  } else { //p2 has greatest y
+		  if(p1.y > p0.y){ //p2.y >= p1.y >= p0.y
+			  p0 = currTri.p2;
+			  p1 = currTri.p1;
+			  p2 = currTri.p0;
+		  } else { //p2.y >= p0.y >= p1.y
+			  p0 = currTri.p2;
+			  p1 = currTri.p0;
+			  p2 = currTri.p1;
+		  }
+	  }
+	  
 
 	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri);
 	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri);
@@ -279,7 +314,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
 
-  if(x<=resolution.x && y<=resolution.y){
+  if(x >= 0 && y >= 0 && x<=resolution.x && y<=resolution.y){
     framebuffer[index] = depthbuffer[index].color;
   }
 }
