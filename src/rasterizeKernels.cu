@@ -310,9 +310,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  
-	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+	  //int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+	  //numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+	  //numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
