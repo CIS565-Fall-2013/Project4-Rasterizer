@@ -21,6 +21,8 @@
 #include <time.h>
 #include "glslUtility.h"
 #include "glm/glm.hpp"
+#include "glm/gtx/transform.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
@@ -59,6 +61,17 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+float* nbo;
+int nbosize;
+
+float fovy = 60.0f;
+float zNear = 0.10;
+float zFar = 5.0;
+
+glm::mat4 model;
+glm::mat4 view;
+glm::mat4 projection;
+glm::vec3 cameraPosition(0.0,0.0,1.0);
 
 //-------------------------------
 //----------CUDA STUFF-----------

@@ -45,6 +45,17 @@ int main(int argc, char** argv){
   init(argc, argv);
   #endif
 
+    glm::mat4 translationMat = glm::translate(0.0f, 0.0f, 0.0f);
+	glm::mat4 scaleMat = glm::scale(1.0f,1.0f,1.0f);
+	glm::vec3 myRotationAxis(0.0f, 1.0f, 0.0f);
+	glm::mat4 rotationMat = glm::rotate( 0.0f, myRotationAxis );
+
+	model = translationMat*rotationMat*scaleMat;
+	projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);
+	view = glm::lookAt(cameraPosition, glm::vec3(0), glm::vec3(0,1,0));
+
+	//projection = projection * view* model;
+
   initCuda();
 
   initVAO();
@@ -99,8 +110,11 @@ void runCuda(){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,nbo, nbosize,model,view,projection);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
