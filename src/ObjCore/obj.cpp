@@ -88,14 +88,29 @@ void obj::buildVBOs(){
 	vbosize = (int)VBOvec.size();
 	nbosize = (int)NBOvec.size();
 	ibosize = (int)IBOvec.size();
-	for(int i=0; i<VBOvec.size(); i++){
-		vbo[i] = VBOvec[i];
+
+	int vertNormStep = vbosize / 4;
+	int indxStep = ibosize / 3;
+
+	// Reorder vbo so that it is more amenable to coalesced global memory accesses.
+	for(int i=0; i<vertNormStep; i++){
+		vbo[i] = VBOvec[i*4];
+		vbo[i+vertNormStep] = VBOvec[(i*4)+1];
+		vbo[i+(2*vertNormStep)] = VBOvec[(i*4)+2];
+		vbo[i+(3*vertNormStep)] = VBOvec[(i*4)+3];
 	}
-	for(int i=0; i<NBOvec.size(); i++){
-		nbo[i] = NBOvec[i];
+	// Reorder nbo so that it is more amenable to coalesced global memory accesses.
+	for(int i=0; i<vertNormStep; i+=4){
+		nbo[i] = NBOvec[i*4];
+		nbo[i+vertNormStep] = NBOvec[(i*4)+1];
+		nbo[i+(2*vertNormStep)] = NBOvec[(i*4)+2];
+		nbo[i+(3*vertNormStep)] = NBOvec[(i*4)+3];
 	}
-	for(int i=0; i<IBOvec.size(); i++){
-		ibo[i] = IBOvec[i];
+	// Reorder ibo so that it is more amenable to coalesced global memory accesses.
+	for(int i=0; i<indxStep; i++){
+		ibo[i] = IBOvec[i*3];
+		ibo[i+indxStep] = IBOvec[(i*3)+1];
+		ibo[i+(2*indxStep)] = IBOvec[(i*3)+2];
 	}
 	setColor(glm::vec3(.4,.4,.4));
 }
