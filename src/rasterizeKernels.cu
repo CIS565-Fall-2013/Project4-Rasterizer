@@ -21,12 +21,18 @@ float* device_cbo;
 int* device_ibo;
 triangle* primitives;
 
-void checkCUDAError(const char *msg) {
-  cudaError_t err = cudaGetLastError();
-  if( cudaSuccess != err) {
-    fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) ); 
-    exit(EXIT_FAILURE); 
-  }
+void checkCUDAError(const char *msg, int line = -1)
+{
+    cudaError_t err = cudaGetLastError();
+    if( cudaSuccess != err)
+    {
+        if( line >= 0 )
+        {
+            fprintf(stderr, "Line %d: ", line);
+        }
+        fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) ); 
+        exit(EXIT_FAILURE); 
+    }
 } 
 
 //Handy dandy little hashing function that provides seeds for random number generation
@@ -334,7 +340,6 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   //------------------------------
   //vertex shader
   //------------------------------
-
   // copy over camera information
   mat4 modelMatrix(1);
   mat4 viewMatrix = cam->view;
@@ -345,33 +350,34 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 
   // launch vertex shader kernel
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, mvp, reso, viewport);
-
+  checkCUDAErrorWithLine("vertex shader kernel failed");
   cudaDeviceSynchronize();
   //------------------------------
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
-
+  checkCUDAErrorWithLine("primitive assembly kernel failed");
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
   rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
-
+  checkCUDAErrorWithLine("rasterization kernel failed");
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
   //------------------------------
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
-
+  checkCUDAErrorWithLine("fragment shader kernel failed");
   cudaDeviceSynchronize();
   //------------------------------
   //write fragments to framebuffer
   //------------------------------
   render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer);
+  checkCUDAErrorWithLine("render kernel failed");
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
-
+  checkCUDAErrorWithLine("send image to pbo kernel failed");
   cudaDeviceSynchronize();
 
   kernelCleanup();

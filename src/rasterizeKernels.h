@@ -17,6 +17,8 @@
     #include <cutil_math.h>
 #endif
 
+#define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
+
 using glm::mat4;
 using glm::vec4;
 using glm::vec3;
