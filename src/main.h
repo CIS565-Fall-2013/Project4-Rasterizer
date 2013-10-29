@@ -54,6 +54,7 @@ uchar4 *dptr;
 
 obj* mesh;
 
+float *nbo; //nbo has same size as vbo
 float* vbo;
 int vbosize;
 float* cbo;

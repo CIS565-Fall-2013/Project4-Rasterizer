@@ -18,8 +18,9 @@
 
 glm::vec3* framebuffer;
 fragment* depthbuffer;
-float* tmp_zbuffer;
+//float* tmp_zbuffer;
 float* device_vbo;
+float* device_nbo;
 float* modelspace_vbo;
 float* device_cbo;
 int* device_ibo;
@@ -63,7 +64,7 @@ __host__ __device__ unsigned int hash(unsigned int a){
 //}
 
 //Writes a given fragment to a fragment buffer at a given location
-__device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution, float* tmp_depthbuffer){
+__device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution){
 	int index = (y*resolution.x) + x;
 	//if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
 	//	//fatomicMax(&tmp_depthbuffer[index], frag.position.z);
@@ -121,7 +122,7 @@ __global__ void clearImage(glm::vec2 resolution, glm::vec3* image, glm::vec3 col
 }
 
 //Kernel that clears a given fragment buffer with a given fragment
-__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag, float* tmp_buffer){
+__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag){
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
     int index = x + (y * resolution.x);
@@ -131,7 +132,6 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       f.position.y = y;
 	  f.triIdx = -1; //no triangle associated.
       buffer[index] = f;
-	  tmp_buffer[index] = f.position.z;
     }
 }
 
@@ -170,7 +170,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
-__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution){
+__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution){
 	fragment currFrag;
 	currFrag.triIdx = triIdx;
 	currFrag.color = currTri.c0; //assume the tri is all one color for now.
@@ -185,11 +185,11 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
-	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution, tmp_depthBuffer);
+	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution);
 }
 
 //rasterize between startX and endX, inclusive
-__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx){
+__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx){
 	int Xinc = roundf(end.x) - roundf(start.x);
 	int sgnXinc = Xinc > 0 ? 1 : -1;
 	int numPixels = abs(Xinc) + 1; //+1 to be inclusive
@@ -197,9 +197,9 @@ __device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* dept
 	int Y = roundf(start.y); //Y should be the same for the whole line
 	int endY = roundf(end.y);
 	for(int i = 0; i < numPixels; i++){
-		writePointInTriangle(currTri, triIdx, glm::vec2(currX, Y), depthBuffer, tmp_depthBuffer, resolution);
+		writePointInTriangle(currTri, triIdx, glm::vec2(currX, Y), depthBuffer, resolution);
 		if( endY != Y ){
-			writePointInTriangle(currTri, triIdx, glm::vec2(currX, endY), depthBuffer, tmp_depthBuffer, resolution);
+			writePointInTriangle(currTri, triIdx, glm::vec2(currX, endY), depthBuffer, resolution);
 		}
 		currX += sgnXinc; //either increase or decrease currX depending on direction
 	}
@@ -208,7 +208,7 @@ __device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* dept
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
 //returns the number of pixels drawn
-__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, float* tmp_depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx){
+__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx){
 	float X, Y, Xinc, Yinc, LENGTH;
 	Xinc = finish.x - start.x;
 	Yinc = finish.y - start.y;
@@ -217,7 +217,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 	int pixelsDrawn = 0;
 	//if both zero, then we just draw a point.
 	if( (abs(Xinc) < NATHANS_EPSILON) && (abs(Yinc) < NATHANS_EPSILON) ){
-		writePointInTriangle(currTri, triIdx, glm::vec2(start.x, start.y), depthBuffer, tmp_depthBuffer, resolution);
+		writePointInTriangle(currTri, triIdx, glm::vec2(start.x, start.y), depthBuffer, resolution);
 		pixelsDrawn++;
 	} else { //this is a line segment
 		//LENGTH is the greater of Xinc, Yinc
@@ -233,7 +233,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 		X = start.x;
 		Y = start.y;
 		for(int i = 0; i <= roundf(LENGTH); i++){ //do this at least once
-			writePointInTriangle(currTri, triIdx, glm::vec2(X, Y), depthBuffer, tmp_depthBuffer, resolution);
+			writePointInTriangle(currTri, triIdx, glm::vec2(X, Y), depthBuffer, resolution);
 			pixelsDrawn++;
 			X += Xinc;
 			Y += Yinc;
@@ -288,7 +288,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, int vbosiz
 //NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
 //for now the normal can just be the cross product of the vectors that make up the face (flat shading).
 //NATHAN: add early-z here.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, float* tmp_depthbuffer, glm::vec2 resolution, glm::vec3 vdir){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 vdir){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 	  //based on notes from here: http://sol.gfxile.net/tri/index.html
@@ -337,9 +337,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  
-	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index);
+	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index);
+	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index);
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
@@ -359,7 +359,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  rasterStart = glm::vec2(p0);
 			  rasterEnd = glm::vec2(p0);
 			  while(rasterStart.y <= p1.y && rasterEnd.y <= p1.y){
-				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index);
 				  rasterStart += gradToBottom;
 				  rasterEnd += gradToMiddle;
 			  }
@@ -368,22 +368,22 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  } else { //top is flat, thus we don't start at a point, we start at a line
 			  rasterStart = glm::vec2(p0);
 			  rasterEnd = glm::vec2(p1);
-			  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index); //this line is the "top"
+			  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index); //this line is the "top"
 		  }
 		  float bottomHeight = (p2.y - p1.y);
 		  if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
 			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, 1);
 			  while(rasterStart.y <= p2.y && rasterEnd.y <= p2.y){
-				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index);
 				  rasterStart += gradToBottom;
 				  rasterEnd += gradMidToBot;
 			  }
 		  } else { //bottom is flat, but we need to rasterize at least one line
-			  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+			  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, resolution, currTri, index);
 		  }
 	  } else{ //rasterize two straight lines, since the triangle is "flat"
-		  rasterizeHorizLine(glm::vec2(p0), glm::vec2(p1), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-		  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+		  rasterizeHorizLine(glm::vec2(p0), glm::vec2(p1), depthbuffer, resolution, currTri, index);
+		  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, resolution, currTri, index);
 	  }
   }
 }
@@ -425,7 +425,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float angleDeg, glm::vec3 camPos){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, float angleDeg, glm::vec3 camPos){
 
   // set up crucial magic
   int tileSize = 8;
@@ -440,9 +440,6 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
 
-  tmp_zbuffer = NULL;
-  cudaMalloc((void**)&tmp_zbuffer, (int)resolution.x*(int)resolution.y*sizeof(float));
-
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
@@ -450,7 +447,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
-  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag, tmp_zbuffer);
+  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
   //------------------------------
   //memory stuff
@@ -465,6 +462,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   device_vbo = NULL;
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  //NBO is the size of the VBO
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, vbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   modelspace_vbo = NULL;
   cudaMalloc((void**)&modelspace_vbo, vbosize*sizeof(float));
@@ -516,7 +518,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //first draw the outlines of the triangle
   glm::vec3 vdir = center - eye;
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, tmp_zbuffer, resolution, vdir);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir);
   cudaDeviceSynchronize();
   //next, march through all scanlines
   //int scanlineBlocks = ceil(resolution.y/(float)tileSize);
@@ -547,11 +549,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 void kernelCleanup(){
   cudaFree( primitives );
   cudaFree( device_vbo );
+  cudaFree( device_nbo );
   cudaFree( device_cbo );
   cudaFree( device_ibo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
-  cudaFree( tmp_zbuffer );
   cudaFree( modelspace_vbo );
 }
 

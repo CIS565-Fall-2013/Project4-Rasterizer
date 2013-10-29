@@ -89,6 +89,7 @@ void runCuda(){
 
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
+  nbo = mesh->getNBO();
 
   ////color for the triangle
   //float newcbo[] = {0.0, 1.0, 0.0, 
@@ -105,12 +106,13 @@ void runCuda(){
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
   float angleDeg = frame%360; //rotation angle of the model in degrees
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, angleDeg, camPos);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, camPos);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
   cbo = NULL;
   ibo = NULL;
+  nbo = NULL;
 
   frame++;
   fpstracker++;
