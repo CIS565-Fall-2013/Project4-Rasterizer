@@ -20,6 +20,7 @@ glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* tmp_zbuffer;
 float* device_vbo;
+float* orig_vbo;
 float* device_cbo;
 int* device_ibo;
 triangle* primitives;
@@ -287,7 +288,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  glm::vec3 v1 = currTri.p1 - currTri.p0;
 	  glm::vec3 v2 = currTri.p2 - currTri.p0;
 	  glm::vec3 normal = glm::cross(v1, v2);
-	  currTri.n0 = normal;
+	  //primitives[index].n0 = normal;
 
 	  if( glm::dot(normal, vdir) > 0 ){
 		  return; //cull face, it's facing away.
@@ -384,12 +385,12 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
   int index = x + (y * resolution.x);
   if(x > 0 && y > 0 && x<=resolution.x && y<=resolution.y){
 	  fragment currFrag = depthbuffer[index];
-		//float depthCoeff = abs(currFrag.position.z) - 0.5f;
-		//currFrag.color = currFrag.color * depthCoeff;
-		//depthbuffer[index] = currFrag;
-	  float diffuseCoeff = glm::dot(currFrag.normal, glm::normalize(eyePos - currFrag.position));
-	  currFrag.color = currFrag.color * diffuseCoeff;
-	  depthbuffer[index] = currFrag;
+		float depthCoeff = abs(currFrag.position.z) - 0.5f;
+		currFrag.color = currFrag.color * depthCoeff;
+		depthbuffer[index] = currFrag;
+	  //float diffuseCoeff = glm::dot(currFrag.normal, glm::normalize(eyePos - currFrag.position));
+	  //currFrag.color = currFrag.color * diffuseCoeff;
+	  //depthbuffer[index] = currFrag;
   }
 }
 
@@ -446,6 +447,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   device_vbo = NULL;
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+	orig_vbo = NULL;
+  cudaMalloc((void**)&orig_vbo, vbosize*sizeof(float));
+  cudaMemcpy( orig_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   device_cbo = NULL;
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
