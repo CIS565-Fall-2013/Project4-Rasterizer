@@ -264,13 +264,14 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	
 	  fragment tmpFrag;
 	  int fragIdx = 0;
-	  for(int y = pixelMax.y; y < pixelMin.y; y++)
+	  for(int y = pixelMax.y; y <= pixelMin.y; y++)
 	  {
 		 
 		  //loop from xmin to xmax
-		  for(int x = pixelMin.x; x < pixelMax.x; x++)
+		  for(int x = pixelMin.x; x <= pixelMax.x; x++)
 		  {
 			  fragIdx = x + y * resolution.x;
+			 
 			  //get pixel position in Canonical View Volumes
 			  glm::vec2 pixelPoint;
 			  pixelPoint.x = (2.0 * x / (float)resolution.x) - 1;
@@ -333,7 +334,12 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 		  //printf("bg area");
 		  return;
 	  }
-
+	/*  if(index == 160468)
+	  {
+		  printf("gonna fix");
+		  depthbuffer[index].color = glm::vec3(1,0,0);
+		  return;
+	  }*/
 	  glm::vec3 point = depthbuffer[index].position;
 	  glm::vec3 normal = depthbuffer[index].normal;
 	  glm::vec3 Lvector = point - lit.pos;

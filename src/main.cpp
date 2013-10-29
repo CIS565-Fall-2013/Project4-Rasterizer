@@ -120,7 +120,8 @@ void runCuda(){
   nbosize = mesh->getNBOsize();
 
   modelM = glm::mat4(1.0);
-  //modelM = glm::rotate(modelM,(float)frame,glm::vec3(0,1,0));
+  //modelM = glm::rotate(modelM,29.0f,glm::vec3(0,1,0));
+  modelM = glm::rotate(modelM,(float)frame,glm::vec3(0,1,0));
   //modelM = glm::rotate(modelM,230.0f,glm::vec3(0,1,0));
   
 
