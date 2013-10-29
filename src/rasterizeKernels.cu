@@ -271,11 +271,20 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 //NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
 //for now the normal can just be the cross product of the vectors that make up the face (flat shading).
 //NATHAN: add early-z here.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, float* tmp_depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, float* tmp_depthbuffer, glm::vec2 resolution, glm::vec3 vdir){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 	  //based on notes from here: http://sol.gfxile.net/tri/index.html
+
+	  //add really simple backface culling
 	  triangle currTri = primitives[index];
+	  glm::vec3 v1 = currTri.p1 - currTri.p0;
+	  glm::vec3 v2 = currTri.p2 - currTri.p0;
+	  glm::vec3 normal = glm::cross(v1, v2);
+
+	  if( glm::dot(normal, vdir) > 0 ){
+		  return; //cull face, it's facing away.
+	  }
 
 	  glm::vec3 p0;
 	  glm::vec3 p1;
@@ -363,12 +372,15 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   if(x > 0 && y > 0 && x<=resolution.x && y<=resolution.y){
 	  fragment currFrag = depthbuffer[index];
 	  //currFrag.color = currFrag.color * (-0.801f - currFrag.position.z) * 100.0f;
-	  float depthCoeff = (1.0f - (-0.7f - currFrag.position.z)/(-0.7f - (-0.8f)));
-	  currFrag.color = currFrag.color * depthCoeff;
-	  if(currFrag.position.z > -1000){
-		 //printf("Depth multiplier: %f\n", depthCoeff);
-	  }
-	  depthbuffer[index] = currFrag;
+	  //float depthCoeff = (1.0f - (-0.7f - currFrag.position.z)/(-0.7f - (-0.9f)));
+	  //if( currFrag.position.z > -0.5){
+		float depthCoeff = abs(currFrag.position.z) - 0.5f;
+		currFrag.color = currFrag.color * depthCoeff;
+		if(currFrag.position.z > -1000){
+			//printf("Depth multiplier: %f\n", depthCoeff);
+		}
+		depthbuffer[index] = currFrag;
+	//}
   }
 }
 
@@ -471,7 +483,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //rasterization
   //------------------------------
   //first draw the outlines of the triangle
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, tmp_zbuffer, resolution);
+  glm::vec3 vdir = center - eye;
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, tmp_zbuffer, resolution, vdir);
   cudaDeviceSynchronize();
   //next, march through all scanlines
   //int scanlineBlocks = ceil(resolution.y/(float)tileSize);
