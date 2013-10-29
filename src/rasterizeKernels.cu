@@ -214,12 +214,9 @@ __global__ void convertToScreenSpace(triangle* primitives, int primitivesCount, 
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if(index<primitivesCount)
+  {
 	  primitiveShared [threadIdx.x] = primitives [index];
 
-  __syncthreads ();
-
-  if(index<primitivesCount)
-  {
 	  // Convert clip space coordinates to NDC (a.k.a. Perspective divide).
 	  if (abs (primitiveShared [threadIdx.x].p0.w) > 0.001)
 	  {
@@ -309,7 +306,7 @@ __global__ void rasterizationKernel (triangle* primitive, int elementNo, fragmen
   int index = (y * resolution.x) + x;
 
   if (index < (resolution.x*resolution.y))
-	  zBufferShared [threadIdx.x] = depthbuffer [index];
+	  zBufferShared [threadIdx.x + threadIdx.y * blockDim.x] = depthbuffer [index];
 
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
@@ -345,25 +342,21 @@ __global__ void rasterizationKernel (triangle* primitive, int elementNo, fragmen
 //											baryCoord.b * currentPrim.c1 + 
 //											baryCoord.g * currentPrim.c2;
 					  
-					  curFragment.position.x =	baryCoord.x * currentPrim.p0.x + 
-												baryCoord.y * currentPrim.p1.x + 
-												baryCoord.z * currentPrim.p2.x;
+					  curFragment.position.x =	x;
+					  curFragment.position.y =	y;
 
-					  curFragment.position.y =	baryCoord.x * currentPrim.p0.y + 
-												baryCoord.y * currentPrim.p1.y + 
-												baryCoord.z * currentPrim.p2.y;
-
+					  // Perspective correct interpolation for Z
 					  curFragment.position.z =	baryCoord.x * currentPrim.p0.z + 
 												baryCoord.y * currentPrim.p1.z + 
 												baryCoord.z * currentPrim.p2.z;
 
-					  if (zBufferShared [threadIdx.x].position.z > curFragment.position.z)
-						  zBufferShared [threadIdx.x] = curFragment;
+					  if (zBufferShared [threadIdx.x + threadIdx.y * blockDim.x].position.z > curFragment.position.z)
+						  zBufferShared [threadIdx.x + threadIdx.y * blockDim.x] = curFragment;
 				  }
 			  }
 
-		  depthbuffer [index] = zBufferShared [threadIdx.x];
-	  //}
+		  depthbuffer [index] = zBufferShared [threadIdx.x + threadIdx.y * blockDim.x];
+//	  }
   }
 }
 
@@ -458,7 +451,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   // Map to Screen Space
   //------------------------------
-  convertToScreenSpace<<<primitiveBlocks, tileSize, tileSize>>>(primitives, ibosize/3, resolution);
+  convertToScreenSpace<<<primitiveBlocks, tileSize, tileSize*sizeof (triangle)>>>(primitives, ibosize/3, resolution);
   checkCUDAError("Conversion to Screen Space failed!");
   cudaDeviceSynchronize();
 //  triangle * primHost = new triangle [ibosize / 3];
@@ -468,7 +461,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   // Rasterization - rasterize each primitive
   //-----------------------------------------
   for (int i = 0; i<(ibosize / 3);  i++)
-	  rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y>>>(primitives, i, depthbuffer, resolution);
+	  rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y*sizeof(fragment)>>>(primitives, i, depthbuffer, resolution);
   checkCUDAError("Rasterization failed!");
   cudaDeviceSynchronize();
   //------------------------------

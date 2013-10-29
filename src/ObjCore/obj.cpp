@@ -89,22 +89,23 @@ void obj::buildVBOs(){
 	nbosize = (int)NBOvec.size();
 	ibosize = (int)IBOvec.size();
 
-	int vertNormStep = vbosize / 4;
+	int vertStep = vbosize / 4;
+	int normStep = nbosize / 4;
 	int indxStep = ibosize / 3;
 
 	// Reorder vbo so that it is more amenable to coalesced global memory accesses.
-	for(int i=0; i<vertNormStep; i++){
+	for(int i=0; i<vertStep; i++){
 		vbo[i] = VBOvec[i*4];
-		vbo[i+vertNormStep] = VBOvec[(i*4)+1];
-		vbo[i+(2*vertNormStep)] = VBOvec[(i*4)+2];
-		vbo[i+(3*vertNormStep)] = VBOvec[(i*4)+3];
+		vbo[i+vertStep] = VBOvec[(i*4)+1];
+		vbo[i+(2*vertStep)] = VBOvec[(i*4)+2];
+		vbo[i+(3*vertStep)] = VBOvec[(i*4)+3];
 	}
 	// Reorder nbo so that it is more amenable to coalesced global memory accesses.
-	for(int i=0; i<vertNormStep; i+=4){
+	for(int i=0; i<normStep; i++){
 		nbo[i] = NBOvec[i*4];
-		nbo[i+vertNormStep] = NBOvec[(i*4)+1];
-		nbo[i+(2*vertNormStep)] = NBOvec[(i*4)+2];
-		nbo[i+(3*vertNormStep)] = NBOvec[(i*4)+3];
+		nbo[i+normStep] = NBOvec[(i*4)+1];
+		nbo[i+(2*normStep)] = NBOvec[(i*4)+2];
+		nbo[i+(3*normStep)] = NBOvec[(i*4)+3];
 	}
 	// Reorder ibo so that it is more amenable to coalesced global memory accesses.
 	for(int i=0; i<indxStep; i++){
