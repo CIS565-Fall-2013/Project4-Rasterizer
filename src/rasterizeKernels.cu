@@ -149,7 +149,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	if(index<primitivesCount){
 		//3 floats per vert, 3 verts per triangle
 		triangle primative;
-		//Load verticies
+		//Load verticies and do perspective division while we're at it.
 
 		//Vertex 0
 		//primitive index*3 + vert number
@@ -157,8 +157,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		//For now just mod 3, TODO: Improve cbo functionality
 		int colorIndex = 3*(vertIndex % 3);//3 floats per color
 		vertIndex *= 3;//3 floats per vert
-
-		primative.p0 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
+		float w = vbo[vertIndex+3];
+		primative.p0 = glm::vec3(vbo[vertIndex+0]/w,vbo[vertIndex+1]/w,vbo[vertIndex+2]/w);
 		primative.c0 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
 
 		//Vertex 1
@@ -166,7 +166,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		colorIndex = 3*(vertIndex % 3);//3 floats per color
 		vertIndex *= 3;//3 floats per vert
 
-		primative.p1 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
+		w = vbo[vertIndex+3];
+		primative.p1 = glm::vec3(vbo[vertIndex+0]/w,vbo[vertIndex+1]/w,vbo[vertIndex+2]/w);
 		primative.c1 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
 
 		//Vertex 2
@@ -174,15 +175,21 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		colorIndex = 3*(vertIndex % 3);//3 floats per color
 		vertIndex *= 3;//3 floats per vert
 
-		primative.p2 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
+		w = vbo[vertIndex+3];
+		primative.p2 = glm::vec3(vbo[vertIndex+0]/w,vbo[vertIndex+1]/w,vbo[vertIndex+2]/w);
 		primative.c2 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
 	}
 }
 
 //TODO: Implement a rasterization method, such as scanline.
+//TODO: Do this a lot more efficiently and in parallel
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<primitivesCount){
+		//For each primative
+		//Compute surface normal.
+
+		
 	}
 }
 
@@ -192,6 +199,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 	int index = x + (y * resolution.x);
 	if(x<=resolution.x && y<=resolution.y){
 		//TODO: Implement a fragment shader
+
 	}
 }
 
@@ -269,7 +277,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//------------------------------
 	//rasterization
 	//------------------------------
+	
 	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+
+
 
 	cudaDeviceSynchronize();
 	//------------------------------
