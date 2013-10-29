@@ -149,7 +149,9 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP){
 	  vbo[vInd]=point.x;
 	  vbo[vInd+1]=point.y;
 	  vbo[vInd+2]=point.z;
-  
+
+	  //perspective division?
+
   }
 }
 
@@ -162,15 +164,20 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  triangle tri=primitives[index];
 	  
 	  //get the vertices and colors of the triangle
-	  int vInd = ibo[index]*3;
+	  int iInd = index*3;
+	  int vInd = ibo[iInd];
+
 	  tri.p0 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
 	  tri.c0 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
-	  vInd++;
+	  //get 2nd vertex
+	  iInd++;
+	  vInd = ibo[iInd];
 	  tri.p1 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
 	  tri.c1 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
-	  vInd++;
+	  iInd++;
+	  vInd = ibo[iInd];
 	  tri.p2 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
 	  tri.c2 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
