@@ -270,7 +270,7 @@ void initCamera()
 	vec3 cameraPosition = vec3(0, 0, 2);
 	vec3 viewDir = vec3(0,0,-1);
 	mat4 projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);
-    mat4 view = glm::lookAt(cameraPosition, glm::vec3(0), glm::vec3(0,0,1));
+    mat4 view = glm::lookAt(cameraPosition, glm::vec3(0), glm::vec3(0,1,0));
 
 	cam->fovy = fovy;
 	cam->position = cameraPosition;

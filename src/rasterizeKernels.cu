@@ -234,10 +234,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 		getAABBForTriangle(tri, triMinPoint, triMaxPoint);
 	  
-		triMinPoint.x > 0 ? triMinPoint.x : 0;
-		triMinPoint.y > 0 ? triMinPoint.y : 0;
-		triMaxPoint.x < resolution.x ? triMaxPoint.x : resolution.x;
-		triMaxPoint.y < resolution.y ? triMaxPoint.y : resolution.y;
+		triMinPoint.x = triMinPoint.x > 0 ? triMinPoint.x : 0;
+		triMinPoint.y = triMinPoint.y > 0 ? triMinPoint.y : 0;
+		triMaxPoint.x = triMaxPoint.x < resolution.x ? triMaxPoint.x : resolution.x;
+		triMaxPoint.y = triMaxPoint.y < resolution.y ? triMaxPoint.y : resolution.y;
 
 		// go through each pixel within the AABB for the triangle and fill the depthbuffer (fragments) appropriately
 		for (int x = triMinPoint.x ; x < triMaxPoint.x ; ++x)
@@ -252,7 +252,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					int depthBufferId = x * resolution.x + y;
 					float z = getZAtCoordinate(bc, tri);
 					depthbuffer[depthBufferId].position = vec3(x, y, z);
-					depthbuffer[depthBufferId].color = vec3(tri.c0 * bc.x, tri.c1 * bc.y, tri.c2 * bc.z);
+					depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
 				}
 			}
 		}
