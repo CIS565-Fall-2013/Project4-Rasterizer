@@ -32,9 +32,9 @@ int main(int argc, char** argv){
   //Setup uniform variables
   
   //TODO: Camera movable
-  u_pipelineOpts.fShaderProgram = DEPTH_BUFFER;
+  u_pipelineOpts.fShaderProgram = NORMAL_SHADING;
   u_variables.viewTransform = glm::lookAt(glm::vec3(1,1,1), glm::vec3(0,0,0), glm::vec3(0,1,0));
-  u_variables.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 1.0f, 10.0f);
+  u_variables.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 1.0f, 5.0f);
 
 
   frame = 0;

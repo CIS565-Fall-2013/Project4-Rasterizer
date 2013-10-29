@@ -156,7 +156,8 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, uniforms u_variables,
 //TODO: Implement primative assembly
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, 
 										int* ibo, int ibosize, triangle* primitives, 
-										uniforms u_variables, pipelineOpts opts){
+										uniforms u_variables, pipelineOpts opts)
+{
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int primitivesCount = ibosize/3;
 	if(index<primitivesCount){
@@ -197,7 +198,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 
 //TODO: Do this a lot more efficiently and in parallel
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, 
-									glm::vec2 resolution, uniforms u_variables, pipelineOpts opts){
+									glm::vec2 resolution, uniforms u_variables, pipelineOpts opts)
+{
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<primitivesCount){
 		//For each primative
@@ -221,7 +223,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		int minY = glm::floor(minPoint.y);
 		int maxY = glm::ceil(maxPoint.y);
 
-		
+
 		fragment frag;
 		//Flat shading for now
 		frag.normal = normal;
@@ -245,11 +247,11 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 				}
 			}
 		}
-		
+
 	}
 }
 
-__device__ void depthFSImpl(fragment* depthbuffer, int index,  uniforms u_variables, pipelineOpts opts)
+__host__ __device__ void depthFSImpl(fragment* depthbuffer, int index,  uniforms u_variables, pipelineOpts opts)
 {
 	float depth = depthbuffer[index].position.z;
 	if(depth < MAX_DEPTH)
@@ -257,13 +259,25 @@ __device__ void depthFSImpl(fragment* depthbuffer, int index,  uniforms u_variab
 }
 
 
-__device__ void ambientFSImpl(fragment* depthbuffer, int index,  uniforms u_variables, pipelineOpts opts)
+__host__ __device__ void ambientFSImpl(fragment* depthbuffer, int index,  uniforms u_variables, pipelineOpts opts)
 {
 	//Do nothing. Interpolated color is assumed to be right
 }
 
+__host__ __device__ void normalFSImpl(fragment* depthbuffer, int index,  uniforms u_variables, pipelineOpts opts)
+{	
+	glm::vec3 color = depthbuffer[index].normal;
+	color.x = abs(color.x);
+	color.y = abs(color.y);
+	color.z = abs(color.z);
+	depthbuffer[index].color = color; 
+
+}
+
+
 __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, 
-									uniforms u_variables, pipelineOpts opts){
+									uniforms u_variables, pipelineOpts opts)
+{
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 	int index = x + (y * resolution.x);
@@ -275,6 +289,9 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 			break;
 		case AMBIENT_LIGHTING:
 			ambientFSImpl(depthbuffer, index, u_variables, opts);
+			break;
+		case NORMAL_SHADING:
+			normalFSImpl(depthbuffer, index, u_variables, opts);
 			break;
 		}
 
@@ -295,7 +312,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, 
-					   float* cbo, int cbosize, int* ibo, int ibosize, uniforms u_variables, pipelineOpts opts){
+					   float* cbo, int cbosize, int* ibo, int ibosize, uniforms u_variables, pipelineOpts opts)
+{
 
 	// set up crucial magic
 	int tileSize = 8;
@@ -314,9 +332,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
 
 	fragment frag;
-	frag.color = glm::vec3(0,0,0);
-	frag.normal = glm::vec3(0,0,0);
-	frag.position = glm::vec3(0,0,MAX_DEPTH);
+	frag.color = glm::vec3(0.0f);
+	frag.normal = glm::vec3(0.0f);
+	frag.position = glm::vec3(0.0f,0.0f,MAX_DEPTH);
 	clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
 	//------------------------------
@@ -356,7 +374,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//------------------------------
 	//rasterization
 	//------------------------------
-	
+
 	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, u_variables, opts);
 
 
