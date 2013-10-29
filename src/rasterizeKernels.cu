@@ -268,7 +268,7 @@ __global__ void vertexShadeKernel(float* vbo, float* model_vbo, float* nbo, int 
   }
 }
 
-__global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+__global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, float* nbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){ //one thread per primitive
@@ -277,14 +277,17 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, int vbosiz
 	  int ind0 = ibo[primNum];
 	  currTri.p0 = glm::vec3(vbo[3*ind0], vbo[3*ind0 + 1], vbo[3*ind0 + 2]);
 	  currTri.modelspace_p0 = glm::vec3(model_vbo[3*ind0], model_vbo[3*ind0 + 1], model_vbo[3*ind0 + 2]);
+	  currTri.modelspace_n0 = glm::vec3(nbo[3*ind0], nbo[3*ind0 + 1], nbo[3*ind0 + 2]);
 	  currTri.c0 = glm::vec3(cbo[3*ind0], cbo[3*ind0 + 1], cbo[3*ind0 + 2]);
 	  int ind1 = ibo[primNum + 1];
 	  currTri.p1 = glm::vec3(vbo[3*ind1], vbo[3*ind1 + 1], vbo[3*ind1 + 2]);
 	  currTri.modelspace_p1 = glm::vec3(model_vbo[3*ind1], model_vbo[3*ind1 + 1], model_vbo[3*ind1 + 2]);
+	  currTri.modelspace_n1 = glm::vec3(nbo[3*ind1], nbo[3*ind1 + 1], nbo[3*ind1 + 2]);
 	  currTri.c1 = glm::vec3(cbo[3*ind1], cbo[3*ind1 + 1], cbo[3*ind1 + 2]);
 	  int ind2 = ibo[primNum + 2];
 	  currTri.p2 = glm::vec3(vbo[3*ind2], vbo[3*ind2 + 1], vbo[3*ind2 + 2]);
 	  currTri.modelspace_p2 = glm::vec3(model_vbo[3*ind2], model_vbo[3*ind2 + 1], model_vbo[3*ind2 + 2]);
+	  currTri.modelspace_n2 = glm::vec3(nbo[3*ind2], nbo[3*ind2 + 1], nbo[3*ind2 + 2]);
 	  currTri.c2 = glm::vec3(cbo[3*ind2], cbo[3*ind2 + 1], cbo[3*ind2 + 2]);
 	  primitives[index] = currTri;
   }
@@ -513,7 +516,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, modelspace_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, modelspace_vbo, device_nbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
   //triangle* assembledTris = new triangle[ibosize/3];
   //cudaMemcpy( assembledTris, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost);
   //delete assembledTris;
