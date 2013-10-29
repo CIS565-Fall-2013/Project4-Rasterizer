@@ -153,7 +153,7 @@ void runCuda(){
 	  gamma.gamma = 1.0/2.2;
 	  gamma.divisor = 1.0;//renderCam->iterations;
 	  outputImage.setGammaSettings(gamma);
-	  string filename = "screenshot.bmp";
+	  string filename = "screenshot.png";
 	  string s;
 	  stringstream out;
 	  out << frame;
