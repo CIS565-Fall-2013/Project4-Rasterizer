@@ -4,6 +4,7 @@
 #ifndef Pathtracer_utilities_h
 #define Pathtracer_utilities_h
 
+#define GLM_SWIZZLE
 #include "glm/glm.hpp"
 #include <algorithm>
 #include <istream>

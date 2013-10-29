@@ -215,53 +215,83 @@ __global__ void primitiveAssemblyKernel(float* vbo, float *vbo_eye, int vbosize,
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, varying* interpVariables, glm::vec2 resolution, float zNear, float zFar){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){// any practical use for discarding? introduced divergence and have to wait other thread to finish
-	  triangle thisTriangle = primitives[index];	  
-	  glm::vec3 triMin, triMax;
-	  getAABBForTriangle(thisTriangle, triMin, triMax);
-	  
-	  // if wholly outside of rendering area, discard
-/*
-	  if(triMin.x > resolution.x || triMin.y > resolution.y || triMin.z > zFar || 
-		 triMax.x < 0            || triMax.y < 0            || triMax.z < zNear) return; // all out-of-screen tris not culled 
+	  triangle thisTriangle = primitives[index];	
 	  // if degenerate, skip
-	  else if(abs(calculateSignedArea(thisTriangle)) < 1e-6) return;
-	  else {*/
-		  glm::vec2 pixelCoords;
-		  glm::vec3 barycentricCoords;
-		  int pixelIndex;
-		  for(int j = 0; j < resolution.y; ++j)
-		  {
-			  for(int i = 0; i < resolution.x; ++i)
+	  if(abs(calculateSignedArea(thisTriangle)) < 1e-6) return;
+	  else
+	  {
+		  glm::vec3 triMin, triMax;
+		  getAABBForTriangle(thisTriangle, triMin, triMax);  
+		  // if wholly outside of rendering area, discard
+		  if(triMin.x > resolution.x || triMin.y > resolution.y || triMin.z > zFar || 
+			 triMax.x < 0            || triMax.y < 0            || triMax.z < zNear) return; // all out-of-screen tris not culled 
+		  
+		  else {
+			  glm::vec2 pixelCoords;
+			  glm::vec3 barycentricCoords;
+			  int pixelIndex;
+			  for(int j = int(triMin.y); j < int(triMax.y+1); ++j)
 			  {
-				  pixelCoords = glm::vec2(float(i+0.5), float(j+0.5));
-				  if(index == 0)
+				  glm::vec2 Q0(triMin.x, float(j+0.5));
+				  glm::vec2 Q1(triMax.x, float(j+0.5));
+				  glm::vec2 u = Q1 - Q0;
+				  float s[3];
+				  float t[3];
+				  float minS = 1.0f, maxS = 0.0f;
+				  glm::vec2 v0((thisTriangle.p1 - thisTriangle.p0).x, (thisTriangle.p1 - thisTriangle.p0).y);
+				  glm::vec2 v1((thisTriangle.p2 - thisTriangle.p1).x, (thisTriangle.p2 - thisTriangle.p1).y);
+				  glm::vec2 v2((thisTriangle.p0 - thisTriangle.p2).x, (thisTriangle.p0 - thisTriangle.p2).y);
+
+				  glm::vec2 w;
+				  if(abs(u.x*v0.y - u.y*v0.x) > 1e-6)
 				  {
-/*
-					  printVec3(triMin);
-					  printVec3(triMax);*/
+					  w = Q0 - glm::vec2(thisTriangle.p0.x, thisTriangle.p0.y);
+					  s[0] = (v0.y*w.x - v0.x*w.y) / (v0.x*u.y - v0.y*u.x);
+					  t[0] = (u.x*w.y  - u.y*w.x ) / (u.x*v0.y - u.y*v0.x);
+					  if(s[0] > 0 && s[0] < 1 && t[0] > 0 && t[0] < 1)
+					  {
+						  minS = fminf(s[0], minS);
+						  maxS = fmaxf(s[0], maxS);
+					  }
 				  }
-				  // if outside of bounding box, do not rasterize
-//				  if(pixelCoords.x < triMin.x || pixelCoords.x > triMax.x || pixelCoords.y < triMin.y || pixelCoords.y > triMax.y) return;
-				  // else if inside triangle, rasterize
-/*
-				  else
-				  {*/
+				  if(abs(u.x*v1.y - u.y*v1.x) > 1e-6)
+				  {
+					  w = Q0 - glm::vec2(thisTriangle.p1.x, thisTriangle.p1.y);
+					  s[1] = (v1.y*w.x - v1.x*w.y) / (v1.x*u.y - v1.y*u.x);
+					  t[1] = (u.x*w.y  - u.y*w.x ) / (u.x*v1.y - u.y*v1.x);
+					  if(s[1] > 0 && s[1] < 1 && t[1] > 0 && t[1] < 1)
+					  {
+						  minS = fminf(s[1], minS);
+						  maxS = fmaxf(s[1], maxS);
+					  }
+				  }
+				  if(abs(u.x*v2.y - u.y*v2.x) > 1e-6)
+				  {
+					  w = Q0 - glm::vec2(thisTriangle.p2.x, thisTriangle.p2.y);
+					  s[2] = (v2.y*w.x - v2.x*w.y) / (v2.x*u.y - v2.y*u.x);
+					  t[2] = (u.x*w.y  - u.y*w.x ) / (u.x*v2.y - u.y*v2.x);
+					  if(s[2] > 0 && s[2] < 1 && t[2] > 0 && t[2] < 1)
+					  {
+						  minS = fminf(s[2], minS);
+						  maxS = fmaxf(s[2], maxS);
+					  }
+				  }
+				  for(int i = int(triMin.x + minS * u.x); i < int(triMin.x + maxS * u.x + 1); ++i)
+				  {
+					  pixelCoords = glm::vec2(float(i+0.5), float(j+0.5));
 					  barycentricCoords = calculateBarycentricCoordinate(thisTriangle, pixelCoords);
 					  pixelIndex = resolution.x - 1 - i + ((resolution .y  - 1 - j) * resolution.x);
 					  if(isBarycentricCoordInBounds(barycentricCoords))
 					  {
-						  interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;						  
-						  interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
+					  	  interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;						  
+					  	  interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
 						  interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
-					  }
-
-//				  }
+					  }	
+				  }
 			  }
 		  }
-//	  }
-
-
-  }
+	  }
+   }
 }
 
 //TODO: Implement a fragment shader
