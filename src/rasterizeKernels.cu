@@ -161,7 +161,9 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize)
   if(index<step)
   {
 	  glm::vec4 currentVertex (vbo [index], vbo [index+step], vbo [index+(2*step)], vbo [index+(3*step)]);
-	  currentVertex = ModelViewProjection * currentVertex;
+	  cudaMat4 stupidMat;
+	  stupidMat.x = ModelViewProjection [0];	stupidMat.y = ModelViewProjection [1];	stupidMat.z = ModelViewProjection [2];	stupidMat.w = ModelViewProjection [3];
+	  currentVertex = multiplyMV (stupidMat, currentVertex);
 	  vbo [index] = currentVertex.x;	vbo [index+step] = currentVertex.y;	vbo [index+(2*step)] = currentVertex.z;	vbo [index+(3*step)] = currentVertex.w;
   }
 }
@@ -205,7 +207,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   }
 }
 
-// Converts all triangls to screen space.
+// Converts all triangles to screen space.
 __global__ void convertToScreenSpace(triangle* primitives, int primitivesCount, glm::vec2 resolution)
 {
   extern __shared__ triangle primitiveShared [];
@@ -215,17 +217,26 @@ __global__ void convertToScreenSpace(triangle* primitives, int primitivesCount, 
 	  primitiveShared [threadIdx.x] = primitives [index];
 	  
 	  // Convert clip space coordinates to NDC (a.k.a. Perspective divide).
-	  primitiveShared [threadIdx.x].p0.x /= primitiveShared [threadIdx.x].p0.w;
-	  primitiveShared [threadIdx.x].p0.y /= primitiveShared [threadIdx.x].p0.w;
-	  primitiveShared [threadIdx.x].p0.z /= primitiveShared [threadIdx.x].p0.w;
+	  if (abs (primitiveShared [threadIdx.x].p0.w) > 0.001)
+	  {
+		  primitiveShared [threadIdx.x].p0.x /= primitiveShared [threadIdx.x].p0.w;
+		  primitiveShared [threadIdx.x].p0.y /= primitiveShared [threadIdx.x].p0.w;
+		  primitiveShared [threadIdx.x].p0.z /= primitiveShared [threadIdx.x].p0.w;
+	  }
 
-	  primitiveShared [threadIdx.x].p1.x /= primitiveShared [threadIdx.x].p1.w;
-	  primitiveShared [threadIdx.x].p1.y /= primitiveShared [threadIdx.x].p1.w;
-	  primitiveShared [threadIdx.x].p1.z /= primitiveShared [threadIdx.x].p1.w;
+	  if (abs (primitiveShared [threadIdx.x].p1.w) > 0.001)
+	  {
+		  primitiveShared [threadIdx.x].p1.x /= primitiveShared [threadIdx.x].p1.w;
+		  primitiveShared [threadIdx.x].p1.y /= primitiveShared [threadIdx.x].p1.w;
+		  primitiveShared [threadIdx.x].p1.z /= primitiveShared [threadIdx.x].p1.w;
+	  }
 
-	  primitiveShared [threadIdx.x].p2.x /= primitiveShared [threadIdx.x].p2.w;
-	  primitiveShared [threadIdx.x].p2.y /= primitiveShared [threadIdx.x].p2.w;
-	  primitiveShared [threadIdx.x].p2.z /= primitiveShared [threadIdx.x].p2.w;
+	  if (abs (primitiveShared [threadIdx.x].p2.w) > 0.001)
+	  {
+		  primitiveShared [threadIdx.x].p2.x /= primitiveShared [threadIdx.x].p2.w;
+		  primitiveShared [threadIdx.x].p2.y /= primitiveShared [threadIdx.x].p2.w;
+		  primitiveShared [threadIdx.x].p2.z /= primitiveShared [threadIdx.x].p2.w;
+	  }
 
 	  // Rescale NDC to be in the range 0.0 to 1.0.
 	  primitiveShared [threadIdx.x].p0.x += 1.0f;
@@ -280,7 +291,7 @@ __global__ void convertToScreenSpace(triangle* primitives, int primitivesCount, 
 }
 
 // Core rasterization.
-__global__ void rasterizationKernel (triangle* primitive, fragment* depthbuffer, glm::vec2 resolution)
+__global__ void rasterizationKernel (triangle* primitive, int elementNo, fragment* depthbuffer, glm::vec2 resolution)
 {
   extern __shared__ fragment zBufferShared [];
   __shared__ triangle	currentPrim;
@@ -288,7 +299,7 @@ __global__ void rasterizationKernel (triangle* primitive, fragment* depthbuffer,
   __shared__ glm::vec2	bBoxMax;
 
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
-	  currentPrim = *primitive; 
+	  currentPrim = primitive [elementNo]; 
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = (y * resolution.x) + x;
@@ -311,8 +322,8 @@ __global__ void rasterizationKernel (triangle* primitive, fragment* depthbuffer,
   {
 	  // Throw out current primitive if it's back facing (Back Face Culling).
 	  // Here, we simply do nothing.
-	  if (calculateSignedArea (currentPrim) > 0)
-	  {
+//	  if (calculateSignedArea (currentPrim) > 0)
+//	  {
 		  // Next, check if the pixel handled by the current thread is inside the bounding box of tri.
 		  if ((x >= bBoxMin.x) && (x <= bBoxMax.x))
 			  if ((y >= bBoxMin.y) && (y <= bBoxMax.y))
@@ -348,7 +359,7 @@ __global__ void rasterizationKernel (triangle* primitive, fragment* depthbuffer,
 			  }
 
 		  depthbuffer [index] = zBufferShared [threadIdx.x];
-	  }
+	  //}
   }
 }
 
@@ -401,7 +412,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   fragment frag;
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
-  frag.position = glm::vec3(0,0,-10000);
+  frag.position = glm::vec3(0,0,10000);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
   //------------------------------
@@ -450,7 +461,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   // Rasterization - rasterize each primitive
   //-----------------------------------------
   for (int i = 0; i<(ibosize / 3);  i++)
-	  rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y>>>>(&primitives[i], depthbuffer, resolution);
+	  rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y>>>(primitives, i, depthbuffer, resolution);
   checkCUDAError("Rasterization failed!");
   cudaDeviceSynchronize();
   //------------------------------
