@@ -16,13 +16,19 @@ struct triangle {
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
-  glm::vec3 n0; //0th normal
+  glm::vec3 n0;
+
+  glm::vec3 modelspace_p0;
+  glm::vec3 modelspace_p1;
+  glm::vec3 modelspace_p2;
 };
 
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
+  glm::vec3 modelNormal;
   glm::vec3 position;
+  glm::vec3 modelPosition; //position in modelspace
   int triIdx;
 };
 
@@ -75,6 +81,11 @@ __host__ __device__ bool isBarycentricCoordInBounds(glm::vec3 barycentricCoord){
 //LOOK: for a given barycentric coordinate, return the corresponding z position on the triangle
 __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle tri){
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
+}
+
+//for 3 points p0, p1, and p2 corresponding to p0, p1, and p2 in the triangle, interpolate based on barycentric coords.
+__host__ __device__ glm::vec3 interpVec3(glm::vec3 barycentricCoord, glm::vec3 p0, glm::vec3 p1, glm::vec3 p2){
+	return (barycentricCoord.x*p0 + barycentricCoord.y*p1 + barycentricCoord.z*p2);
 }
 
 #endif
