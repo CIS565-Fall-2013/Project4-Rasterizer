@@ -18,9 +18,14 @@
     #include <cutil_math.h>
 #endif
 
+#define MININFINITE -1000000000000000
+#define MAXINFINITE 10000000000000000
+
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize,
-	cudaMat4 projectionMatrix
-	);
+	float* nbo, int nbosize
+	,glm::mat4 modelM, glm::mat4 viewM, glm::mat4 projectionM
+	,glm::vec3* images);
+	
 
 #endif //RASTERIZEKERNEL_H

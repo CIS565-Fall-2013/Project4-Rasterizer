@@ -25,6 +25,15 @@
     <ClInclude Include="..\..\src\utilities.h">
       <Filter>headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\image.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\stb_image\stb_image_write.h">
+      <Filter>stb_image</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\stb_image\stb_image.h">
+      <Filter>stb_image</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\ObjCore\obj.cpp">
@@ -42,6 +51,15 @@
     <ClCompile Include="..\..\src\main.cpp">
       <Filter>source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\image.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\stb_image\stb_image.c">
+      <Filter>stb_image</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\stb_image\stb_image_write.c">
+      <Filter>stb_image</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ObjCore">
@@ -52,6 +70,9 @@
     </Filter>
     <Filter Include="headers">
       <UniqueIdentifier>{ff2076c3-2be2-4a20-89ed-1f27da7b052a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="stb_image">
+      <UniqueIdentifier>{ad2c3584-b726-49de-9349-b76453793450}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

@@ -13,18 +13,24 @@
   <ItemGroup>
     <ClInclude Include="..\..\src\cudaMat4.h" />
     <ClInclude Include="..\..\src\glslUtility.h" />
+    <ClInclude Include="..\..\src\image.h" />
     <ClInclude Include="..\..\src\main.h" />
     <ClInclude Include="..\..\src\ObjCore\obj.h" />
     <ClInclude Include="..\..\src\ObjCore\objloader.h" />
     <ClInclude Include="..\..\src\rasterizeKernels.h" />
     <ClInclude Include="..\..\src\rasterizeTools.h" />
+    <ClInclude Include="..\..\src\stb_image\stb_image.h" />
+    <ClInclude Include="..\..\src\stb_image\stb_image_write.h" />
     <ClInclude Include="..\..\src\utilities.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\glslUtility.cpp" />
+    <ClCompile Include="..\..\src\image.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\ObjCore\obj.cpp" />
     <ClCompile Include="..\..\src\ObjCore\objloader.cpp" />
+    <ClCompile Include="..\..\src\stb_image\stb_image.c" />
+    <ClCompile Include="..\..\src\stb_image\stb_image_write.c" />
     <ClCompile Include="..\..\src\utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -84,6 +90,7 @@
     <CudaCompile>
       <CompileOut>$(ProjectDir)$(Platform)/$(Configuration)/%(Filename)%(Extension).obj</CompileOut>
       <Include>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include;C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc;../shared/glew/include;../shared/freeglut/include;%(AdditionalIncludeDirectories)</Include>
+      <CodeGeneration>compute_30,sm_30</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

@@ -25,6 +25,7 @@
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
+#include "image.h"
 
 #if CUDA_VERSION >= 5000
     #include <helper_cuda.h>
@@ -60,15 +61,23 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+float* nbo;
+int nbosize;
 
-//Camera Stuff TWEAK
+//Camera Stuff 
 float fovy = 60.0f;
-float zNear = 0.10;
-float zFar = 5.0f;
+float zNear = 0.1f;
+float zFar = 50.0f;
+glm::vec3 cameraPostion(0,0,20.0);
+glm::vec3 center(0,0.2,0);
+glm::vec3 up(0,1.0,0);
 
-cudaMat4 projection;
-glm::mat4 view;
-glm::vec3 cameraPostion(0,0,10);
+glm::mat4 modelM(1.0);
+glm::mat4 projectionM;
+glm::mat4 viewM;
+
+//image
+glm::vec3* images;
 
 //-------------------------------
 //----------CUDA STUFF-----------

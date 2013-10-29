@@ -10,18 +10,25 @@
 #include "cudaMat4.h"
 
 struct triangle {
+	//vertex in clip space
   glm::vec3 p0;
   glm::vec3 p1;
   glm::vec3 p2;
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
+  //primitive normal in world space
+  glm::vec3 n0;
+  glm::vec3 n1;
+  glm::vec3 n2;
+
 };
 
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
+  int isLock; // atomics
 };
 
 //Multiplies a cudaMat4 matrix and a vec4
@@ -31,6 +38,14 @@ __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
   r.y = (m.y.x*v.x)+(m.y.y*v.y)+(m.y.z*v.z)+(m.y.w*v.w);
   r.z = (m.z.x*v.x)+(m.z.y*v.y)+(m.z.z*v.z)+(m.z.w*v.w);
   return r;
+}
+
+__host__ __device__ glm::vec2 convertWorldToPixel(glm::vec3 position,glm::vec2 resolusion){
+	int x, y;
+	x = (int)round(((position.x+1)/2.0)*resolusion.x);
+	y = (int)round(((1-position.y)/2.0)*resolusion.y);
+	//y = (int)round(((position.y+1)/2.0)*resolusion.y);
+	return glm::vec2(x,y);
 }
 
 //LOOK: finds the axis aligned bounding box for a given triangle

@@ -7,7 +7,8 @@ using namespace utilityCore;
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
-
+bool pause = false;
+bool output = false;
 int main(int argc, char** argv){
 
   bool loadedScene = false;
@@ -34,6 +35,18 @@ int main(int argc, char** argv){
   seconds = time (NULL);
   fpstracker = 0;
 
+  // matrix setup
+  projectionM = glm::perspective(fovy,float(width)/float(height),zNear,zFar);
+  viewM = glm::lookAt(cameraPostion,center,up);//eye,center,up
+  modelM = glm::mat4(1.0);
+  //image initialization
+  images = new glm::vec3[width * height];
+  for(int i = 0;i<width;++i)
+	  for(int j = 0;j<height; ++j)
+	  {
+		  images[i+width*j] = glm::vec3(0,0,0);
+	  }
+
   // Launch CUDA/GL
   #ifdef __APPLE__
   // Needed in OSX to force use of OpenGL3.2 
@@ -48,14 +61,7 @@ int main(int argc, char** argv){
 
   initCuda();
 
-  //ADD matrix setup
-  glm::mat4 projectionM = glm::perspective(fovy,float(width)/float(height),zNear,zFar);
-  view = glm::lookAt(cameraPostion,glm::vec3(0),glm::vec3(0,0,1));//eye,center,up
-  projectionM = projectionM * view;
-
-  projection = glmMat4ToCudaMat4(projectionM);
-
-
+  //ADD matrix setup	
 
   initVAO();
   initTextures();
@@ -93,6 +99,7 @@ int main(int argc, char** argv){
 //-------------------------------
 
 void runCuda(){
+	if(pause == true) return;
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
   dptr=NULL;
@@ -109,13 +116,54 @@ void runCuda(){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+
+  modelM = glm::mat4(1.0);
+  modelM = glm::rotate(modelM,(float)frame,glm::vec3(0,1,0));
+  //modelM = glm::rotate(modelM,230.0f,glm::vec3(0,1,0));
+  
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,projection);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,
+	  nbo,nbosize,
+	  modelM,viewM,projectionM
+	  ,images
+	  );
+
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
   cbo = NULL;
   ibo = NULL;
+  nbo = NULL;
+
+  if(output)
+  {
+
+	  image outputImage(width, height);
+	  for(int x=0; x<width; x++){
+		  for(int y=0; y<height; y++){
+			  int index = x + (y * width);
+			  outputImage.writePixelRGB(width-1-x,y,images[index]);
+		  }
+	  }
+	  gammaSettings gamma;
+	  gamma.applyGamma = true;
+	  gamma.gamma = 1.0/2.2;
+	  gamma.divisor = 1.0;//renderCam->iterations;
+	  outputImage.setGammaSettings(gamma);
+	  string filename = "screenshot.bmp";
+	  string s;
+	  stringstream out;
+	  out << frame;
+	  s = out.str();	  
+	  utilityCore::replaceString(filename, ".bmp", "."+s+".bmp");
+	  utilityCore::replaceString(filename, ".png", "."+s+".png");
+	  outputImage.saveImageRGB(filename);
+	  cout << "Saved frame " << s << " to " << filename << endl;
+	  output = false;
+  }
 
   frame++;
   fpstracker++;
@@ -158,6 +206,7 @@ void runCuda(){
 #else
 
   void display(){
+	
     runCuda();
 	time_t seconds2 = time (NULL);
 
@@ -169,7 +218,7 @@ void runCuda(){
 
     }
 
-    string title = "CIS565 Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS";
+    string title = "CIS565 Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS | " + utilityCore::convertIntToString(frame) + "FRAME";
     glutSetWindowTitle(title.c_str());
 
     glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);
@@ -188,11 +237,19 @@ void runCuda(){
 
   void keyboard(unsigned char key, int x, int y)
   {
+	 std::cout<<key<<std::endl;
     switch (key) 
     {
        case(27):
          shut_down(1);    
          break;
+	   case('p'):
+		   pause = !pause;
+		   break;
+	   case('c'):
+		   output = true;
+		   break;
+		   
     }
   }
 

@@ -172,9 +172,6 @@ void obj::addPoint(glm::vec3 point){
     }
     
     points.push_back(glm::vec4(point[0], point[1], point[2], 1));
-#ifdef OUTPUT == 1
-	std::cout<<point[0]<<" "<<point[1]<<" "<<point[2]<<std::endl;
-#endif
 	compareMaxMin(point[0], point[1], point[2]);
 }
 
