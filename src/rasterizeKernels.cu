@@ -176,6 +176,7 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 	glm::vec3 currBaryCoords = calculateBarycentricCoordinate(currTri, xyCoords);
 	float fragZ = getZAtCoordinate(currBaryCoords, currTri);
 	currFrag.position = glm::vec3(xyCoords.x, xyCoords.y, fragZ);
+	currFrag.normal = currTri.n0; //TODO: INTERPOLATE THIS S***! 
 		//printf("Frag z: %f\n", currFrag.position.z);
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
@@ -377,22 +378,18 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 eyePos){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x > 0 && y > 0 && x<=resolution.x && y<=resolution.y){
 	  fragment currFrag = depthbuffer[index];
-	  //currFrag.color = currFrag.color * (-0.801f - currFrag.position.z) * 100.0f;
-	  //float depthCoeff = (1.0f - (-0.7f - currFrag.position.z)/(-0.7f - (-0.9f)));
-	  //if( currFrag.position.z > -0.5){
-		float depthCoeff = abs(currFrag.position.z) - 0.5f;
-		currFrag.color = currFrag.color * depthCoeff;
-		if(currFrag.position.z > -1000){
-			//printf("Depth multiplier: %f\n", depthCoeff);
-		}
-		depthbuffer[index] = currFrag;
-	//}
+		//float depthCoeff = abs(currFrag.position.z) - 0.5f;
+		//currFrag.color = currFrag.color * depthCoeff;
+		//depthbuffer[index] = currFrag;
+	  float diffuseCoeff = glm::dot(currFrag.normal, glm::normalize(eyePos - currFrag.position));
+	  currFrag.color = currFrag.color * diffuseCoeff;
+	  depthbuffer[index] = currFrag;
   }
 }
 
@@ -507,7 +504,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, eye);
 
   cudaDeviceSynchronize();
   //------------------------------
