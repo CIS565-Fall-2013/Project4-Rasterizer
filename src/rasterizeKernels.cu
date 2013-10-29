@@ -192,15 +192,15 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  triangle thisTriangle;
 	  
 	  int curIndex = ibo [index];
-	  thisTriangle.c0.x = cbo [curIndex];	thisTriangle.c0.y = cbo [curIndex + colourStep];	thisTriangle.c0.z = cbo [curIndex + (2*colourStep)];
+	  thisTriangle.c0.x = cbo [0];	thisTriangle.c0.y = cbo [colourStep];	thisTriangle.c0.z = cbo [(2*colourStep)];
 	  thisTriangle.p0.x = vbo [curIndex];	thisTriangle.p0.y = vbo [curIndex + vertStep];		thisTriangle.p0.z = vbo [curIndex + (2*vertStep)];		thisTriangle.p0.w = vbo [curIndex + (3*vertStep)];
 
 	  curIndex = ibo [index+indexStep];
-	  thisTriangle.c1.x = cbo [curIndex];	thisTriangle.c1.y = cbo [curIndex + colourStep];	thisTriangle.c1.z = cbo [curIndex + (2*colourStep)];
+	  thisTriangle. c1.x = cbo [1];	thisTriangle.c1.y = cbo [1+colourStep];	thisTriangle.c1.z = cbo [1+(2*colourStep)];
 	  thisTriangle.p1.x = vbo [curIndex];	thisTriangle.p1.y = vbo [curIndex + vertStep];		thisTriangle.p1.z = vbo [curIndex + (2*vertStep)];		thisTriangle.p1.w = vbo [curIndex + (3*vertStep)];
 
 	  curIndex = ibo [index+(2*indexStep)];
-	  thisTriangle.c2.x = cbo [curIndex];	thisTriangle.c2.y = cbo [curIndex + colourStep];	thisTriangle.c2.z = cbo [curIndex + (2*colourStep)];
+	  thisTriangle.c2.x = cbo [2];	thisTriangle.c2.y = cbo [2+colourStep];	thisTriangle.c2.z = cbo [2+(2*colourStep)];
 	  thisTriangle.p2.x = vbo [curIndex];	thisTriangle.p2.y = vbo [curIndex + vertStep];		thisTriangle.p2.z =	vbo [curIndex + (2*vertStep)];		thisTriangle.p2.w = vbo [curIndex + (3*vertStep)];
 	  
 	  primitives [index] = thisTriangle;
@@ -456,7 +456,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   convertToScreenSpace<<<primitiveBlocks, tileSize, tileSize>>>(primitives, ibosize/3, resolution);
   checkCUDAError("Conversion to Screen Space failed!");
   cudaDeviceSynchronize();
-
+  triangle * primHost = new triangle [ibosize / 3];
+  cudaMemcpy (primHost, primitives, sizeof (triangle) * (ibosize / 3), cudaMemcpyDeviceToHost);
+ // delete [] primHost;
   //-----------------------------------------
   // Rasterization - rasterize each primitive
   //-----------------------------------------
