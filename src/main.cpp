@@ -14,7 +14,7 @@ int main(int argc, char** argv){
     string header; string data;
     istringstream liness(argv[i]);
     getline(liness, header, '='); getline(liness, data, '=');
-    if(strcmp(header.c_str(), "mesh")==0){
+	if(strcmp(header.c_str(), "mesh")==0){
       //renderScene = new scene(data);
       mesh = new obj();
       objLoader* loader = new objLoader(data, mesh);

@@ -135,9 +135,15 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
+	  //apply mvp transform and write back to VBO
+	  glm::vec3 point(vbo[index],vbo[index]+1, vbo[index]+2);
+	  point=multiplyMV(MVP, glm::vec4(point,1.0f));
+	  vbo[index]=point.x;
+	  vbo[index+1]=point.y;
+	  vbo[index+2]=point.z;
   }
 }
 
@@ -146,6 +152,9 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
+
+
+
   }
 }
 
@@ -223,10 +232,13 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
+  //build the MVP matrix, temp identity matrix for now
+  glm::mat4 mvp(1.0f);
+
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, utilityCore::glmMat4ToCudaMat4(mvp));
 
   cudaDeviceSynchronize();
   //------------------------------

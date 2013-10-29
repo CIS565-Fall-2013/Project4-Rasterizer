@@ -9,6 +9,7 @@
 #include <cuda.h>
 #include <cmath>
 #include "glm/glm.hpp"
+#include "utilities.h"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
