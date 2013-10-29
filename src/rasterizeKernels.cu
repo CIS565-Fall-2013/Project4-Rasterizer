@@ -191,10 +191,15 @@ __device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* dept
 	int numPixels = abs(Xinc) + 1; //+1 to be inclusive
 	int currX = roundf(start.x);
 	int Y = roundf(start.y); //Y should be the same for the whole line
+	int endY = roundf(end.y);
 	for(int i = 0; i < numPixels; i++){
 		writePointInTriangle(currTri, triIdx, glm::vec2(currX, Y), depthBuffer, tmp_depthBuffer, resolution);
+		if( endY != Y ){
+			writePointInTriangle(currTri, triIdx, glm::vec2(currX, endY), depthBuffer, tmp_depthBuffer, resolution);
+		}
 		currX += sgnXinc; //either increase or decrease currX depending on direction
 	}
+	
 }
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
@@ -340,7 +345,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, 1);
 			  rasterStart = glm::vec2(p0);
 			  rasterEnd = glm::vec2(p0);
-			  while(rasterStart.y <= p1.y + 1.1 && rasterEnd.y <= p1.y + 1.1){
+			  while(rasterStart.y <= p1.y && rasterEnd.y <= p1.y){
 				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 				  rasterStart += gradToBottom;
 				  rasterEnd += gradToMiddle;
@@ -355,7 +360,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  float bottomHeight = (p2.y - p1.y);
 		  if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
 			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, 1);
-			  while(rasterStart.y <= p2.y + 1.1 && rasterEnd.y <= p2.y + 1.1){
+			  while(rasterStart.y <= p2.y && rasterEnd.y <= p2.y){
 				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 				  rasterStart += gradToBottom;
 				  rasterEnd += gradMidToBot;
