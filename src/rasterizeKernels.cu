@@ -1,18 +1,9 @@
 // CIS565 CUDA Rasterizer: A simple rasterization pipeline for Patrick Cozzi's CIS565: GPU Computing at the University of Pennsylvania
 // Written by Yining Karl Li, Copyright (c) 2012 University of Pennsylvania
 
-#include <stdio.h>
-#include <cuda.h>
-#include <cmath>
-#include <thrust/random.h>
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
 
-#if CUDA_VERSION >= 5000
-#include <helper_math.h>
-#else
-#include <cutil_math.h>
-#endif
 
 glm::vec3* framebuffer;
 fragment* depthbuffer;
@@ -58,6 +49,18 @@ __host__ __device__ fragment getFromDepthbuffer(int x, int y, fragment* depthbuf
 		return f;
 	}
 }
+
+//Reads a fragment from a given location in a fragment buffer
+__host__ __device__ float getDepthFromDepthbuffer(int x, int y, fragment* depthbuffer, glm::vec2 resolution){
+	if(x<resolution.x && y<resolution.y){
+		int index = (y*resolution.x) + x;
+		return depthbuffer[index].position.x;
+	}else{
+		return 0;
+	}
+}
+
+
 
 //Writes a given pixel to a pixel buffer at a given location
 __host__ __device__ void writeToFramebuffer(int x, int y, glm::vec3 value, glm::vec3* framebuffer, glm::vec2 resolution){
@@ -134,11 +137,19 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 	}
 }
 
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, uniforms viewMats){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<vbosize/3){
+		glm::vec4 vertexPos = glm::vec4(vbo[index*3+0],vbo[index*3+1],vbo[index*3+2],1.0);
+		vertexPos = viewMats.perspectiveTransform*viewMats.viewTransform*vertexPos;
+		//Perspective division
+		vertexPos.x /= vertexPos.w;
+		vertexPos.y /= vertexPos.w;
+		vertexPos.z /= vertexPos.w;
 
-		//TODO: Implement a vertex shader
+		vbo[index*3+0] = vertexPos.x;
+		vbo[index*3+1] = vertexPos.y;
+		vbo[index*3+2] = vertexPos.z;
 	}
 }
 
@@ -157,8 +168,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		//For now just mod 3, TODO: Improve cbo functionality
 		int colorIndex = 3*(vertIndex % 3);//3 floats per color
 		vertIndex *= 3;//3 floats per vert
-		float w = vbo[vertIndex+3];
-		primative.p0 = glm::vec3(vbo[vertIndex+0]/w,vbo[vertIndex+1]/w,vbo[vertIndex+2]/w);
+
+		primative.p0 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
 		primative.c0 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
 
 		//Vertex 1
@@ -166,8 +177,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		colorIndex = 3*(vertIndex % 3);//3 floats per color
 		vertIndex *= 3;//3 floats per vert
 
-		w = vbo[vertIndex+3];
-		primative.p1 = glm::vec3(vbo[vertIndex+0]/w,vbo[vertIndex+1]/w,vbo[vertIndex+2]/w);
+		primative.p1 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
 		primative.c1 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
 
 		//Vertex 2
@@ -175,20 +185,63 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		colorIndex = 3*(vertIndex % 3);//3 floats per color
 		vertIndex *= 3;//3 floats per vert
 
-		w = vbo[vertIndex+3];
-		primative.p2 = glm::vec3(vbo[vertIndex+0]/w,vbo[vertIndex+1]/w,vbo[vertIndex+2]/w);
+		primative.p2 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
 		primative.c2 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
+
+		//Write back primative
+		primitives[index] = primative;
 	}
 }
 
-//TODO: Implement a rasterization method, such as scanline.
 //TODO: Do this a lot more efficiently and in parallel
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<primitivesCount){
 		//For each primative
-		//Compute surface normal.
+		//Load triangle localy
+		triangle tri = primitives[index];
 
+		//Compute surface normal.
+		glm::vec3 normal = glm::normalize(glm::cross(tri.p1-tri.p0, tri.p2-tri.p0));
+
+		transformTriToScreenSpace(tri, resolution);
+
+		//AABB for triangle
+		glm::vec3 minPoint;
+		glm::vec3 maxPoint;
+		getAABBForTriangle(tri, minPoint, maxPoint);
+
+
+		//Compute pixel range
+		int minX = glm::floor(minPoint.x);
+		int maxX = glm::ceil(maxPoint.x);
+		int minY = glm::floor(minPoint.y);
+		int maxY = glm::ceil(maxPoint.y);
+
+		
+		fragment frag;
+		//Flat shading for now
+		frag.normal = normal;
+
+		//TODO: Do something more efficient than this
+		for(int x = minX; x <= maxX; ++x)
+		{
+			for(int y = minY; y <= maxY; ++y)
+			{
+				glm::vec3 bCoords = calculateBarycentricCoordinate(tri, glm::vec2(x,y));
+				if(isBarycentricCoordInBounds(bCoords))
+				{
+					frag.color = tri.c0*bCoords.x+tri.c1*bCoords.y+tri.c2*bCoords.z;
+					frag.position = tri.p0*bCoords.x+tri.p1*bCoords.y+tri.p2*bCoords.z;
+
+					//Handle race conditions in a lousy way
+					if(frag.position.z < getDepthFromDepthbuffer(x,y,depthbuffer,resolution))
+					{
+						writeToDepthbuffer(x,y,frag, depthbuffer,resolution);
+					}
+				}
+			}
+		}
 		
 	}
 }
@@ -216,7 +269,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, uniforms viewMats){
 
 	// set up crucial magic
 	int tileSize = 8;
@@ -237,7 +290,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	fragment frag;
 	frag.color = glm::vec3(0,0,0);
 	frag.normal = glm::vec3(0,0,0);
-	frag.position = glm::vec3(0,0,-10000);
+	frag.position = glm::vec3(0,0,10000);
 	clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
 	//------------------------------
@@ -264,7 +317,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//------------------------------
 	//vertex shader
 	//------------------------------
-	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, viewMats);
 
 	cudaDeviceSynchronize();
 	//------------------------------

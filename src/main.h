@@ -19,9 +19,12 @@
 #include <sstream>
 #include <fstream>
 #include <time.h>
+#include "glm/gtc/matrix_transform.hpp"
+
 #include "glslUtility.h"
 #include "glm/glm.hpp"
 #include "rasterizeKernels.h"
+#include "rasterizeStructs.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
 

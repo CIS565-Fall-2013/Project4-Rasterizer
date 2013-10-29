@@ -242,10 +242,10 @@ c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\host_defines.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\vector_functions.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\device_launch_parameters.h
 c:\program files\nvidia gpu computing toolkit\cuda\v5.5\include\vector_types.h
+c:\users\collin\documents\github\classes\project4-rasterizer\src\rasterizeKernels.h
 C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include\stdio.h
 C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include\crtdefs.h
 C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include\swprintf.inl
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/config.h
@@ -364,7 +364,6 @@ C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/no
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/normal_distribution_base.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/normal_distribution.inl
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\math_constants.h
-c:\users\collin\documents\github\classes\project4-rasterizer\src\rasterizeKernels.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda.h
 c:\users\collin\documents\github\classes\project4-rasterizer\src\glm/glm.hpp
 c:\users\collin\documents\github\classes\project4-rasterizer\src\glm\core/_fixes.hpp
@@ -471,8 +470,12 @@ c:\users\collin\documents\github\classes\project4-rasterizer\src\glm\core\_vecto
 c:\users\collin\documents\github\classes\project4-rasterizer\src\glm\./core/func_noise.hpp
 c:\users\collin\documents\github\classes\project4-rasterizer\src\glm\core\func_noise.inl
 c:\users\collin\documents\github\classes\project4-rasterizer\src\glm\./core/_swizzle.hpp
+c:\users\collin\documents\github\classes\project4-rasterizer\src\rasterizeStructs.h
+c:\users\collin\documents\github\classes\project4-rasterizer\src\glm/glm.hpp
+c:\users\collin\documents\github\classes\project4-rasterizer\src\glm\core/_fixes.hpp
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
+C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h
 c:\users\collin\documents\github\classes\project4-rasterizer\src\rasterizeTools.h
 c:\users\collin\documents\github\classes\project4-rasterizer\src\glm/glm.hpp
 c:\users\collin\documents\github\classes\project4-rasterizer\src\glm\core/_fixes.hpp
@@ -489,4 +492,3 @@ c:\users\collin\documents\github\classes\project4-rasterizer\src\glm/glm.hpp
 c:\users\collin\documents\github\classes\project4-rasterizer\src\glm\core/_fixes.hpp
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
 c:\users\collin\documents\github\classes\project4-rasterizer\src\cudaMat4.h
-C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h

@@ -17,6 +17,7 @@
     <ClInclude Include="..\..\src\ObjCore\obj.h" />
     <ClInclude Include="..\..\src\ObjCore\objloader.h" />
     <ClInclude Include="..\..\src\rasterizeKernels.h" />
+    <ClInclude Include="..\..\src\rasterizeStructs.h" />
     <ClInclude Include="..\..\src\rasterizeTools.h" />
     <ClInclude Include="..\..\src\utilities.h" />
   </ItemGroup>

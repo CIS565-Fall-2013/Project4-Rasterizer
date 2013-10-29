@@ -8,21 +8,7 @@
 #include "glm/glm.hpp"
 #include "utilities.h"
 #include "cudaMat4.h"
-
-struct triangle {
-  glm::vec3 p0;
-  glm::vec3 p1;
-  glm::vec3 p2;
-  glm::vec3 c0;
-  glm::vec3 c1;
-  glm::vec3 c2;
-};
-
-struct fragment{
-  glm::vec3 color;
-  glm::vec3 normal;
-  glm::vec3 position;
-};
+#include "rasterizeStructs.h"
 
 //Multiplies a cudaMat4 matrix and a vec4
 __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
@@ -35,12 +21,12 @@ __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
 
 //LOOK: finds the axis aligned bounding box for a given triangle
 __host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, glm::vec3& maxpoint){
-  minpoint = glm::vec3(min(min(tri.p0.x, tri.p1.x),tri.p2.x), 
-        min(min(tri.p0.y, tri.p1.y),tri.p2.y),
-        min(min(tri.p0.z, tri.p1.z),tri.p2.z));
-  maxpoint = glm::vec3(max(max(tri.p0.x, tri.p1.x),tri.p2.x), 
-        max(max(tri.p0.y, tri.p1.y),tri.p2.y),
-        max(max(tri.p0.z, tri.p1.z),tri.p2.z));
+  minpoint = glm::vec3(glm::min(glm::min(tri.p0.x, tri.p1.x),tri.p2.x), 
+        glm::min(glm::min(tri.p0.y, tri.p1.y),tri.p2.y),
+        glm::min(glm::min(tri.p0.z, tri.p1.z),tri.p2.z));
+  maxpoint = glm::vec3(glm::max(glm::max(tri.p0.x, tri.p1.x),tri.p2.x), 
+        glm::max(glm::max(tri.p0.y, tri.p1.y),tri.p2.y),
+        glm::max(glm::max(tri.p0.z, tri.p1.z),tri.p2.z));
 }
 
 //LOOK: calculates the signed area of a given triangle
@@ -70,9 +56,25 @@ __host__ __device__ bool isBarycentricCoordInBounds(glm::vec3 barycentricCoord){
           barycentricCoord.z >= 0.0 && barycentricCoord.z <= 1.0;
 }
 
-//LOOK: for a given barycentric coordinate, return the corresponding z position on the triangle
-__host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle tri){
-  return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
+
+//Converts a triangle from clip space to a screen resolution mapped space 
+//From (-1:1,-1:1,-1:1) to (0:w, 0:h, 0:1)
+__host__ __device__ void transformTriToScreenSpace(triangle &tri, glm::vec2 resolution)
+{
+	//Scale and shift x
+	tri.p0.x = (tri.p0.x+1.0)*0.5f*resolution.x;
+	tri.p1.x = (tri.p1.x+1.0)*0.5f*resolution.x;
+	tri.p2.x = (tri.p2.x+1.0)*0.5f*resolution.x;
+
+	//Scale and shift y
+	tri.p0.y = (tri.p0.y+1.0)*0.5f*resolution.y;
+	tri.p1.y = (tri.p1.y+1.0)*0.5f*resolution.y;
+	tri.p2.y = (tri.p2.y+1.0)*0.5f*resolution.y;
+
+	//Scale and shift (and flip) z
+	tri.p0.z = (-tri.p0.z+1.0)*0.5f;
+	tri.p1.z = (-tri.p1.z+1.0)*0.5f;
+	tri.p2.z = (-tri.p2.z+1.0)*0.5f;
 }
 
 #endif
