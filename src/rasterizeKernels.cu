@@ -286,6 +286,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  glm::vec3 v1 = currTri.p1 - currTri.p0;
 	  glm::vec3 v2 = currTri.p2 - currTri.p0;
 	  glm::vec3 normal = glm::cross(v1, v2);
+	  currTri.n0 = normal;
 
 	  if( glm::dot(normal, vdir) > 0 ){
 		  return; //cull face, it's facing away.

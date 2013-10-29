@@ -16,6 +16,7 @@ struct triangle {
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
+  glm::vec3 n0; //0th normal
 };
 
 struct fragment{
