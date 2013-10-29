@@ -2,19 +2,56 @@
 // Written by Yining Karl Li, Copyright (c) 2012 University of Pennsylvania
 
 #include "main.h"
-
+#include "util.h"
+#include "statVal.h"
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
+HostStat statVal;
+VertUniform vsUniform;
+FragUniform fsUniform;
 
-int main(int argc, char** argv){
+glm::mat4 lookAt( glm::vec3 &eye, glm::vec3 &eyeLook, glm::vec3 &up )
+{
+    glm::mat4 mat;
+
+    glm::vec3 V = eyeLook - eye;
+    V = glm::normalize( V);
+    glm::vec3 UP = glm::normalize( up );
+
+    glm::vec3 U = glm::cross( UP, V );
+    glm::vec3 W = glm::cross( V, U);
+
+    mat[0] = glm::vec4( U, glm::dot( -U, eye ) );
+    mat[1] = glm::vec4( W, glm::dot( -W, eye ) );
+    mat[2] = glm::vec4( -V, glm::dot( V, eye ) );
+    mat[3] = glm::vec4( 0.0f, 0.0f, 0.0f, 1.0f );
+    
+    return glm::transpose( mat );
+}
+
+glm::mat4 perspective( float fov, float aspect, float near, float far )
+{
+    glm::mat4 mat;
+    fov = fov * 3.1415926f / 180.0f;
+    mat[0] = glm::vec4( 1.0f / ( aspect * tan(fov/2.0f) ), 0.0f, 0.0f, 0.0f);
+    mat[1] = glm::vec4( 0.0f, 1.0f/tan(fov/2.0f), 0.0f, 0.0f );
+    mat[2] = glm::vec4( 0.0f, 0.0f, (far+near) / (far-near), -2.0f * far *near/(far-near) );
+    mat[3] = glm::vec4( 0.0f, 0.0f, 1.0f, 0.0f );
+    return glm::transpose( mat );
+}
+
+int main(int argc, char** argv)
+{
 
   bool loadedScene = false;
-  for(int i=1; i<argc; i++){
+  for(int i=1; i<argc; i++)
+  {
     string header; string data;
     istringstream liness(argv[i]);
     getline(liness, header, '='); getline(liness, data, '=');
-    if(strcmp(header.c_str(), "mesh")==0){
+    if(strcmp(header.c_str(), "mesh")==0)
+    {
       //renderScene = new scene(data);
       mesh = new obj();
       objLoader* loader = new objLoader(data, mesh);
@@ -24,14 +61,27 @@ int main(int argc, char** argv){
     }
   }
 
-  if(!loadedScene){
+  if(!loadedScene)
+  {
     cout << "Usage: mesh=[obj file]" << endl;
+    system("pause");
     return 0;
   }
 
   frame = 0;
   seconds = time (NULL);
   fpstracker = 0;
+
+  //Setup variables for coordinate calculation
+  statVal.eyePos = glm::vec3( 0.0f, 0.0f, 3.0f );
+  statVal.eyeLook = glm::vec3( 0.0f, 0.0f, 0.0f );
+  statVal.upDir = glm::vec3( 0.0f,1.0f, 0.0f );
+  statVal.aspect = (float)width/(float)height;
+  statVal.nearp = 1.0f;
+  statVal.farp = 10.0f;
+  statVal.FOV = 60.0f;
+  vsUniform.viewingMat = lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
+  vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
 
   // Launch CUDA/GL
   #ifdef __APPLE__
@@ -71,6 +121,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+    glutIdleFunc( idle );
+    glutReshapeFunc( reshape );
 
     glutMainLoop();
   #endif
@@ -82,30 +134,32 @@ int main(int argc, char** argv){
 //---------RUNTIME STUFF---------
 //-------------------------------
 
-void runCuda(){
+void runCuda()
+{
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
   dptr=NULL;
 
-  vbo = mesh->getVBO();
-  vbosize = mesh->getVBOsize();
+  //vbo = mesh->getVBO();
+  //vbosize = mesh->getVBOsize();
 
-  float newcbo[] = {0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
-  cbo = newcbo;
-  cbosize = 9;
+  //float newcbo[] = {0.0, 1.0, 0.0, 
+  //                  0.0, 0.0, 1.0, 
+  //                  1.0, 0.0, 0.0};
+  //cbo = newcbo;
+  //cbosize = 9;
 
-  ibo = mesh->getIBO();
-  ibosize = mesh->getIBOsize();
+  //ibo = mesh->getIBO();
+  //ibosize = mesh->getIBOsize();
 
-  cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
-  cudaGLUnmapBufferObject(pbo);
+  cudaGraphicsMapResources( 1, &cudaPboRc, 0 );
+  cudaErrorCheck( cudaGraphicsResourceGetMappedPointer((void**) &dptr, &cudaRcSize, cudaPboRc ) );
+  cudaRasterizeCore(dptr, width, height, frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, vsUniform, fsUniform);
+  cudaGraphicsUnmapResources( 1, &cudaPboRc, 0 );
 
-  vbo = NULL;
-  cbo = NULL;
-  ibo = NULL;
+  //vbo = NULL;
+  //cbo = NULL;
+  //ibo = NULL;
 
   frame++;
   fpstracker++;
@@ -147,11 +201,19 @@ void runCuda(){
 
 #else
 
-  void display(){
+  void display()
+  {
+    //uniform variables setting
+      //vsUniform.viewingMat = glm::lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
+      //vsUniform.projMat = glm::perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
+      vsUniform.viewingMat = lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
+      //vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
+      
     runCuda();
 	time_t seconds2 = time (NULL);
 
-    if(seconds2-seconds >= 1){
+    if(seconds2-seconds >= 1)
+    {
 
       fps = fpstracker/(seconds2-seconds);
       fpstracker = 0;
@@ -172,7 +234,7 @@ void runCuda(){
     // VAO, shader program, and texture already bound
     glDrawElements(GL_TRIANGLES, 6,  GL_UNSIGNED_SHORT, 0);
 
-    glutPostRedisplay();
+    //glutPostRedisplay();
     glutSwapBuffers();
   }
 
@@ -187,7 +249,20 @@ void runCuda(){
   }
 
 #endif
-  
+
+void reshape( int w, int h )
+{
+    statVal.aspect = (float)w/(float)h;
+    vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
+
+    initDeviceBuf( width, height, vbo, vbosize, cbo, cbosize, ibo, ibosize );
+}
+
+void idle()
+{
+    glutPostRedisplay();
+
+}
 //-------------------------------
 //----------SETUP STUFF----------
 //-------------------------------
@@ -209,7 +284,8 @@ void runCuda(){
     initTextures();
   }
 #else
-  void init(int argc, char* argv[]){
+  void init(int argc, char* argv[])
+  {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
     glutInitWindowSize(width, height);
@@ -230,8 +306,10 @@ void runCuda(){
   }
 #endif
 
-void initPBO(GLuint* pbo){
-  if (pbo) {
+void initPBO(GLuint* pbo)
+{
+  if (pbo) 
+  {
     // set up vertex data parameter
     int num_texels = width*height;
     int num_values = num_texels * 4;
@@ -243,20 +321,36 @@ void initPBO(GLuint* pbo){
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, *pbo);
     // Allocate data for the buffer. 4-channel 8-bit image
     glBufferData(GL_PIXEL_UNPACK_BUFFER, size_tex_data, NULL, GL_DYNAMIC_COPY);
-    cudaGLRegisterBufferObject( *pbo );
+    //cudaGLRegisterBufferObject( *pbo );
+    cudaGraphicsGLRegisterBuffer( &cudaPboRc, *pbo, cudaGraphicsRegisterFlagsNone );
   }
 }
 
-void initCuda(){
+void initCuda()
+{
   // Use device with highest Gflops/s
   cudaGLSetGLDevice( compat_getMaxGflopsDeviceId() );
 
   initPBO(&pbo);
 
+  vbo = mesh->getVBO();
+  vbosize = mesh->getVBOsize();
+
+  float newcbo[] = {0.0, 1.0, 0.0, 
+                    0.0, 0.0, 1.0, 
+                    1.0, 0.0, 0.0};
+  cbo = newcbo;
+  cbosize = 9;
+
+  ibo = mesh->getIBO();
+  ibosize = mesh->getIBOsize();
+
+  initDeviceBuf( width, height, vbo, vbosize, cbo, cbosize, ibo, ibosize );
+
   // Clean up on program exit
   atexit(cleanupCuda);
 
-  runCuda();
+  //runCuda();
 }
 
 void initTextures(){
@@ -268,7 +362,8 @@ void initTextures(){
         GL_UNSIGNED_BYTE, NULL);
 }
 
-void initVAO(void){
+void initVAO(void)
+{
     GLfloat vertices[] =
     { 
         -1.0f, -1.0f, 
@@ -304,7 +399,8 @@ void initVAO(void){
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 }
 
-GLuint initShader(const char *vertexShaderPath, const char *fragmentShaderPath){
+GLuint initShader(const char *vertexShaderPath, const char *fragmentShaderPath)
+{
     GLuint program = glslUtility::createProgram(vertexShaderPath, fragmentShaderPath, attributeLocations, 2);
     GLint location;
 
@@ -322,13 +418,21 @@ GLuint initShader(const char *vertexShaderPath, const char *fragmentShaderPath){
 //---------CLEANUP STUFF---------
 //-------------------------------
 
-void cleanupCuda(){
-  if(pbo) deletePBO(&pbo);
+void cleanupCuda()
+{
+  if(pbo)
+  {
+      deletePBO(&pbo);
+        cudaGraphicsUnregisterResource( cudaPboRc );
+  }
+
   if(displayImage) deleteTexture(&displayImage);
 }
 
-void deletePBO(GLuint* pbo){
-  if (pbo) {
+void deletePBO(GLuint* pbo)
+{
+  if (pbo)
+  {
     // unregister this buffer object with CUDA
     cudaGLUnregisterBufferObject(*pbo);
     
@@ -339,12 +443,14 @@ void deletePBO(GLuint* pbo){
   }
 }
 
-void deleteTexture(GLuint* tex){
+void deleteTexture(GLuint* tex)
+{
     glDeleteTextures(1, tex);
     *tex = (GLuint)NULL;
 }
  
-void shut_down(int return_code){
+void shut_down(int return_code)
+{
   kernelCleanup();
   cudaDeviceReset();
   #ifdef __APPLE__

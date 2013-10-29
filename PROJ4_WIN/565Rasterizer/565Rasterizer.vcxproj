@@ -18,6 +18,8 @@
     <ClInclude Include="..\..\src\ObjCore\objloader.h" />
     <ClInclude Include="..\..\src\rasterizeKernels.h" />
     <ClInclude Include="..\..\src\rasterizeTools.h" />
+    <ClInclude Include="..\..\src\statVal.h" />
+    <ClInclude Include="..\..\src\util.h" />
     <ClInclude Include="..\..\src\utilities.h" />
   </ItemGroup>
   <ItemGroup>
@@ -86,6 +88,9 @@
     <CudaCompile>
       <CompileOut>$(ProjectDir)$(Platform)/$(Configuration)/%(Filename)%(Extension).obj</CompileOut>
       <Include>%(AdditionalIncludeDirectories)</Include>
+      <CodeGeneration>compute_20,sm_20</CodeGeneration>
+      <GenerateLineInfo>false</GenerateLineInfo>
+      <GPUDebugInfo>true</GPUDebugInfo>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -111,6 +116,7 @@
     <CudaCompile>
       <CompileOut>$(ProjectDir)$(Platform)/$(Configuration)/%(Filename)%(Extension).obj</CompileOut>
       <Include>%(AdditionalIncludeDirectories)</Include>
+      <CodeGeneration>compute_20,sm_20;compute_30,sm_30</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

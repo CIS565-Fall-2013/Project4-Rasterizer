@@ -21,6 +21,7 @@
 #include <time.h>
 #include "glslUtility.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
@@ -60,6 +61,9 @@ int cbosize;
 int* ibo;
 int ibosize;
 
+//CUDA Resources
+cudaGraphicsResource* cudaPboRc = 0;
+size_t cudaRcSize;
 //-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------
@@ -82,6 +86,8 @@ void runCuda();
 	void display();
 #else
 	void display();
+    void idle();
+    void reshape( int w, int h );
 	void keyboard(unsigned char key, int x, int y);
 #endif
 

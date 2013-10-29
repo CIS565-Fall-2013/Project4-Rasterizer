@@ -25,6 +25,12 @@
     <ClInclude Include="..\..\src\utilities.h">
       <Filter>headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\util.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\statVal.h">
+      <Filter>headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\ObjCore\obj.cpp">
