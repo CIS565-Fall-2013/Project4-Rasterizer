@@ -178,10 +178,11 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 	float fragZ = getZAtCoordinate(currBaryCoords, currTri);
 	currFrag.position = glm::vec3(xyCoords.x, xyCoords.y, fragZ);
 	currFrag.modelPosition = interpVec3(currBaryCoords, currTri.modelspace_p0, currTri.modelspace_p1, currTri.modelspace_p2);
-	currFrag.normal = currTri.n0; 
+	//currFrag.normal = currTri.n0; 
 	glm::vec3 v1 = currTri.modelspace_p1 - currTri.modelspace_p0;
 	glm::vec3 v2 = currTri.modelspace_p2 - currTri.modelspace_p0;
-	currFrag.modelNormal = glm::normalize(glm::cross(v1, v2));
+	//currFrag.modelNormal = glm::normalize(glm::cross(v1, v2));
+	currFrag.modelNormal = interpVec3(currBaryCoords, currTri.modelspace_n0, currTri.modelspace_n1, currTri.modelspace_n2);
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
@@ -346,9 +347,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  
-	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index);
-	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index);
-	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index);
+	  //int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index);
+	  //numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index);
+	  //numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index);
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
