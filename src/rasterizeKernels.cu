@@ -138,12 +138,18 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
-	  //apply mvp transform and write back to VBO
-	  glm::vec3 point(vbo[index],vbo[index]+1, vbo[index]+2);
+	  
+	  int vInd = index*3;
+	  
+	  //apply mvp transform to go to clip space and write back to VBO
+	  glm::vec3 point(vbo[vInd],vbo[vInd+1], vbo[vInd+2]);
+	  
 	  point=multiplyMV(MVP, glm::vec4(point,1.0f));
-	  vbo[index]=point.x;
-	  vbo[index+1]=point.y;
-	  vbo[index+2]=point.z;
+	  
+	  vbo[vInd]=point.x;
+	  vbo[vInd+1]=point.y;
+	  vbo[vInd+2]=point.z;
+  
   }
 }
 
@@ -153,8 +159,23 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
 
+	  triangle tri=primitives[index];
+	  
+	  //get the vertices and colors of the triangle
+	  int vInd = ibo[index]*3;
+	  tri.p0 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
+	  tri.c0 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
+	  vInd++;
+	  tri.p1 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
+	  tri.c1 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
+	  vInd++;
+	  tri.p2 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
+	  tri.c2 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
+
+	  //write to memory
+	  primitives[index]=tri;
   }
 }
 
@@ -162,6 +183,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+
+
   }
 }
 
