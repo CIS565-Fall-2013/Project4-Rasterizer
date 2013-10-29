@@ -240,10 +240,11 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 	return pixelsDrawn;
 }
 
-__global__ void vertexShadeKernel(float* vbo, float* orig_vbo, int vbosize, glm::mat4 cameraMat, glm::vec2 resolution){
+__global__ void vertexShadeKernel(float* vbo, float* orig_vbo, int vbosize, glm::mat4 model, glm::mat4 view, glm::mat4 projection, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){ //each thread acts per vertex.
 	  int vertNum = 3*index;
+	  glm::mat4 cameraMat = projection*view*model;
 	  glm::vec4 currVert(vbo[vertNum], vbo[vertNum+1], vbo[vertNum+2], 1);
 	  glm::vec4 projectedVert = cameraMat * currVert;
 	  projectedVert = (1/projectedVert.w) * projectedVert; //perspective divide
@@ -252,6 +253,8 @@ __global__ void vertexShadeKernel(float* vbo, float* orig_vbo, int vbosize, glm:
 	  vbo[vertNum] = xWinNDC * resolution.x;
 	  vbo[vertNum+1] = yWinNDC * resolution.y;
 	  vbo[vertNum+2] = projectedVert.z; //no need to change this when shifting to window NDC space
+
+	  glm::vec4 modelSpaceVert = model * currVert;
 	  orig_vbo[vertNum] = currVert.x;
 	  orig_vbo[vertNum] = currVert.y;
 	  orig_vbo[vertNum] = currVert.z;
@@ -479,8 +482,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //float angleRad = angleDeg * PI/180;
   glm::mat4 model = glm::translate(glm::mat4(1), -camPos); 
   model = glm::rotate(model, angleDeg, glm::vec3(0,1,0));
-  glm::mat4 cameraMat = projection*view*model;
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, orig_vbo, vbosize, cameraMat, resolution);
+
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, orig_vbo, vbosize, model, view, projection, resolution);
   //float* transformedVerts = new float[vbosize];
   //cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
   //delete transformedVerts;
