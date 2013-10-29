@@ -242,7 +242,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 	return pixelsDrawn;
 }
 
-__global__ void vertexShadeKernel(float* vbo, float* model_vbo, int vbosize, glm::mat4 cameraMat, glm::vec2 resolution){
+__global__ void vertexShadeKernel(float* vbo, float* model_vbo, int vbosize, glm::mat4 cameraMat, glm::mat4 model, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){ //each thread acts per vertex.
 	  int vertNum = 3*index;
@@ -255,9 +255,10 @@ __global__ void vertexShadeKernel(float* vbo, float* model_vbo, int vbosize, glm
 	  vbo[vertNum+1] = yWinNDC * resolution.y;
 	  vbo[vertNum+2] = projectedVert.z; //no need to change this when shifting to window NDC space
 
-	  model_vbo[vertNum] = currVert.x;
-	  model_vbo[vertNum+1] = currVert.y;
-	  model_vbo[vertNum+2] = currVert.z;
+	  glm::vec4 modelVert = model*currVert;
+	  model_vbo[vertNum] = modelVert.x;
+	  model_vbo[vertNum+1] = modelVert.y;
+	  model_vbo[vertNum+2] = modelVert.z;
   }
 }
 
@@ -494,7 +495,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::mat4 model = glm::translate(glm::mat4(1), -camPos); 
   model = glm::rotate(model, angleDeg, glm::vec3(0,1,0));
   glm::mat4 cameraMat = projection*view*model;
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, modelspace_vbo, vbosize, cameraMat, resolution);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, modelspace_vbo, vbosize, cameraMat, model, resolution);
   //float* transformedVerts = new float[vbosize];
   //cudaMemcpy( transformedVerts, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost);
   //delete transformedVerts;
@@ -526,7 +527,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //fragment shader
   //------------------------------
-  glm::vec3 lightPos(0, 2, 0);
+  glm::vec3 lightPos(0, 0, 1);
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, eye, lightPos);
 
   cudaDeviceSynchronize();
