@@ -20,3 +20,10 @@ struct uniforms{
 	glm::mat4 viewTransform;
 	glm::mat4 perspectiveTransform;
 };
+
+
+enum FRAGMENT_SHADER {DEPTH_BUFFER, AMBIENT_LIGHTING, PHONG_SHADING};
+struct pipelineOpts{
+	FRAGMENT_SHADER fShaderProgram;
+
+};

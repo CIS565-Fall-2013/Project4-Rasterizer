@@ -50,11 +50,11 @@ __host__ __device__ fragment getFromDepthbuffer(int x, int y, fragment* depthbuf
 	}
 }
 
-//Reads a fragment from a given location in a fragment buffer
+
 __host__ __device__ float getDepthFromDepthbuffer(int x, int y, fragment* depthbuffer, glm::vec2 resolution){
 	if(x<resolution.x && y<resolution.y){
 		int index = (y*resolution.x) + x;
-		return depthbuffer[index].position.x;
+		return depthbuffer[index].position.z;
 	}else{
 		return 0;
 	}
@@ -137,11 +137,11 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 	}
 }
 
-__global__ void vertexShadeKernel(float* vbo, int vbosize, uniforms viewMats){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, uniforms u_variables, pipelineOpts opts){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<vbosize/3){
 		glm::vec4 vertexPos = glm::vec4(vbo[index*3+0],vbo[index*3+1],vbo[index*3+2],1.0);
-		vertexPos = viewMats.perspectiveTransform*viewMats.viewTransform*vertexPos;
+		vertexPos = u_variables.perspectiveTransform*u_variables.viewTransform*vertexPos;
 		//Perspective division
 		vertexPos.x /= vertexPos.w;
 		vertexPos.y /= vertexPos.w;
@@ -154,7 +154,9 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, uniforms viewMats){
 }
 
 //TODO: Implement primative assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, 
+										int* ibo, int ibosize, triangle* primitives, 
+										uniforms u_variables, pipelineOpts opts){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int primitivesCount = ibosize/3;
 	if(index<primitivesCount){
@@ -194,7 +196,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 }
 
 //TODO: Do this a lot more efficiently and in parallel
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, 
+									glm::vec2 resolution, uniforms u_variables, pipelineOpts opts){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<primitivesCount){
 		//For each primative
@@ -235,7 +238,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					frag.position = tri.p0*bCoords.x+tri.p1*bCoords.y+tri.p2*bCoords.z;
 
 					//Handle race conditions in a lousy way
-					if(frag.position.z < getDepthFromDepthbuffer(x,y,depthbuffer,resolution))
+					while(frag.position.z < getDepthFromDepthbuffer(x,y,depthbuffer,resolution))
 					{
 						writeToDepthbuffer(x,y,frag, depthbuffer,resolution);
 					}
@@ -246,12 +249,34 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	}
 }
 
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__device__ void depthFSImpl(fragment* depthbuffer, int index,  uniforms u_variables, pipelineOpts opts)
+{
+	float depth = depthbuffer[index].position.z;
+	if(depth < MAX_DEPTH)
+		depthbuffer[index].color = glm::vec3(1.0f-depth); 
+}
+
+
+__device__ void ambientFSImpl(fragment* depthbuffer, int index,  uniforms u_variables, pipelineOpts opts)
+{
+	//Do nothing. Interpolated color is assumed to be right
+}
+
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, 
+									uniforms u_variables, pipelineOpts opts){
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 	int index = x + (y * resolution.x);
 	if(x<=resolution.x && y<=resolution.y){
-		//TODO: Implement a fragment shader
+		switch(opts.fShaderProgram)
+		{
+		case DEPTH_BUFFER:
+			depthFSImpl(depthbuffer, index, u_variables, opts);
+			break;
+		case AMBIENT_LIGHTING:
+			ambientFSImpl(depthbuffer, index, u_variables, opts);
+			break;
+		}
 
 	}
 }
@@ -269,7 +294,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, uniforms viewMats){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, 
+					   float* cbo, int cbosize, int* ibo, int ibosize, uniforms u_variables, pipelineOpts opts){
 
 	// set up crucial magic
 	int tileSize = 8;
@@ -290,7 +316,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	fragment frag;
 	frag.color = glm::vec3(0,0,0);
 	frag.normal = glm::vec3(0,0,0);
-	frag.position = glm::vec3(0,0,10000);
+	frag.position = glm::vec3(0,0,MAX_DEPTH);
 	clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
 	//------------------------------
@@ -317,21 +343,21 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//------------------------------
 	//vertex shader
 	//------------------------------
-	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, viewMats);
+	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, u_variables, opts);
 
 	cudaDeviceSynchronize();
 	//------------------------------
 	//primitive assembly
 	//------------------------------
 	primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-	primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+	primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, u_variables, opts);
 
 	cudaDeviceSynchronize();
 	//------------------------------
 	//rasterization
 	//------------------------------
 	
-	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, u_variables, opts);
 
 
 
@@ -339,7 +365,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//------------------------------
 	//fragment shader
 	//------------------------------
-	fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+	fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, u_variables, opts);
 
 	cudaDeviceSynchronize();
 	//------------------------------

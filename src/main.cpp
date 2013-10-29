@@ -29,6 +29,14 @@ int main(int argc, char** argv){
     return 0;
   }
 
+  //Setup uniform variables
+  
+  //TODO: Camera movable
+  u_pipelineOpts.fShaderProgram = DEPTH_BUFFER;
+  u_variables.viewTransform = glm::lookAt(glm::vec3(1,1,1), glm::vec3(0,0,0), glm::vec3(0,1,0));
+  u_variables.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 1.0f, 10.0f);
+
+
   frame = 0;
   seconds = time (NULL);
   fpstracker = 0;
@@ -98,11 +106,10 @@ void runCuda(){
 
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
-  uniforms viewMats;
-  viewMats.viewTransform = glm::lookAt(glm::vec3(1,1,1), glm::vec3(0,0,0), glm::vec3(0,1,0));
-  viewMats.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 0.1f, 100.0f);
+
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, viewMats);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, u_variables, u_pipelineOpts);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
