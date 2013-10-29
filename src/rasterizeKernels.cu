@@ -225,11 +225,38 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 //TODO: Implement a rasterization method, such as scanline.
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution)
 {
-  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<primitivesCount)
-  {
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if(index<primitivesCount)
+	{
+		triangle tri = primitives[index];
+		vec3 triMinPoint;
+		vec3 triMaxPoint;
 
-  }
+		getAABBForTriangle(tri, triMinPoint, triMaxPoint);
+	  
+		triMinPoint.x > 0 ? triMinPoint.x : 0;
+		triMinPoint.y > 0 ? triMinPoint.y : 0;
+		triMaxPoint.x < resolution.x ? triMaxPoint.x : resolution.x;
+		triMaxPoint.y < resolution.y ? triMaxPoint.y : resolution.y;
+
+		// go through each pixel within the AABB for the triangle and fill the depthbuffer (fragments) appropriately
+		for (int x = triMinPoint.x ; x < triMaxPoint.x ; ++x)
+		{
+			for (int y = triMinPoint.y ; y < triMaxPoint.y ; ++y)
+			{
+				vec2 pointInTri(x,y);
+				vec3 bc = calculateBarycentricCoordinate(tri, pointInTri);
+				if (isBarycentricCoordInBounds(bc))
+				{
+					// TODO: Compute normal & depth check
+					int depthBufferId = x * resolution.x + y;
+					float z = getZAtCoordinate(bc, tri);
+					depthbuffer[depthBufferId].position = vec3(x, y, z);
+					depthbuffer[depthBufferId].color = vec3(tri.c0 * bc.x, tri.c1 * bc.y, tri.c2 * bc.z);
+				}
+			}
+		}
+	}
 }
 
 //TODO: Implement a fragment shader

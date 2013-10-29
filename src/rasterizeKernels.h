@@ -21,6 +21,7 @@ using glm::mat4;
 using glm::vec4;
 using glm::vec3;
 using glm::vec2;
+using glm::clamp;
 
 void kernelCleanup();
 void cudaRasterizeCore(camera* cam, uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize);
