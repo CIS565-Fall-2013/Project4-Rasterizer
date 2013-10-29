@@ -331,42 +331,42 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  printf("Trololo\n");
 	  }
 	  //TODO: in the size-zero cases, I might have to draw a line.
-	  //if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
-		 // float topHeight = (p1.y - p0.y);
-		 // glm::vec2 gradToMiddle, gradToBottom;
-		 // glm::vec2 rasterStart, rasterEnd;
-		 // gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, 1);
-		 // if( abs(topHeight) > NATHANS_EPSILON ){ //top is not flat
-			//  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, 1);
-			//  rasterStart = glm::vec2(p0);
-			//  rasterEnd = glm::vec2(p0);
-			//  while(rasterStart.y <= p1.y && rasterEnd.y <= p1.y){
-			//	  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-			//	  rasterStart += gradToBottom;
-			//	  rasterEnd += gradToMiddle;
-			//  }
-			//  rasterStart -= gradToBottom;
-			//  rasterEnd = glm::vec2(p1);
-		 // } else { //top is flat, thus we don't start at a point, we start at a line
-			//  rasterStart = glm::vec2(p0);
-			//  rasterEnd = glm::vec2(p1);
-			//  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index); //this line is the "top"
-		 // }
-		 // float bottomHeight = (p2.y - p1.y);
-		 // if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
-			//  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, 1);
-			//  while(rasterStart.y <= p2.y && rasterEnd.y <= p2.y){
-			//	  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-			//	  rasterStart += gradToBottom;
-			//	  rasterEnd += gradMidToBot;
-			//  }
-		 // } else { //bottom is flat, but we need to rasterize at least one line
-			//  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-		 // }
-	  //} else{ //rasterize two straight lines, since the triangle is "flat"
-		 // rasterizeHorizLine(glm::vec2(p0), glm::vec2(p1), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-		 // rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
-	  //}
+	  if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
+		  float topHeight = (p1.y - p0.y);
+		  glm::vec2 gradToMiddle, gradToBottom;
+		  glm::vec2 rasterStart, rasterEnd;
+		  gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, 1);
+		  if( abs(topHeight) > NATHANS_EPSILON ){ //top is not flat
+			  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, 1);
+			  rasterStart = glm::vec2(p0);
+			  rasterEnd = glm::vec2(p0);
+			  while(rasterStart.y <= p1.y + 1.1 && rasterEnd.y <= p1.y + 1.1){
+				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+				  rasterStart += gradToBottom;
+				  rasterEnd += gradToMiddle;
+			  }
+			  rasterStart -= gradToBottom;
+			  rasterEnd = glm::vec2(p1);
+		  } else { //top is flat, thus we don't start at a point, we start at a line
+			  rasterStart = glm::vec2(p0);
+			  rasterEnd = glm::vec2(p1);
+			  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index); //this line is the "top"
+		  }
+		  float bottomHeight = (p2.y - p1.y);
+		  if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
+			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, 1);
+			  while(rasterStart.y <= p2.y + 1.1 && rasterEnd.y <= p2.y + 1.1){
+				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+				  rasterStart += gradToBottom;
+				  rasterEnd += gradMidToBot;
+			  }
+		  } else { //bottom is flat, but we need to rasterize at least one line
+			  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+		  }
+	  } else{ //rasterize two straight lines, since the triangle is "flat"
+		  rasterizeHorizLine(glm::vec2(p0), glm::vec2(p1), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+		  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
+	  }
   }
 }
 
