@@ -22,8 +22,11 @@ int main(int argc, char** argv){
       mesh->buildVBOs();
       delete loader;
       loadedScene = true;
+	  
     //}
   //}
+
+	  isStencil = false;
 
   if(!loadedScene){
     cout << "Usage: mesh=[obj file]" << endl;
@@ -88,9 +91,11 @@ void runCuda(){
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
   dptr=NULL;
 
-  vbo = mesh->getVBO();
+  vbo = mesh->getVBO();  
   vbosize = mesh->getVBOsize();
   
+  vector<float> test;
+
   nbo = mesh->getNBO();
   nbosize = mesh->getNBOsize();
  
@@ -122,9 +127,11 @@ void runCuda(){
   {
 	  cout<<vbo[i*3]<<" "<<vbo[i*3+1]<<" "<<vbo[i*3+2]<<endl;
   }*/
+  firstObj = 0;
+  secondObj = 2;
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, projection*modelView, viewPort, lightPos, cameraPosition, lookat);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, projection*modelView, viewPort, lightPos, cameraPosition, lookat, isStencil, firstObj, secondObj);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

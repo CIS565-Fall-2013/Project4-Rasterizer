@@ -187,18 +187,18 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  primitives[index].c1 = glm::vec3(cbo[i2*3], cbo[i2*3+1], cbo[i2*3+2]);
 	  primitives[index].c2 = glm::vec3(cbo[i3*3], cbo[i3*3+1], cbo[i3*3+2]);
 */
-	  primitives[index].c0 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);
+	 /* primitives[index].c0 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);
 	  primitives[index].c1 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);
-	  primitives[index].c2 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);
+	  primitives[index].c2 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);*/
 
 
 	  /*primitives[index].c0 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);
 	  primitives[index].c1 = glm::vec3(cbo[index%3 + 3], cbo[index%3 + 4], cbo[index%3 + 5]);
 	  primitives[index].c2 = glm::vec3(cbo[index%3 + 6], cbo[index%3 + 7], cbo[index%3 + 8]);*/
 
-	  /*primitives[index].c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
+	  primitives[index].c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
 	  primitives[index].c1 = glm::vec3(cbo[0], cbo[1], cbo[2]);
-	  primitives[index].c2 = glm::vec3(cbo[0], cbo[1], cbo[2]);*/
+	  primitives[index].c2 = glm::vec3(cbo[0], cbo[1], cbo[2]);
 
 	  primitives[index].isRender = true;
   }
@@ -220,6 +220,11 @@ __device__ glm::vec3 getEdgeValue(glm::vec3 coordinate, float area)
 	return coordinate * area * 2.0f;
 }
 
+__device__ float setupEdge(glm::vec3 a, glm::vec3 b, glm::vec3 c)
+{
+	return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
 //TODO: Implement a rasterization method, such as scanline.
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 cameraPos, glm::vec3 lookAt){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -239,55 +244,209 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  if(maxP.y > resolution.y)
 			  maxP.y = resolution.y;
 
+		  if(maxP.x < resolution.x && maxP.y < resolution.y && minP.x > 0 && minP.y > 0){
 
-		  float x01 = primitives[index].p1.x - primitives[index].p0.x;	  
-		  float x12 = primitives[index].p2.x - primitives[index].p1.x;
-		  float x20 = primitives[index].p0.x - primitives[index].p2.x;
+			  float x01 = primitives[index].p1.x - primitives[index].p0.x;	  
+			  float x12 = primitives[index].p2.x - primitives[index].p1.x;
+			  float x20 = primitives[index].p0.x - primitives[index].p2.x;
 
-		  float y01 = primitives[index].p0.y - primitives[index].p1.y;	  
-		  float y12 = primitives[index].p1.y - primitives[index].p2.y;
-		  float y20 = primitives[index].p2.y - primitives[index].p0.y;
+			  float y01 = primitives[index].p0.y - primitives[index].p1.y;	  
+			  float y12 = primitives[index].p1.y - primitives[index].p2.y;
+			  float y20 = primitives[index].p2.y - primitives[index].p0.y;
 
-		  float sign01 = glm::sign(y01);
-		  float sign12 = glm::sign(y12);
-		  float sign20 = glm::sign(y20);
+			  float sign01 = glm::sign(y01);
+			  float sign12 = glm::sign(y12);
+			  float sign20 = glm::sign(y20);
 	 	  
-		  float triArea = abs(calculateSignedArea(primitives[index]));
-		  glm::vec3 bCoordinate = calculateBarycentricCoordinate(primitives[index], glm::vec2(minP.x,minP.y));	
-		  glm::vec3 temp = bCoordinate;
+			  float triArea = (calculateSignedArea(primitives[index]));
+			  glm::vec3 bCoordinate = calculateBarycentricCoordinate(primitives[index], glm::vec2((int)minP.x,(int)minP.y));	
+			  glm::vec3 temp = bCoordinate;			 
 
-		for(int j = minP.y; j <= maxP.y; j++)
-		{		
-			//glm::vec3 temp = bCoordinate;
-			glm::vec3 Evalue;
-			Evalue = getEdgeValue(bCoordinate, triArea);
+			for(int j = minP.y; j <= maxP.y; j++)
+			{		
+				//glm::vec3 temp = bCoordinate;
+				glm::vec3 Evalue;
+				Evalue = bCoordinate;
+				//Evalue = getEdgeValue(bCoordinate, triArea);
 		
-			for(int i = minP.x; i <= maxP.x; i++)
-			{			
-				if(Evalue.x >= -sign12 * y12 - 0.f && Evalue.y >= -sign20 * y20 - 0.f  && Evalue.z >= -sign01 * y01 - 0.f)
-				{				
-					int depthIndex = i + j*resolution.x;	
-					float interpolateZ = 1.0f + getZAtCoordinate(temp, primitives[index]);			
-					//depth testing
-					if(interpolateZ >= depthbuffer[depthIndex].position.z)
-					{
-						depthbuffer[depthIndex].position.z = interpolateZ;
-						depthbuffer[depthIndex].color = glm::vec3(1,1,1) * interpolateZ * 10.f;//temp.x * primitives[index].c0 + temp.y * primitives[index].c1 + temp.z * primitives[index].c2;	
-						depthbuffer[depthIndex].normal = primitives[index].n0;					
-					}				
+				for(int i = minP.x; i <= maxP.x; i++)
+				{			
+					//if(Evalue.x >= -sign12 * y12 - 0.f && Evalue.y >= -sign20 * y20 - 0.f  && Evalue.z  >= -sign01 * y01 - 0.f)
+					//if(((int)Evalue.x | (int)Evalue.y | (int)Evalue.z) >= 0)
+					if(isBarycentricCoordInBounds(Evalue))
+					{				
+						//temp = calculateBarycentricCoordinate(primitives[index], glm::vec2(i,j));	
+						int depthIndex = i + j*resolution.x;	
+						float interpolateZ = 1.0f + getZAtCoordinate(temp, primitives[index]);			
+						//depth testing
+						if(interpolateZ >= depthbuffer[depthIndex].position.z)
+						{
+							depthbuffer[depthIndex].position.z = interpolateZ;
+							depthbuffer[depthIndex].color = /*glm::vec3(1,1,1) * interpolateZ * 10.f;*/temp.x * primitives[index].c0 + temp.y * primitives[index].c1 + temp.z * primitives[index].c2;	
+							depthbuffer[depthIndex].normal = primitives[index].n0;					
+						}				
+					}
+					Evalue.x -= (0.5f * y12) / triArea; Evalue.y -= (0.5f * y20) / triArea; Evalue.z -= (0.5f * y01) / triArea;
+					//temp = Evalue * 0.5f / triArea;	
+					temp = Evalue;
 				}
-				Evalue.x += y12; Evalue.y += y20; Evalue.z += y01;
-				temp = Evalue * 0.5f / triArea;	
-			}	
 
-			glm::vec3 Tvalue;
-			Tvalue = getEdgeValue(bCoordinate, triArea);
-			Tvalue.x += x12; Tvalue.y += x20; Tvalue.z += x01;
-			bCoordinate = Tvalue * 0.5f / triArea;		
-		}
+				glm::vec3 Tvalue;
+				//Tvalue = getEdgeValue(bCoordinate, triArea);
+				Tvalue = bCoordinate;
+				Tvalue.x -= (0.5f * x12) / triArea; Tvalue.y -= (0.5f * x20) / triArea; Tvalue.z -= (0.5f * x01) / triArea;
+				//bCoordinate = Tvalue * 0.5f / triArea;		
+				bCoordinate = Tvalue;
+			}
+		 }
 	}
   }
 }
+
+
+__global__ void rasterizationKernelEdge(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 cameraPos, glm::vec3 lookAt){
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index<primitivesCount){
+	  
+	  if(primitives[index].isRender){
+		  glm::vec3 minP, maxP;
+		  getAABBForTriangle(primitives[index], minP, maxP);	
+
+		  //clipping
+		  if(minP.x < 0)
+			  minP.x = 0;
+		  if(minP.y < 0)
+			  minP.y = 0;
+		  if(maxP.x > resolution.x)
+			  maxP.x = resolution.x;
+		  if(maxP.y > resolution.y)
+			  maxP.y = resolution.y;
+
+		  if(maxP.x < resolution.x && maxP.y < resolution.y && minP.x > 0 && minP.y > 0){
+
+			  float x01 = primitives[index].p1.x - primitives[index].p0.x;	  
+			  float x12 = primitives[index].p2.x - primitives[index].p1.x;
+			  float x20 = primitives[index].p0.x - primitives[index].p2.x;
+
+			  float y01 = primitives[index].p0.y - primitives[index].p1.y;	  
+			  float y12 = primitives[index].p1.y - primitives[index].p2.y;
+			  float y20 = primitives[index].p2.y - primitives[index].p0.y;
+
+			  float sign01 = glm::sign(y01);
+			  float sign12 = glm::sign(y12);
+			  float sign20 = glm::sign(y20);
+	 	  
+			  float triArea = abs(calculateSignedArea(primitives[index]));
+			  glm::vec3 bCoordinate = calculateBarycentricCoordinate(primitives[index], glm::vec2(minP.x,minP.y));	
+			  glm::vec3 temp = bCoordinate;
+
+			  float e1 = setupEdge(primitives[index].p1, primitives[index].p2, minP);
+			  float e2 = setupEdge(primitives[index].p2, primitives[index].p0, minP);
+			  float e3 = setupEdge(primitives[index].p0, primitives[index].p1, minP);
+
+			  float tp = glm::sign(setupEdge(primitives[index].p0, primitives[index].p1, primitives[index].p2));
+
+			  e1 /= tp;
+			  e2 /= tp;
+			  e3 /= tp;
+
+			for(int j = minP.y; j <= maxP.y; j++)
+			{					
+				glm::vec3 Evalue;
+				Evalue = glm::vec3(e1,e2,e3);
+						
+				for(int i = minP.x; i <= maxP.x; i++)
+				{			
+					if(Evalue.x >= 0 && Evalue.y >= 0  && Evalue.z >= 0)
+					{				
+						temp = calculateBarycentricCoordinate(primitives[index], glm::vec2(i,j));						
+						int depthIndex = i + j*resolution.x;	
+						float interpolateZ = 1.0f + getZAtCoordinate(temp, primitives[index]);			
+						//depth testing
+						if(interpolateZ >= depthbuffer[depthIndex].position.z)
+						{
+							depthbuffer[depthIndex].position.z = interpolateZ;
+							depthbuffer[depthIndex].color = /*glm::vec3(1,1,1) * interpolateZ * 10.f;*/temp.x * primitives[index].c0 + temp.y * primitives[index].c1 + temp.z * primitives[index].c2;	
+							depthbuffer[depthIndex].normal = primitives[index].n0;					
+						}				
+					}
+					Evalue.x += y12; Evalue.y += y20; Evalue.z += y01;
+				}				
+				e1 += x12; e2 += x20; e3 += x01;
+			}
+		 }
+	}
+  }
+}
+
+__global__ void rasterizationKernelStencil(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 cameraPos, glm::vec3 lookAt, 
+										   int* stencilbuffer, int start, int end, int stencilValue){
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index<end && index>=start){
+	  
+	  if(primitives[index].isRender){
+		  glm::vec3 minP, maxP;
+		  getAABBForTriangle(primitives[index], minP, maxP);	
+
+		  //clipping
+		  if(minP.x < 0)
+			  minP.x = 0;
+		  if(minP.y < 0)
+			  minP.y = 0;
+		  if(maxP.x > resolution.x)
+			  maxP.x = resolution.x;
+		  if(maxP.y > resolution.y)
+			  maxP.y = resolution.y;
+
+		  if(maxP.x < resolution.x && maxP.y < resolution.y && minP.x > 0 && minP.y > 0){
+
+			  float x01 = primitives[index].p1.x - primitives[index].p0.x;	  
+			  float x12 = primitives[index].p2.x - primitives[index].p1.x;
+			  float x20 = primitives[index].p0.x - primitives[index].p2.x;
+
+			  float y01 = primitives[index].p0.y - primitives[index].p1.y;	  
+			  float y12 = primitives[index].p1.y - primitives[index].p2.y;
+			  float y20 = primitives[index].p2.y - primitives[index].p0.y;
+
+			  float sign01 = glm::sign(y01);
+			  float sign12 = glm::sign(y12);
+			  float sign20 = glm::sign(y20);
+	 	  
+			  float triArea = abs(calculateSignedArea(primitives[index]));
+			  glm::vec3 bCoordinate = calculateBarycentricCoordinate(primitives[index], glm::vec2(minP.x,minP.y));	
+			  glm::vec3 temp = bCoordinate;
+
+			for(int j = minP.y; j <= maxP.y; j++)
+			{		
+				//glm::vec3 temp = bCoordinate;
+				glm::vec3 Evalue;
+				Evalue = getEdgeValue(bCoordinate, triArea);
+		
+				for(int i = minP.x; i <= maxP.x; i++)
+				{			
+					if(Evalue.x >= -sign12 * y12 - 2.f && Evalue.y >= -sign20 * y20 - 2.f  && Evalue.z >= -sign01 * y01 - 2.f)
+					{				
+						int depthIndex = i + j*resolution.x;							
+						if(stencilValue == stencilbuffer[depthIndex] + 1){
+							depthbuffer[depthIndex].color = /*glm::vec3(1,1,1) * interpolateZ * 10.f;*/temp.x * primitives[index].c0 + temp.y * primitives[index].c1 + temp.z * primitives[index].c2;	
+							depthbuffer[depthIndex].normal = primitives[index].n0;
+							stencilbuffer[depthIndex] = stencilValue;
+						}						
+					}
+					Evalue.x += y12; Evalue.y += y20; Evalue.z += y01;
+					temp = Evalue * 0.5f / triArea;	
+				}
+
+				glm::vec3 Tvalue;
+				Tvalue = getEdgeValue(bCoordinate, triArea);
+				Tvalue.x += x12; Tvalue.y += x20; Tvalue.z += x01;
+				bCoordinate = Tvalue * 0.5f / triArea;		
+			}
+		 }
+	}
+  }
+}
+
 
 //TODO: Implement a fragment shader
 __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::mat4 modelViewProjection, glm::mat4 viewPort, glm::vec4 lightPos){
@@ -295,12 +454,12 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
 
-  
   if(x<=resolution.x && y<=resolution.y){
-	  float diffuse = max(glm::dot(depthbuffer[index].normal, glm::vec3(lightPos)), 0.0f);
-	  //depthbuffer[index].color *= diffuse * glm::vec3(1,1,1) * 0.2f;
+	float diffuse = max(glm::dot(depthbuffer[index].normal, glm::vec3(lightPos)), 0.0f);
+	depthbuffer[index].color *= diffuse * glm::vec3(1,1,1) * 0.2f;	
   }
 }
+
 
 //Writes fragment colors to the framebuffer
 __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* framebuffer){
@@ -316,7 +475,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, 
-					   glm::mat4 modelViewProjection, glm::mat4 viewPort, glm::vec4 lightPos, glm::vec3 cameraPos, glm::vec3 lookAt){
+					   glm::mat4 modelViewProjection, glm::mat4 viewPort, glm::vec4 lightPos, glm::vec3 cameraPos, glm::vec3 lookAt, bool isStencil, int first, int second){
 
   // set up crucial magic
   int tileSize = 8;
@@ -333,7 +492,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   //set up stencilbuffer
   stencilbuffer = NULL;
-  cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(int));
+  cudaMalloc((void**)&stencilbuffer, (int)resolution.x*(int)resolution.y*sizeof(int));
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
@@ -344,7 +503,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   frag.position = glm::vec3(0,0,-10000);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, frag);
 
-  clearStencilBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, stencilbuffer, 0);
+  int stencilValue = 0;
+  clearStencilBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, stencilbuffer, stencilValue);
   //------------------------------
   //memory stuff
   //------------------------------
@@ -395,8 +555,16 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt);
-
+  if(!isStencil)
+	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt);
+  else{
+	int start = first;
+	int end = second;
+	rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, stencilbuffer, start, second, ++stencilValue);
+	start = second;
+	end = ibosize/3;
+	rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, stencilbuffer, start, end, ++stencilValue);
+  }
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
@@ -425,5 +593,6 @@ void kernelCleanup(){
   cudaFree( device_nbo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
+  cudaFree( stencilbuffer );
 }
 
