@@ -14,6 +14,11 @@ struct triangle {
   glm::vec3 p0;
   glm::vec3 p1;
   glm::vec3 p2;
+  //vertex in world space
+  glm::vec3 wp0;
+  glm::vec3 wp1;
+  glm::vec3 wp2;
+  //color
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
@@ -22,6 +27,8 @@ struct triangle {
   glm::vec3 n1;
   glm::vec3 n2;
 
+  bool isCulled;
+
 };
 
 struct fragment{
@@ -29,6 +36,21 @@ struct fragment{
   glm::vec3 normal;
   glm::vec3 position;
   int isLock; // atomics
+};
+struct light{	
+	glm::vec3 ambientLColor;
+	glm::vec3 pos;
+	glm::vec3 color;
+	float emitPower;
+};
+
+struct material{
+	glm::vec3 diffuseColor;
+	glm::vec3 specularColor;
+	int specularCon;
+	float ka;
+	float kd;
+	float ks;
 };
 
 //Multiplies a cudaMat4 matrix and a vec4

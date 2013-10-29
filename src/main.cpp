@@ -120,7 +120,7 @@ void runCuda(){
   nbosize = mesh->getNBOsize();
 
   modelM = glm::mat4(1.0);
-  modelM = glm::rotate(modelM,(float)frame,glm::vec3(0,1,0));
+  //modelM = glm::rotate(modelM,(float)frame,glm::vec3(0,1,0));
   //modelM = glm::rotate(modelM,230.0f,glm::vec3(0,1,0));
   
 
@@ -129,6 +129,7 @@ void runCuda(){
 	  nbo,nbosize,
 	  modelM,viewM,projectionM
 	  ,images
+	  ,cameraPostion
 	  );
 
   cudaGLUnmapBufferObject(pbo);
@@ -150,8 +151,8 @@ void runCuda(){
 	  }
 	  gammaSettings gamma;
 	  gamma.applyGamma = true;
-	  gamma.gamma = 1.0/2.2;
-	  gamma.divisor = 1.0;//renderCam->iterations;
+	  gamma.gamma = 1.0;
+	  gamma.divisor = 1.0;
 	  outputImage.setGammaSettings(gamma);
 	  string filename = "screenshot.png";
 	  string s;
