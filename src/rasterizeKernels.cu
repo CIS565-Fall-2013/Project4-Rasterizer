@@ -271,17 +271,26 @@ __host__ __device__ void blinnPhongFSImpl(fragment* depthbuffer, int index,  uni
 {
 	//TODO: Implement light color shading
 	fragment frag = depthbuffer[index];
-
+	glm::vec3 baseColor = frag.color;
 	frag.color *= u_variables->blinnPhongParams.x;//Ambient term always present
 
 	float NdotL = glm::max(glm::dot(frag.normal,frag.lightDir),0.0f);
 	if (NdotL > 0.0f) {
 
-		frag.color += u_variables->blinnPhongParams.y * u_variables->lightColor * u_variables->diffuseColor * NdotL;
+		glm::vec3 diffuseColor = u_variables->diffuseColor;
+		if(opts.showTriangleColors)
+			diffuseColor = baseColor;
+
+		frag.color += u_variables->blinnPhongParams.y * u_variables->lightColor * diffuseColor * NdotL;
 
 		float NdotHV = glm::max(glm::dot(frag.normal,frag.halfVector),0.0f);
-		frag.color +=  u_variables->blinnPhongParams.z * u_variables->lightColor * u_variables->specularColor * glm::pow(NdotHV, u_variables->shininess);
+
+		glm::vec3 specularColor = u_variables->specularColor;
+		if(opts.showTriangleColors)
+			specularColor = baseColor;
+		frag.color +=  u_variables->blinnPhongParams.z * u_variables->lightColor * specularColor * glm::pow(NdotHV, u_variables->shininess);
 	}
+
 	depthbuffer[index] = frag;
 }
 

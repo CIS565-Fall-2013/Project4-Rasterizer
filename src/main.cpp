@@ -38,7 +38,7 @@ int main(int argc, char** argv){
 	u_variables.blinnPhongParams  = glm::vec3(0.1,0.7,0.2);//Ambient, diffuse, specular.
 	u_variables.lightPos = glm::vec4(0.0f,0.0f,10.0f,1.0f);
 	u_variables.lightColor = glm::vec3(1.0f,1.0f,1.0f);
-	u_variables.diffuseColor = glm::vec3(1.0,0.2,0.2);
+	u_variables.diffuseColor = glm::vec3(0.6,0.6,0.6);
 	u_variables.specularColor = glm::vec3(1.0,1.0,1.0);
 	u_variables.shininess = 1.0f;
 
