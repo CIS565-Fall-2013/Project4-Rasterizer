@@ -5,10 +5,10 @@
 #define MAIN_H
 
 #ifdef __APPLE__
-	#include <GL/glfw.h>
+#include <GL/glfw.h>
 #else
-	#include <GL/glew.h>
-	#include <GL/glut.h>
+#include <GL/glew.h>
+#include <GL/glut.h>
 #endif
 
 #include <stdlib.h>
@@ -29,13 +29,13 @@
 #include "ObjCore/objloader.h"
 
 #if CUDA_VERSION >= 5000
-    #include <helper_cuda.h>
-    #include <helper_cuda_gl.h>
-    #define compat_getMaxGflopsDeviceId() gpuGetMaxGflopsDeviceId() 
+#include <helper_cuda.h>
+#include <helper_cuda_gl.h>
+#define compat_getMaxGflopsDeviceId() gpuGetMaxGflopsDeviceId() 
 #else
-    #include <cutil_inline.h>
-    #include <cutil_gl_inline.h>
-    #define compat_getMaxGflopsDeviceId() cutGetMaxGflopsDeviceId()
+#include <cutil_inline.h>
+#include <cutil_gl_inline.h>
+#define compat_getMaxGflopsDeviceId() cutGetMaxGflopsDeviceId()
 #endif
 
 using namespace std;
@@ -92,10 +92,12 @@ int main(int argc, char** argv);
 void runCuda();
 
 #ifdef __APPLE__
-	void display();
+void display();
 #else
-	void display();
-	void keyboard(unsigned char key, int x, int y);
+void display();
+void keyboard(unsigned char key, int x, int y);
+void mouse_click(int button, int state, int x, int y);
+void mouse_move(int x, int y);
 #endif
 
 //-------------------------------
@@ -103,9 +105,9 @@ void runCuda();
 //-------------------------------
 
 #ifdef __APPLE__
-	void init();
+void init();
 #else
-	void init(int argc, char* argv[]);
+void init(int argc, char* argv[]);
 #endif
 
 void initPBO(GLuint* pbo);

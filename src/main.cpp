@@ -91,6 +91,8 @@ int main(int argc, char** argv){
 #else
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
+	glutMouseFunc(mouse_click);
+	glutMotionFunc(mouse_move);
 
 	glutMainLoop();
 #endif
@@ -114,10 +116,10 @@ void runCuda(){
 	nbosize = mesh->getNBOsize();
 
 	float newcbo[] = {1.0, 0.0, 0.0, 
-			0.0, 1.0, 0.0, 
-			0.0, 0.0, 1.0};
+		0.0, 1.0, 0.0, 
+		0.0, 0.0, 1.0};
 	if(!u_pipelineOpts.showTriangleColors){
-	
+
 		glm::vec3 color = mesh->getColor();
 		for(int i = 0; i < 3; i++)
 		{
@@ -266,6 +268,42 @@ void keyboard(unsigned char key, int x, int y)
 		break;
 
 
+	}
+}
+
+
+//MOUSE STUFF
+bool dragging = false;
+int drag_x_last = -1;
+int drag_y_last = -1;
+void mouse_click(int button, int state, int x, int y) {
+	if(button == GLUT_LEFT_BUTTON) {
+		if(state == GLUT_DOWN) {
+			dragging = true;
+			drag_x_last = x;
+			drag_y_last = y;
+		}
+		else
+			dragging = false;
+	}
+}
+
+void mouse_move(int x, int y) {
+	if(dragging) {
+		glm::mat3 inv_View = glm::inverse(glm::mat3(u_variables.viewTransform));
+		glm::vec3 Up = inv_View*glm::vec3(0.0f,1.0f,0.0f);
+		glm::vec3 Right = inv_View*glm::vec3(1.0f,0.0f,0.0f);
+		glm::vec3 Look = inv_View*glm::vec3(0.0f,0.0f,-1.0f);
+
+		float delX = x-drag_x_last;
+		float delY = y-drag_y_last;
+		float rotSpeed = 0.5f;
+		//Simple rotation
+		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -rotSpeed*delX, Up);
+		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -rotSpeed*delY,Right);
+
+		drag_x_last = x;
+		drag_y_last = y;
 	}
 }
 
