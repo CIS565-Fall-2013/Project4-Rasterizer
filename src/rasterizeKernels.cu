@@ -321,8 +321,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  float maxY = max(max(currTri.p0.y, currTri.p1.y), currTri.p2.y) + 1;
 
 	  //loop through the AABB of the triangle, testing to see if point is in triangle. If yes, write it to depthbuffer. If no, don't.
-	  for(float y = minY; y <= maxY; y = y + 1){
-		  for(float x = minX; x <= maxX; x = x + 1){
+	  for(float y = minY; y <= maxY; y = y + 0.5){
+		  for(float x = minX; x <= maxX; x = x + 0.5){
 			  glm::vec2 currPoint(x, y);
 			  glm::vec3 baryCoords = calculateBarycentricCoordinate(currTri, currPoint);
 			  if(isBarycentricCoordInBounds(baryCoords)){ //we are inside

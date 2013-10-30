@@ -8,7 +8,7 @@
 #include "glm/glm.hpp"
 #include "utilities.h"
 #include "cudaMat4.h"
-#define TRI_TEST_EPSILON 0.05
+#define TRI_TEST_EPSILON 0.0001
 
 struct triangle {
  
