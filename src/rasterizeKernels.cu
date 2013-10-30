@@ -19,13 +19,18 @@ float fovy = 45;
 float near = 0.1;
 float far = 10000;
 
-glm::mat4 model = glm::mat4(1.0f);
-glm::vec3 eye = glm::vec3(0.0f,0.0f,5.0f);
+glm::mat4 model = glm::mat4(glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f),
+							glm::vec4( 0.0f,-1.0f, 0.0f, 0.0f),
+							glm::vec4( 0.0f, 0.0f, 1.0f, 0.0f),
+							glm::vec4( 0.0f ,0.0f, 0.0f, 1.0f));
+glm::vec3 eye = glm::vec3(0.0f,0.0f,9.0f);
 glm::vec3 look = glm::vec3(0.0f,0.0f,0.0f);
 glm::vec3 up = glm::vec3(0.0f,1.0f,0.0f);
 glm::mat4 view =  glm::lookAt(eye,look,up);
 
-glm::mat4 projecction = glm::perspective(fovy, w * 1.0f/h,near,far);
+glm::mat4 projection = glm::perspective(fovy, w * 1.0f/h,near,far);
+
+glm::mat4 MVP = projection * view * model;
 
 glm::vec3* framebuffer;
 fragment* depthbuffer;
@@ -191,11 +196,11 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  // Get colors :: implementation: colors are given based on index of triangle, alternating between red, blue and green
 	  int nextColor = index%cbosize;
 	  glm::vec3 c0 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
-	  nextColor++;
+	  nextColor=(nextColor + 1) %3;
 	  glm::vec3 c1 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
-	  nextColor++;
+	  nextColor=(nextColor + 1) %3;
 	  glm::vec3 c2 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
-	  nextColor++;
+	  nextColor=(nextColor + 1) %3;
 
 	  // Assemble primitive
 	  thisTriangle.c0 = c0;	thisTriangle.c1 = c1;	thisTriangle.c2 = c2;
@@ -219,6 +224,8 @@ __global__ void perspectiveViewportTransform(float* vbo, float vbosize, glm::vec
 	  position.z /= position.w;
 	  
 	  position.x = resolution.x/2  * position.x + resolution.x/2;
+	  position.y = resolution.y/2  * position.y + resolution.y/2;
+	  position.z = (nf.y - nf.x)/2 * position.z + (nf.y + nf.x)/2;
 
 	  // put back floats
 	  vbo[vertexStride*index+0] = position.x;
@@ -542,7 +549,13 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, glm::mat4(1.0f));
+  //vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, glm::mat4(1.0f));
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, MVP);
+
+  //------------------------------
+  //vertex shader
+  //------------------------------
+  perspectiveViewportTransform<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, resolution, glm::vec2(near,far));
 
   cudaDeviceSynchronize();
   //------------------------------
