@@ -56,10 +56,10 @@ int main(int argc, char** argv){
 
 	//projection = projection * view* model;
 
-  initCuda();
+	initCuda();
 
-  initVAO();
-  initTextures();
+	initVAO();
+	initTextures();
 
   GLuint passthroughProgram;
   passthroughProgram = initShader("shaders/passthroughVS.glsl", "shaders/passthroughFS.glsl");

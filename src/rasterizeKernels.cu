@@ -178,8 +178,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  primitives[index].p1 = glm::vec3(vbo[3*secondVertexIdx], vbo[3*secondVertexIdx + 1], vbo[3*secondVertexIdx+2]);
 	  primitives[index].p2 = glm::vec3(vbo[3*thirdVertexIdx], vbo[3*thirdVertexIdx + 1], vbo[3*thirdVertexIdx+2]);
 	  primitives[index].c0 = glm::vec3(cbo[0],cbo[1],cbo[2]);
-	  primitives[index].c1 = glm::vec3(cbo[4],cbo[5],cbo[6]);
-	  primitives[index].c2 = glm::vec3(cbo[7],cbo[8],cbo[9]);
+	  primitives[index].c1 = glm::vec3(cbo[3],cbo[4],cbo[5]);
+	  primitives[index].c2 = glm::vec3(cbo[6],cbo[7],cbo[8]);
   }
 }
 
@@ -198,13 +198,15 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   int maxY = int(ceil(aabbMax.y));
 
 
-  for(int i=minX; i<maxX ; ++i)
+
 	  for(int j=minY; j<maxY; ++j)
+		    for(int i=minX; i<maxX ; ++i)
 	  {
 		  if ( i>=resolution.x || j >= resolution.y)
-			  return;
-		  //Referred this for point in triangle test
-		  //http://www.gamedev.net/topic/295943-is-this-a-better-point-in-triangle-test-2d/
+			  continue;
+
+		  ////Referred this for point in triangle test
+		  ////http://www.gamedev.net/topic/295943-is-this-a-better-point-in-triangle-test-2d/
 
 		  //triangle t1;
 		  //t1.p0.x = i;
@@ -214,35 +216,34 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  //t1.p2.x = t.p1.x;
 		  //t1.p2.y = t.p1.y;
 		
-		  ////if (calculateSignedArea(t1)<0.0f)
-			 //// return;
-		  //areaSum+=calculateSignedArea(t1);
+		  //if (calculateSignedArea(t1)>0.0f)
+			 // continue;
+
 		  //t1.p1.x = t.p1.x;
 		  //t1.p1.y = t.p1.y;
 		  //t1.p2.x = t.p2.x;
 		  //t1.p2.y = t.p2.y;
 		
-		  ////if (calculateSignedArea(t1)<0.0f)
-			 //// return;
-		  //areaSum+=calculateSignedArea(t1);
+		  //if (calculateSignedArea(t1)>0.0f)
+			 // continue;
 		  //t1.p1.x = t.p2.x;
 		  //t1.p1.y = t.p2.y;
 		  //t1.p2.x = t.p0.x;
 		  //t1.p2.y = t.p0.y;
 		
-		  ////if (calculateSignedArea(t1)<0.0f)
-			 //// return;
+		  //if (calculateSignedArea(t1)>0.0f)
+			 // continue;
 
 		  glm::vec3 bCoords =  calculateBarycentricCoordinate(t,glm::vec2(i,j));
 
-		  //if (bCoords.x+bCoords.y+bCoords.z>1.00001f)
-			 // return;
-		  //if (bCoords.x <0.0f-0.00001f|| bCoords.y<0.0f-0.00001f || bCoords.z<0.0f-0.00001f)
-			 // return;
+		  if (bCoords.x+bCoords.y+bCoords.z>1.00001f)
+			  continue;
+		  if (bCoords.x <0.00001f|| bCoords.y<0.00001f || bCoords.z<0.00001f)
+			  continue;
 		  fragment f;
-		  //f.color = bCoords;
-		  f.color = glm::vec3(1.0f,0.0f,0.0f);
-		  f.position = glm::vec3(i,j,1.0f);
+		  f.color = bCoords.x*t.c0 + bCoords.y*t.c1 + bCoords.z*t.c2;
+		  float fragZ = getZAtCoordinate(bCoords,t);
+		  f.position = glm::vec3(i,j,fragZ);
 		  f.normal = glm::vec3(0.0f,0.0f,1.0f);
 
 		  int pixelIndex = i + (j * resolution.x);
@@ -270,6 +271,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
+  int findex = (resolution.x-1-x) + ( (resolution.y-1-y) * resolution.x);
 
   if(x<=resolution.x && y<=resolution.y){
     framebuffer[index] = depthbuffer[index].color;
@@ -301,7 +303,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   frag.position = glm::vec3(0,0,10000);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
-  //------------------------------
+
   //memory stuff
   //------------------------------
   primitives = NULL;
@@ -330,6 +332,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //vertex shader
   //------------------------------
 
+  glm::vec3 rotAxis (0.0,0.0,1.0);
   cudaMat4 mvpMatrix = utilityCore::glmMat4ToCudaMat4(projectionMatrix*viewMatrix*modelMatrix);
   glm::mat4 h_mvpInvTranMatrix = glm::transpose(glm::inverse(viewMatrix*modelMatrix));
   cudaMat4 mvpInvTranMatrix = utilityCore::glmMat4ToCudaMat4(h_mvpInvTranMatrix);
@@ -366,7 +369,32 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   /*TEST PRIMITIVE ASSEMBLY*/
   //triangle* h_triangles = new triangle[ibosize/3];
   //cudaMemcpy(h_triangles,primitives,ibosize/3*sizeof(triangle),cudaMemcpyDeviceToHost);
-  //h_triangles[0];
+  //
+  //glm::vec3 aabbMin;
+  //glm::vec3 aabbMax;
+
+  //getAABBForTriangle(h_triangles[0],aabbMin,aabbMax);
+  //int minX = int(floor(aabbMin.x));
+  //int maxX = int(ceil(aabbMax.x));
+  //int minY = int(floor(aabbMin.y));
+  //int maxY = int(ceil(aabbMax.y));
+
+
+  //glm::vec3 b = calculateBarycentricCoordinate(h_triangles[0],glm::vec2(370,401));
+  //
+	 // for(int j=minY; j<maxY; ++j)
+	 // {
+		//for(int i=minX; i<maxX ; ++i)
+		//  {
+		//	  glm::vec3 b = calculateBarycentricCoordinate(h_triangles[0], glm::vec2(i,j));
+		//	  if ( b.x<0.0f || b.y<0.0f || b.z<0.0f)
+		//		  continue;
+		//	  if ( b.x+b.y+b.z> 1 )
+		//		  continue;
+		//	  std::cout<<"-";
+		//  }
+		//std::cout<<std::endl;
+	 // }
 
   cudaDeviceSynchronize();
   //------------------------------
