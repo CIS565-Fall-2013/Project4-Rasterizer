@@ -9,12 +9,25 @@
 #include <cuda.h>
 #include <cmath>
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
 #else
     #include <cutil_math.h>
 #endif
+
+#define DEPTHPRECHECK 0
+#define OPTIMIZE_RASTER 0
+// Will only work on copmute 3.5+, so check with someone
+#define DYNAMICPARALLELISM 0
+
+
+#define LIGHTPOS glm::vec3(5,5,0)
+
+#define vertexStride 4
+#define colorStride 3
+#define indexStride 3
 
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize);

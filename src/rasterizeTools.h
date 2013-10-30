@@ -4,15 +4,17 @@
 #ifndef RASTERIZETOOLS_H
 #define RASTERIZETOOLS_H
 
+#include <cuda.h>
+#include <cuda_runtime.h>
 #include <cmath>
 #include "glm/glm.hpp"
 #include "utilities.h"
 #include "cudaMat4.h"
 
 struct triangle {
-  glm::vec3 p0;
-  glm::vec3 p1;
-  glm::vec3 p2;
+  glm::vec4 p0;
+  glm::vec4 p1;
+  glm::vec4 p2;
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
@@ -22,7 +24,19 @@ struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
+  int locked;
 };
+
+// http://learnsomethingnewaday.blogspot.com/2011/07/atomic-action-in-cuda-prior-to-20.html
+
+// Locking mechanism
+__device__ void lock(int *mutex) {
+while(atomicCAS(mutex, 0, 1) != 0) ;
+}
+
+__device__ void unlock(int *mutex) {
+atomicExch(mutex, 0);
+}
 
 //Multiplies a cudaMat4 matrix and a vec4
 __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
@@ -34,12 +48,12 @@ __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
 }
 
 //LOOK: finds the axis aligned bounding box for a given triangle
-__host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, glm::vec3& maxpoint){
-  minpoint = glm::vec3(min(min(tri.p0.x, tri.p1.x),tri.p2.x), 
-        min(min(tri.p0.y, tri.p1.y),tri.p2.y),
+__host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, glm::vec3& maxpoint, glm::vec2 resolution){
+  minpoint = glm::vec3(max(0.0, min(min(tri.p0.x, tri.p1.x),tri.p2.x)), 
+        max(0.0,min(min(tri.p0.y, tri.p1.y),tri.p2.y)),
         min(min(tri.p0.z, tri.p1.z),tri.p2.z));
-  maxpoint = glm::vec3(max(max(tri.p0.x, tri.p1.x),tri.p2.x), 
-        max(max(tri.p0.y, tri.p1.y),tri.p2.y),
+  maxpoint = glm::vec3(min(resolution.x - 1, max(max(tri.p0.x, tri.p1.x),tri.p2.x)), 
+        min(resolution.y - 1, max(max(tri.p0.y, tri.p1.y),tri.p2.y)),
         max(max(tri.p0.z, tri.p1.z),tri.p2.z));
 }
 
@@ -51,7 +65,7 @@ __host__ __device__ float calculateSignedArea(triangle tri){
 //LOOK: helper function for calculating barycentric coordinates
 __host__ __device__ float calculateBarycentricCoordinateValue(glm::vec2 a, glm::vec2 b, glm::vec2 c, triangle tri){
   triangle baryTri;
-  baryTri.p0 = glm::vec3(a,0); baryTri.p1 = glm::vec3(b,0); baryTri.p2 = glm::vec3(c,0);
+  baryTri.p0 = glm::vec4(a,0,1); baryTri.p1 = glm::vec4(b,0,1); baryTri.p2 = glm::vec4(c,0,1);
   return calculateSignedArea(baryTri)/calculateSignedArea(tri);
 }
 
@@ -73,6 +87,16 @@ __host__ __device__ bool isBarycentricCoordInBounds(glm::vec3 barycentricCoord){
 //LOOK: for a given barycentric coordinate, return the corresponding z position on the triangle
 __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle tri){
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
+}
+
+__device__ float getValueAtCoordinate(glm::vec3 barycentricCoord, float a, float b, float c)
+{
+	return (barycentricCoord.x * a + barycentricCoord.y * b + barycentricCoord.z * c);
+}
+
+__device__ bool edge(float x,float y, glm::vec4 a, glm::vec4 b)
+{
+	return true;
 }
 
 #endif
