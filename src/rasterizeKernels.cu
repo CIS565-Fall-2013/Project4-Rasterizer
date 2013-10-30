@@ -382,6 +382,59 @@ __global__ void rasterizationKernel (triangle* primitive, int elementNo, fragmen
   }
 }
 
+// Rast kernel for primitive parallelized rasterization.
+__global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fragment* depthbuffer, glm::vec2 resolution)
+{
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if (index < nPrimitives)
+  {
+	    triangle currentPrim = primitive [index];
+		glm::vec2  bBoxMin;
+		glm::vec2  bBoxMax;
+
+		bBoxMin.x = min (currentPrim.p0.x, min (currentPrim.p1.x, currentPrim.p2.x));
+		bBoxMax.x = max (currentPrim.p0.x, max (currentPrim.p1.x, currentPrim.p2.x));
+
+  		bBoxMin.y = min (currentPrim.p0.y, min (currentPrim.p1.y, currentPrim.p2.y));
+		bBoxMax.y = max (currentPrim.p0.y, max (currentPrim.p1.y, currentPrim.p2.y));
+
+		for (int j = bBoxMin.y; j < bBoxMax.y; j ++)
+			for (int i = bBoxMin.x; i < bBoxMax.x; i ++)
+			{
+				// First check if the pixel is within window:
+				if ((i >= 0) && (i < resolution.x))
+					if ((j >= 0) && (j < resolution.y))
+					{
+						fragment	curFragment;
+						glm::vec3 baryCoord = calculateBarycentricCoordinate (currentPrim, glm::vec2 (i,j));
+						// Then, check if the pixel is inside tri.
+						if (isBarycentricCoordInBounds (baryCoord))
+						{  
+							curFragment.color = baryCoord.x * currentPrim.c0 + 
+												baryCoord.y * currentPrim.c1 + 
+												baryCoord.z * currentPrim.c2;
+
+	//					  curFragment.normal =	baryCoord.r * currentPrim.c0 + 
+	//											baryCoord.b * currentPrim.c1 + 
+	//											baryCoord.g * currentPrim.c2;
+					  
+							curFragment.position.x = i;
+							curFragment.position.y = j;
+
+							// TODO: Perspective correct interpolation for Z
+							curFragment.position.z =	baryCoord.x * (1/currentPrim.p0.z) + 
+													baryCoord.y * (1/currentPrim.p1.z) + 
+													baryCoord.z * (1/currentPrim.p2.z);
+							curFragment.position.z = 1/curFragment.position.z;
+
+							if (depthbuffer [(int)(j*resolution.x) + i].position.z > curFragment.position.z)
+								depthbuffer [(int)(j*resolution.x) + i] = curFragment;
+						}
+					}
+			}
+  }
+}
+
 //TODO: Implement a fragment shader
 __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 {
@@ -529,8 +582,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   // Rasterization - rasterize each primitive
   //-----------------------------------------
   time_t current = time (NULL);
-  for (int i = 0; i<(ibosize / 3);  i++)
-	rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y*sizeof(fragment)>>>(primitives, i, depthbuffer, resolution);
+//  for (int i = 0; i<(nPrims);  i++)
+//	rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y*sizeof(fragment)>>>(primitives, i, depthbuffer, resolution);
+  rasterizationKernelAlt<<<primitiveBlocks, tileSize>>>(primitives, nPrims, depthbuffer, resolution);
   checkCUDAError("Rasterization failed!");
   cudaDeviceSynchronize();
   if (isFirstTime)
