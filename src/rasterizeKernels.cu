@@ -8,6 +8,7 @@
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
+float* device_nbo;
 float* device_cbo;
 int* device_ibo;
 triangle* primitives;
@@ -137,11 +138,17 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 	}
 }
 
-__global__ void vertexShadeKernel(float* vbo, int vbosize, uniforms u_variables, pipelineOpts opts){
+__global__ void vertexShadeKernel(float* vbo, int vbosize,  float* nbo, int nbosize, uniforms u_variables, pipelineOpts opts){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<vbosize/3){
 		glm::vec4 vertexPos = glm::vec4(vbo[index*3+0],vbo[index*3+1],vbo[index*3+2],1.0);
 		vertexPos = u_variables.perspectiveTransform*u_variables.viewTransform*u_variables.modelTransform*vertexPos;
+
+		//Normals are in eye space
+		glm::vec4 vertexNorm = glm::vec4(nbo[index*3+0],nbo[index*3+1],nbo[index*3+2],0.0);
+		vertexNorm = u_variables.viewTransform*u_variables.modelTransform*vertexPos;
+
+		vertexNorm = glm::normalize(vertexNorm);
 
 		//Perspective division
 		vertexPos.x /= vertexPos.w;
@@ -151,11 +158,15 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, uniforms u_variables,
 		vbo[index*3+0] = vertexPos.x;
 		vbo[index*3+1] = vertexPos.y;
 		vbo[index*3+2] = vertexPos.z;
+		
+		nbo[index*3+0] = vertexNorm.x;
+		nbo[index*3+1] = vertexNorm.y;
+		nbo[index*3+2] = vertexNorm.z;
 	}
 }
 
 //TODO: Implement primative assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, 
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* nbo, int nbosize,  float* cbo, int cbosize, 
 										int* ibo, int ibosize, triangle* primitives, 
 										uniforms u_variables, pipelineOpts opts)
 {
@@ -174,14 +185,15 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		vertIndex *= 3;//3 floats per vert
 
 		primative.p0 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
+		primative.n0 = glm::vec3(nbo[vertIndex+0],nbo[vertIndex+1],nbo[vertIndex+2]);
 		primative.c0 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
-
 		//Vertex 1
 		vertIndex = ibo[index*3+1];
 		colorIndex = 3*(vertIndex % 3);//3 floats per color
 		vertIndex *= 3;//3 floats per vert
 
 		primative.p1 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
+		primative.n1 = glm::vec3(nbo[vertIndex+0],nbo[vertIndex+1],nbo[vertIndex+2]);
 		primative.c1 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
 
 		//Vertex 2
@@ -190,6 +202,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		vertIndex *= 3;//3 floats per vert
 
 		primative.p2 = glm::vec3(vbo[vertIndex+0],vbo[vertIndex+1],vbo[vertIndex+2]);
+		primative.n2 = glm::vec3(nbo[vertIndex+0],nbo[vertIndex+1],nbo[vertIndex+2]);
 		primative.c2 = glm::vec3(cbo[colorIndex+0],cbo[colorIndex+1],cbo[colorIndex+2]);
 
 		//Write back primative
@@ -208,8 +221,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		triangle tri = primitives[index];
 
 		//Compute surface normal.
-		glm::vec3 normal = glm::normalize(glm::cross(tri.p1-tri.p0, tri.p2-tri.p0));
-
+		glm::vec3 normal;
+		if(opts.useFaceNormals){
+			normal = glm::normalize(glm::cross(tri.p1-tri.p0, tri.p2-tri.p0));
+		}
 		transformTriToScreenSpace(tri, resolution);
 
 		//AABB for triangle
@@ -226,7 +241,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 
 		fragment frag;
-		//Flat shading for now
+		//Flat shading default
 		frag.normal = normal;
 
 		//TODO: Do something more efficient than this
@@ -239,7 +254,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 				{
 					frag.color = tri.c0*bCoords.x+tri.c1*bCoords.y+tri.c2*bCoords.z;
 					frag.position = tri.p0*bCoords.x+tri.p1*bCoords.y+tri.p2*bCoords.z;
-
+					if(!opts.useFaceNormals)
+					{
+						frag.normal = glm::normalize(tri.n0*bCoords.x+tri.n1*bCoords.y+tri.n2*bCoords.z);
+					}
 					//Handle race conditions in a lousy way
 					while(frag.position.z < getDepthFromDepthbuffer(x,y,depthbuffer,resolution))
 					{
@@ -312,7 +330,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, 
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, 
 					   float* cbo, int cbosize, int* ibo, int ibosize, uniforms u_variables, pipelineOpts opts)
 {
 
@@ -351,6 +369,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	device_vbo = NULL;
 	cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
 	cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+	
+	device_nbo = NULL;
+	cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
+	cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
+
 
 	device_cbo = NULL;
 	cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
@@ -362,14 +385,14 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//------------------------------
 	//vertex shader
 	//------------------------------
-	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, u_variables, opts);
+	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, u_variables, opts);
 
 	cudaDeviceSynchronize();
 	//------------------------------
 	//primitive assembly
 	//------------------------------
 	primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-	primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, u_variables, opts);
+	primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, u_variables, opts);
 
 	cudaDeviceSynchronize();
 	//------------------------------

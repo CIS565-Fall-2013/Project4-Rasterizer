@@ -20,6 +20,6 @@
 #define MAX_DEPTH 10000.0f
 
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, uniforms viewMats, pipelineOpts opts);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize, uniforms viewMats, pipelineOpts opts);
 
 #endif //RASTERIZEKERNEL_H

@@ -33,9 +33,12 @@ int main(int argc, char** argv){
   
   //TODO: Camera movable
   u_pipelineOpts.fShaderProgram = NORMAL_SHADING;
-  u_variables.viewTransform = glm::lookAt(glm::vec3(1.0,1.0,1.0), glm::vec3(0,0,0), glm::vec3(0.0,0.0,-1.0));
-  u_variables.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 0.1f, 5.0f);
+  u_pipelineOpts.showTriangleColors = false;
+  u_pipelineOpts.useFaceNormals = false;
 
+  u_variables.viewTransform = glm::lookAt(glm::vec3(1.0,0.0,1.0), glm::vec3(0,0,0), glm::vec3(0.0,0.0,-1.0));
+  u_variables.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 0.1f, 5.0f);
+  u_variables.lightPos = glm::vec4(0.0f,0.0f,10.0f,1.0f);
   glm::mat4 scale = glm::mat4(1.0f);
   scale[3][3] = 1.0f;
   u_variables.modelTransform = glm::rotate(scale, 90.0f, glm::vec3(1.0f,0.0f,0.0f));
@@ -101,10 +104,21 @@ void runCuda(){
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
 
-  float newcbo[] = {1.0, 0.0, 0.0, 
-                    0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0};
-  cbo = newcbo;
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+
+  if(u_pipelineOpts.showTriangleColors){
+	  float newcbo[] = {1.0, 0.0, 0.0, 
+						0.0, 1.0, 0.0, 
+						0.0, 0.0, 1.0};
+	  cbo = newcbo;
+  }else{
+	  glm::vec3 color = mesh->getColor();
+	  float newcbo[] = {color.x, color.y, color.z,
+						color.x, color.y, color.z,
+						color.x, color.y, color.z};
+	  cbo = newcbo;
+  }
   cbosize = 9;
 
   ibo = mesh->getIBO();
@@ -112,7 +126,7 @@ void runCuda(){
 
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, u_variables, u_pipelineOpts);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize, u_variables, u_pipelineOpts);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -206,6 +220,12 @@ void runCuda(){
 		   break;
 	   case '4':
 		   u_pipelineOpts.fShaderProgram = PHONG_SHADING;
+		   break;
+	   case 'f':
+		   u_pipelineOpts.useFaceNormals = !u_pipelineOpts.useFaceNormals;
+		   break;
+	   case 'c':
+		   u_pipelineOpts.showTriangleColors = !u_pipelineOpts.showTriangleColors;
 		   break;
     }
   }
