@@ -14,6 +14,8 @@
     #include <cutil_math.h>
 #endif
 
+#define DEBUG 0
+
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
@@ -21,6 +23,7 @@ float* device_cbo;
 float* device_nbo;
 int* device_ibo;
 triangle* primitives;
+light* device_lights;
 
 void checkCUDAError(const char *msg, int line = -1)
 {
@@ -103,6 +106,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       fragment f = frag;
       f.position.x = x;
       f.position.y = y;
+	  f.position.z = -1e6; // Look: Depth is initialized to some small number
       buffer[index] = f;
     }
 }
@@ -172,7 +176,8 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosi
 	  windowPoint.x = reso.x * (ndcPoint.x + 1.f) * 0.5f; // range: [0, reso.x]
 	  windowPoint.y = reso.y * (ndcPoint.y + 1.f) * 0.5f; // range: [0, reso.y]
 	  //windowPoint.z = ndcPoint.z; // range: [-1, 1]
-	  windowPoint.z = 0.5f * (zFar - zNear) * ndcPoint.z + 0.5f * (zFar + zNear); // range: [zNear, zFar]
+	  //windowPoint.z = 0.5f * (zFar - zNear) * ndcPoint.z + 0.5f * (zFar + zNear); // range: [zNear, zFar]
+	  windowPoint.z = (ndcPoint.z + 1.f) * 0.5f; // range: [0, 1]
 
 	  vbo[id1] = windowPoint.x;
 	  vbo[id2] = windowPoint.y;
@@ -231,9 +236,13 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  vec3 normal3 = vec3(nbo[nvboId31], nbo[nvboId32], nbo[nvboId33]);
 
 	  // retrieve colors
-	  vec3 vert1Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
-	  vec3 vert2Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
-	  vec3 vert3Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+	  //vec3 vert1Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+	  //vec3 vert2Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+	  //vec3 vert3Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+
+	  vec3 vert1Color = vec3(cbo[0], cbo[1], cbo[2]);
+	  vec3 vert2Color = vec3(cbo[3], cbo[4], cbo[5]);
+	  vec3 vert3Color = vec3(cbo[6], cbo[7], cbo[8]);
 
 	  // build triangle
 	  triangle tri;
@@ -265,6 +274,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		//if (signedarea < 1e-10)
 		//	return;
 
+		// TODO: Backface culling: Use normal to figure out if the triangle is facing the camera or not. Skip the ones that are facing away from the camera.
+
 		vec3 triMinPoint;
 		vec3 triMaxPoint;
 		
@@ -276,22 +287,28 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		triMaxPoint.y = triMaxPoint.y < resolution.y ? triMaxPoint.y : resolution.y;
 
 		// go through each pixel within the AABB for the triangle and fill the depthbuffer (fragments) appropriately
-		
 		for (int x = triMinPoint.x ; x < triMaxPoint.x ; ++x)
 		{
 			for (int y = triMinPoint.y ; y < triMaxPoint.y ; ++y)
 			{
 				vec2 pointInTri((float)x,(float)y);
-				vec3 bc = calculateBarycentricCoordinate(tri, pointInTri); // call is causing crash.
+				vec3 bc = calculateBarycentricCoordinate(tri, pointInTri);
 				if (isBarycentricCoordInBounds(bc))
 				{
 					// TODO: depth check
 					int depthBufferId = y * resolution.x + x;
 					float z = getZAtCoordinate(bc, tri);
 					
-					depthbuffer[depthBufferId].position = tri.p0 * bc.x + tri.p1 * bc.y + tri.p2 * bc.z;
-					depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
-					depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;
+
+					if (z > depthbuffer[depthBufferId].position.z)
+					{
+						depthbuffer[depthBufferId].position = tri.p0 * bc.x + tri.p1 * bc.y + tri.p2 * bc.z;
+						depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
+						depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;
+
+						// depth test
+						//depthbuffer[depthBufferId].color = glm::normalize(vec3(-z,-z,-z));
+					}
 
 					// normal test 
 					//if (depthbuffer[depthBufferId].normal.z > 0)
@@ -310,7 +327,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, light* lights, int numlights)
 {
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -336,7 +353,9 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize)
+void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float frame, 
+					   float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
+					   float* nbo, int nbosize, light* lights, int lightsize)
 {
   // set up crucial magic
   int tileSize = 8;
@@ -363,24 +382,7 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   //------------------------------
   //memory stuff
   //------------------------------
-  primitives = NULL;
-  cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
-
-  device_ibo = NULL;
-  cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
-  cudaMemcpy( device_ibo, ibo, ibosize*sizeof(int), cudaMemcpyHostToDevice);
-
-  device_vbo = NULL;
-  cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
-  cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
-
-  device_cbo = NULL;
-  cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
-  cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
-
-  device_nbo = NULL;
-  cudaMalloc((void**)&device_nbo, cbosize*sizeof(float));
-  cudaMemcpy( device_nbo, nbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
+  allocateDeviceMemory(vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, lights, lightsize);
 
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
@@ -388,7 +390,6 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   //------------------------------
   //vertex shader
   //------------------------------
-
   // turn table
   mat4 modelMatrix(1);
   float d = (int)frame % 361;
@@ -406,6 +407,11 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   // launch vertex shader kernel
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, mvp, mvInvT, reso, zNear, zFar);
   cudaDeviceSynchronize();
+
+#if DEBUG == 1
+  printVAO(device_vbo, vbosize);
+#endif
+
   //checkCUDAErrorWithLine("vertex shader kernel failed");
   //------------------------------
   //primitive assembly
@@ -413,6 +419,11 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, device_nbo, nbosize, primitives);
   cudaDeviceSynchronize();
+
+#if DEBUG == 1
+  printVAO(device_nbo, nbosize);
+#endif
+
   //checkCUDAErrorWithLine("primitive assembly kernel failed");
   //------------------------------
   //rasterization
@@ -423,7 +434,7 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, device_lights, lightsize);
   cudaDeviceSynchronize();
   //checkCUDAErrorWithLine("fragment shader kernel failed");
   //------------------------------
@@ -449,3 +460,49 @@ void kernelCleanup(){
   cudaFree( depthbuffer );
 }
 
+// debug
+void printVAO(float* device_vao, int size)
+{
+	float* vao = NULL;
+	vao = new float[size];
+	cudaMemcpy(vao, device_vao, size*sizeof(float), cudaMemcpyDeviceToHost);
+
+	printf ("PrintVAO invoked\n");
+	for (int i = 0 ; i < size ; ++i)
+	{
+		float v1 = vao[i]; i++;
+		float v2 = vao[i]; i++;
+		float v3 = vao[i];
+
+		printf ("%f,%f,%f\n", v1, v2, v3);
+	}
+
+
+	delete[] vao;
+}
+
+void allocateDeviceMemory( float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
+						   float* nbo, int nbosize, light* lights, int lightsize)
+{
+  primitives = NULL;
+  cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
+
+  device_ibo = NULL;
+  cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
+  cudaMemcpy( device_ibo, ibo, ibosize*sizeof(int), cudaMemcpyHostToDevice);
+
+  device_vbo = NULL;
+  cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
+  cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  device_cbo = NULL;
+  cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
+  cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  device_lights = NULL;
+
+}

@@ -27,8 +27,8 @@ using glm::vec2;
 using glm::clamp;
 using glm::inverse;
 using glm::transpose;
-
+void printVAO(float* device_vao, int size);
 void kernelCleanup();
-void cudaRasterizeCore(camera* cam, uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize);
-
+void cudaRasterizeCore(camera* cam, uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, light* lights, int lightsize);
+void allocateDeviceMemory( float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, light* lights, int lightsize);
 #endif //RASTERIZEKERNEL_H

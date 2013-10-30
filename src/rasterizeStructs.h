@@ -32,4 +32,9 @@ struct camera {
 	glm::mat4 projection;
 };
 
+struct light {
+	glm::vec3 position;
+	glm::vec3 color;
+};
+
 #endif
