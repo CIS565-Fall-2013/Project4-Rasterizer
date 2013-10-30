@@ -6,6 +6,8 @@
 #include <cmath>
 #include <ctime>
 #include <thrust/random.h>
+#include <thrust/remove.h>
+#include <thrust/device_ptr.h>
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
 
@@ -78,6 +80,15 @@ __host__ __device__ glm::vec3 getFromFramebuffer(int x, int y, glm::vec3* frameb
     return glm::vec3(0,0,0);
   }
 }
+
+// Predicate for remove_if used in back face culling:
+struct shouldCullThisObject
+{
+	__host__ __device__ bool operator () (const triangle aTriangle)
+	{
+		return (calculateSignedArea (aTriangle) < 0.001f);
+	}
+};
 
 //Kernel that clears a given pixel buffer with a given color
 __global__ void clearImage(glm::vec2 resolution, glm::vec3* image, glm::vec3 color){
@@ -276,10 +287,30 @@ __global__ void convertToScreenSpace(triangle* primitives, int primitivesCount, 
   }
 }
 
-// Back face culling.
-__global__ void	backFaceCull (triangle* primitive, int primitivesCount)
+// Mark primitives that are back facing.
+__global__ void	markBackFaces (triangle* primitive, int * backFaceMarkerArray, int primitivesCount)
 {
-	;
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index<primitivesCount)
+  {
+	  triangle currentPrim = primitive [index];
+	  if (calculateSignedArea (currentPrim) > 0)
+		  backFaceMarkerArray [index] = 1;
+	  else
+		  backFaceMarkerArray [index] = 0;
+  }
+}
+
+// Kernel to do stream compaction.
+__global__ void	compactStream (triangle *primitives, triangle *tempPrims, int *shouldCull, int *moveToIndex, int nPrims)
+{
+	unsigned long	curIndex = blockDim.x*blockIdx.x + threadIdx.x;
+	if (curIndex < nPrims)
+	{
+		int secondArrayIndex = moveToIndex [curIndex];
+		if (shouldCull [curIndex])
+			tempPrims [secondArrayIndex] = primitives [curIndex];
+	}
 }
 
 // Core rasterization.
@@ -434,28 +465,65 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //primitive assembly
   //------------------------------
-  primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
+  primitiveBlocks = ceil(((float)nPrims)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
   checkCUDAError("Primitive Assembly failed!");
   cudaDeviceSynchronize();
   //------------------------------
   // Map to Screen Space
   //------------------------------
-  convertToScreenSpace<<<primitiveBlocks, tileSize, tileSize*sizeof (triangle)>>>(primitives, ibosize/3, resolution);
+  convertToScreenSpace<<<primitiveBlocks, tileSize, tileSize*sizeof (triangle)>>>(primitives,nPrims, resolution);
   checkCUDAError("Conversion to Screen Space failed!");
   cudaDeviceSynchronize();
-  std::cout << "No. of tris: " << ibosize/3 << "\n";
+  if (isFirstTime)
+  {
+	std::cout << "No. of tris: " <<nPrims << "\n";
+  }
   //------------------------------
-  // Map to Screen Space
+  // Mark back facing primitives and cull them.
   //------------------------------
-  int * primCount = NULL;
-  cudaMalloc((void**)&primCount, sizeof(int));
-  cudaMemset (primCount, ibosize/3, sizeof (int));
-  backFaceCull<<<primitiveBlocks, tileSize, tileSize*sizeof (triangle)>>>(primitives, ibosize/3, resolution);
-  checkCUDAError("Back face cull failed!");
+  int * shouldCull = NULL;
+  cudaMalloc((void**)&shouldCull, nPrims*sizeof(int));
+  cudaMemset (shouldCull, 0, nPrims*sizeof (int));
+  markBackFaces<<<primitiveBlocks, tileSize>>>(primitives, shouldCull, nPrims);
+  checkCUDAError("Mark Back faces failed!");
+  cudaDeviceSynchronize ();
 
-  cudaFree (primCount);
-  primCount = NULL;
+  int * shouldCullOnHost = new int [nPrims];
+  int * moveToIndex = new int [nPrims];
+  memset (moveToIndex, 0, sizeof(int)*nPrims);
+	/// ----- CPU/GPU Hybrid Stream Compaction ----- ///
+	// Scan is done on the CPU, the actual compaction happens on the GPU.
+	// ------------------------------------------------------------------
+	// Copy the shouldCull array from device to host.
+	cudaMemcpy (shouldCullOnHost, shouldCull, nPrims * sizeof (int), cudaMemcpyDeviceToHost);
+
+	// Exclusive scan.
+	for (int k = 1; k < nPrims; ++ k)
+		moveToIndex [k] = moveToIndex [k-1] + shouldCullOnHost [k-1];
+	// This is because the compactStream kernel should run on the whole, uncompacted array.
+	// We'll set this to nPrims once compactStream has done its job.
+	int compactednPrims = moveToIndex [nPrims-1] + shouldCullOnHost [nPrims-1];
+
+	// Stream compaction. Compact the primitives into tmpPrims.
+	triangle *tmpPrims = NULL;
+	cudaMalloc ((void **)&tmpPrims, nPrims * sizeof (triangle));
+	int * moveToOnDevice = NULL;
+	cudaMalloc ((void **)&moveToOnDevice, nPrims * sizeof (int));
+	cudaMemcpy (moveToOnDevice, moveToIndex, nPrims * sizeof (int), cudaMemcpyHostToDevice);
+	compactStream<<<primitiveBlocks, tileSize>>>(primitives, tmpPrims, shouldCull, moveToOnDevice, nPrims);
+
+	// Now set nPrims to the compacted array size, compactednPrims.
+	nPrims = compactednPrims;
+  cudaMemcpy (primitives, tmpPrims, sizeof(triangle)*nPrims, cudaMemcpyDeviceToDevice);
+
+  cudaFree (tmpPrims);
+  cudaFree (moveToOnDevice);
+  cudaFree (shouldCull);
+  delete [] moveToIndex;
+  delete [] shouldCullOnHost;
+
+  tmpPrims = NULL;	moveToOnDevice = NULL;	shouldCull = NULL;	moveToIndex = NULL;	shouldCullOnHost = NULL;
   cudaDeviceSynchronize();
   //-----------------------------------------
   // Rasterization - rasterize each primitive
@@ -468,7 +536,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   if (isFirstTime)
   {
 //	  thrust
-	  std::cout << "\nRasterized in " << difftime (time (NULL), current) << " seconds. No. of tris: " << ibosize/3 << "\n";
+	  std::cout << "\nRasterized in " << difftime (time (NULL), current) << " seconds. No. of tris: " <<nPrims << "\n";
 	  isFirstTime = false;
   }
   //------------------------------
