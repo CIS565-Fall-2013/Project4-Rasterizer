@@ -28,7 +28,9 @@
     <ClCompile Include="..\..\src\utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="..\..\src\rasterizeKernels.cu" />
+    <CudaCompile Include="..\..\src\rasterizeKernels.cu">
+      <CodeGeneration Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">compute_30,sm_30</CodeGeneration>
+    </CudaCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FF21CA49-522E-4E86-B508-EE515B248FC4}</ProjectGuid>
@@ -110,7 +112,7 @@
     <CudaCompile>
       <CompileOut>$(ProjectDir)$(Platform)/$(Configuration)/%(Filename)%(Extension).obj</CompileOut>
       <Include>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include;C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc;../shared/glew/include;../shared/freeglut/include;%(AdditionalIncludeDirectories)</Include>
-      <CodeGeneration>compute_10,sm_10</CodeGeneration>
+      <CodeGeneration>compute_30,sm_30</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

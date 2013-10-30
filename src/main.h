@@ -76,7 +76,19 @@ float zFar = 100.0f;
 glm::mat4 projection;
 glm::mat4 view;
 glm::vec3 cameraPosition(0,0,1);
-glm::vec3 lightPosition(3.5,3.5,3);
+glm::vec3 lightPosition(30.5,30.5,30);
+
+//-------------------------------
+//----------Mouse Control--------
+//-------------------------------
+
+int mouse_old_x, mouse_old_y;
+unsigned char button_mask = 0x00;
+
+float viewPhi = 0.0f;
+float viewTheta = HALF_PI;
+float r = glm::length(cameraPosition);
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -94,6 +106,8 @@ void runCuda();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void mouseClick(int button, int state, int x, int y);
+	void mouseMotion(int x, int y);
 #endif
 
 //-------------------------------

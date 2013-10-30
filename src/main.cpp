@@ -75,6 +75,8 @@ int main(int argc, char** argv){
 #else
   glutDisplayFunc(display);
   glutKeyboardFunc(keyboard);
+  glutMouseFunc(mouseClick);
+  glutMotionFunc(mouseMotion);
 
   glutMainLoop();
 #endif
@@ -97,9 +99,14 @@ void runCuda(){
   nbo = mesh->getNBO();
   nbosize = mesh->getNBOsize();
 
+/*
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
+                    1.0, 0.0, 0.0};*/
+
+  float newcbo[] = {0.5, 0.5, 0.5, 
+					0.5, 0.5, 0.5, 
+					0.5, 0.5, 0.5};
   cbo = newcbo;
   cbosize = 9;
 
@@ -107,7 +114,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, projection, view, zNear, zFar, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, projection, view, zNear, zFar, lightPosition, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -199,6 +206,39 @@ void runCuda(){
          shut_down(1);    
          break;
     }
+  }
+
+  void mouseClick(int button, int state, int x, int y)
+  {
+	  if (state == GLUT_DOWN) {
+		  button_mask |= 0x01 << button;
+	  } 
+	  else if (state == GLUT_UP) {
+		  unsigned char mask_not = ~button_mask;
+		  mask_not |= 0x01 << button;
+		  button_mask = ~mask_not;
+	  }
+
+	  mouse_old_x = x;
+	  mouse_old_y = y;
+  }
+
+  void mouseMotion(int x, int y)
+  {
+	  float dx, dy;
+	  dx = (float)(x - mouse_old_x);
+	  dy = (float)(y - mouse_old_y);
+
+	  if (button_mask & 0x01) 
+	  {// left button
+		  viewPhi -= dx * 0.002f;
+		  viewTheta -= dy * 0.002f;
+		  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta), r*sin(viewTheta)*cos(viewPhi));
+		  view = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0), glm::vec3(0,1,0));
+	  } 
+
+	  mouse_old_x = x;
+	  mouse_old_y = y;
   }
 
 #endif

@@ -15,6 +15,8 @@
 #endif
 
 glm::vec3* framebuffer;
+float *depthBuffer;
+int *dBufferLocked;
 varying* interpVariables;
 float* device_vbo;
 float* device_vbo_eye;
@@ -23,6 +25,7 @@ float* device_cbo;
 int* device_ibo;
 triangle* primitives;
 
+/*
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
   if( cudaSuccess != err) {
@@ -30,6 +33,21 @@ void checkCUDAError(const char *msg) {
 	getchar();
     exit(EXIT_FAILURE); 
   }
+} */
+
+void checkCUDAError(const char *msg, int line = -1)
+{
+    cudaError_t err = cudaGetLastError();
+    if( cudaSuccess != err)
+    {
+        if( line >= 0 )
+        {
+            fprintf(stderr, "Line %d: ", line);
+        }
+        fprintf(stderr, "Cuda error: %s: %s.\n", msg, cudaGetErrorString( err) ); 
+		getchar();
+        exit(EXIT_FAILURE); 
+    }
 } 
 
 //Handy dandy little hashing function that provides seeds for random number generation
@@ -53,6 +71,11 @@ __host__ __device__ void printVec3(glm::vec3 m){
 	printf("%f, %f, %f;\n", m[0], m[1], m[2]);
 }
 
+__host__ __device__ unsigned int FloatFlip(unsigned int f)
+{
+	unsigned int mask = -int(f >> 31) | 0x80000000;
+	return f ^ mask;
+}
 
 __host__ __device__ glm::vec3 generateRandomNumberFromThread(float time, int index)
 {
@@ -111,7 +134,7 @@ __global__ void clearImage(glm::vec2 resolution, glm::vec3* image, glm::vec3 col
 }
 
 //Kernel that clears a given fragment buffer with a given fragment
-__global__ void clearDepthBuffer(glm::vec2 resolution, varying* buffer, varying frag){
+__global__ void clearDepthBuffer(glm::vec2 resolution, varying* buffer, float *depthBuffer, int *dBufferLocked, varying frag, float zFar){
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
     int index = x + (y * resolution.x);
@@ -120,6 +143,10 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, varying* buffer, varying 
       f.position.x = x;
       f.position.y = y;
       buffer[index] = f;
+//	  unsigned int *zFarPtr = (unsigned int *)&zFar;
+//	  depthBuffer[index] = FloatFlip((unsigned int&)*zFarPtr);
+	  depthBuffer[index] = zFar;
+	  dBufferLocked[index] = 0;
     }
 }
 
@@ -212,7 +239,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, float *vbo_eye, int vbosize,
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, varying* interpVariables, glm::vec2 resolution, float zNear, float zFar){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, varying* interpVariables, float *depthBuffer, int *dBufferLocked, glm::vec2 resolution, float zNear, float zFar){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){// any practical use for discarding? introduced divergence and have to wait other thread to finish
 	  triangle thisTriangle = primitives[index];	
@@ -228,6 +255,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 		  
 		  else {
 			  glm::vec2 pixelCoords;
+			  float depth;
 			  glm::vec3 barycentricCoords;
 			  int pixelIndex;
 			  for(int j = int(triMin.y); j < int(triMax.y+1); ++j)
@@ -235,8 +263,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 				  glm::vec2 Q0(triMin.x, float(j+0.5));
 				  glm::vec2 Q1(triMax.x, float(j+0.5));
 				  glm::vec2 u = Q1 - Q0;
-				  float s[3];
-				  float t[3];
+				  float s;
+				  float t;
 				  float minS = 1.0f, maxS = 0.0f;
 				  glm::vec2 v0((thisTriangle.p1 - thisTriangle.p0).x, (thisTriangle.p1 - thisTriangle.p0).y);
 				  glm::vec2 v1((thisTriangle.p2 - thisTriangle.p1).x, (thisTriangle.p2 - thisTriangle.p1).y);
@@ -246,46 +274,71 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 				  if(abs(u.x*v0.y - u.y*v0.x) > 1e-6)
 				  {
 					  w = Q0 - glm::vec2(thisTriangle.p0.x, thisTriangle.p0.y);
-					  s[0] = (v0.y*w.x - v0.x*w.y) / (v0.x*u.y - v0.y*u.x);
-					  t[0] = (u.x*w.y  - u.y*w.x ) / (u.x*v0.y - u.y*v0.x);
-					  if(s[0] > 0 && s[0] < 1 && t[0] > 0 && t[0] < 1)
+					  s = (v0.y*w.x - v0.x*w.y) / (v0.x*u.y - v0.y*u.x);
+					  t = (u.x*w.y  - u.y*w.x ) / (u.x*v0.y - u.y*v0.x);
+					  if(s > 0 && s < 1 && t > 0 && t < 1)
 					  {
-						  minS = fminf(s[0], minS);
-						  maxS = fmaxf(s[0], maxS);
+						  minS = fminf(s, minS);
+						  maxS = fmaxf(s, maxS);
 					  }
 				  }
 				  if(abs(u.x*v1.y - u.y*v1.x) > 1e-6)
 				  {
 					  w = Q0 - glm::vec2(thisTriangle.p1.x, thisTriangle.p1.y);
-					  s[1] = (v1.y*w.x - v1.x*w.y) / (v1.x*u.y - v1.y*u.x);
-					  t[1] = (u.x*w.y  - u.y*w.x ) / (u.x*v1.y - u.y*v1.x);
-					  if(s[1] > 0 && s[1] < 1 && t[1] > 0 && t[1] < 1)
+					  s = (v1.y*w.x - v1.x*w.y) / (v1.x*u.y - v1.y*u.x);
+					  t = (u.x*w.y  - u.y*w.x ) / (u.x*v1.y - u.y*v1.x);
+					  if(s > 0 && s < 1 && t > 0 && t < 1)
 					  {
-						  minS = fminf(s[1], minS);
-						  maxS = fmaxf(s[1], maxS);
+						  minS = fminf(s, minS);
+						  maxS = fmaxf(s, maxS);
 					  }
 				  }
 				  if(abs(u.x*v2.y - u.y*v2.x) > 1e-6)
 				  {
 					  w = Q0 - glm::vec2(thisTriangle.p2.x, thisTriangle.p2.y);
-					  s[2] = (v2.y*w.x - v2.x*w.y) / (v2.x*u.y - v2.y*u.x);
-					  t[2] = (u.x*w.y  - u.y*w.x ) / (u.x*v2.y - u.y*v2.x);
-					  if(s[2] > 0 && s[2] < 1 && t[2] > 0 && t[2] < 1)
+					  s = (v2.y*w.x - v2.x*w.y) / (v2.x*u.y - v2.y*u.x);
+					  t = (u.x*w.y  - u.y*w.x ) / (u.x*v2.y - u.y*v2.x);
+					  if(s > 0 && s < 1 && t > 0 && t < 1)
 					  {
-						  minS = fminf(s[2], minS);
-						  maxS = fmaxf(s[2], maxS);
+						  minS = fminf(s, minS);
+						  maxS = fmaxf(s, maxS);
 					  }
 				  }
+				  
 				  for(int i = int(triMin.x + minS * u.x); i < int(triMin.x + maxS * u.x + 1); ++i)
 				  {
 					  pixelCoords = glm::vec2(float(i+0.5), float(j+0.5));
 					  barycentricCoords = calculateBarycentricCoordinate(thisTriangle, pixelCoords);
-					  pixelIndex = resolution.x - 1 - i + ((resolution .y  - 1 - j) * resolution.x);
-					  if(isBarycentricCoordInBounds(barycentricCoords))
+					  depth = barycentricCoords.x * thisTriangle.p0.z + barycentricCoords.y * thisTriangle.p1.z + barycentricCoords.z * thisTriangle.p2.z;	
+					  pixelIndex = resolution.x - 1 - i + ((resolution.y  - 1 - j) * resolution.x);
+//					  unsigned int *depthPtr = (unsigned int *)&depth;
+//					  unsigned int intDepth = FloatFlip((unsigned int&)*depthPtr);
+//					  float oldDepth = atomicMin(depthBuffer[pixelIndex], depth);
+					  if(isBarycentricCoordInBounds(barycentricCoords) /*&& 0 == atomicExch(&dBufferLocked[pixelIndex], 1)*//*atomicMin(&depthBuffer[pixelIndex], intDepth)*/)
 					  {
-					  	  interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;						  
-					  	  interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
-						  interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
+//						  do{} while(0 != atomicExch(&dBufferLocked[pixelIndex], 1));
+						  /*if(0 == dBufferLocked[pixelIndex])
+							  atomicExch(&dBufferLocked[pixelIndex], 1);
+						  else
+						  {
+							  do{} while(0 != dBufferLocked[pixelIndex]);
+							  atomicExch(&dBufferLocked[pixelIndex], 1);
+						  }*/
+						  int old;
+						  
+						  do{
+							//  old = atomicCAS(&dBufferLocked[pixelIndex], 0, 1);
+							  old = atomicExch(&dBufferLocked[pixelIndex], 1);
+						  } while(0 != old);
+
+						  if(depth < depthBuffer[pixelIndex]) 
+						  {
+							  depthBuffer[pixelIndex] = depth;
+					  		  interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;						  
+					  		  interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
+							  interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
+						  }
+						  atomicExch(&dBufferLocked[pixelIndex], 0);
 					  }	
 				  }
 			  }
@@ -295,16 +348,22 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(varying* interpVariables, glm::vec2 resolution){// input: position, normal, intrinsic color, light position, eye position; output: true color
+__global__ void fragmentShadeKernel(varying* interpVariables, glm::vec2 resolution, glm::vec3 lightPosition, glm::vec3* framebuffer){// input: position, normal, intrinsic color, light position, eye position; output: true color
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
+  
   if(x<=resolution.x && y<=resolution.y){
-//	  interpVariables[index].color = generateRandomNumberFromThread(1, index);
+	  varying inVariables = interpVariables[index];
+	  glm::vec3 lightVector = glm::normalize(lightPosition - inVariables.position);
+	  glm::vec3 normal = glm::normalize(inVariables.normal);
+	  framebuffer[index] = glm::vec3(1.0f) * inVariables.color * glm::clamp(glm::dot(normal, lightVector), 0.0f, 1.0f);
+//	  framebuffer[index] = interpVariables[index].color;
   }
 }
 
 //Writes fragment colors to the framebuffer
+/*
 __global__ void render(glm::vec2 resolution, varying* interpVariables, glm::vec3* framebuffer){// write true color to framebuffer
 
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -314,10 +373,10 @@ __global__ void render(glm::vec2 resolution, varying* interpVariables, glm::vec3
   if(x<=resolution.x && y<=resolution.y){
     framebuffer[index] = interpVariables[index].color;
   }
-}
+}*/
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::mat4 projection, glm::mat4 view, float zNear, float zFar, float* vbo, int vbosize, float *nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::mat4 projection, glm::mat4 view, float zNear, float zFar, glm::vec3 lightPosition, float* vbo, int vbosize, float *nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
 
   // set up crucial magic
   int tileSize = 8;
@@ -327,20 +386,27 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
   //set up framebuffer
   framebuffer = NULL;
   cudaMalloc((void**)&framebuffer, (int)resolution.x*(int)resolution.y*sizeof(glm::vec3)); // frame buffer store colors
-  
+
+  //set up depth buffer
+  depthBuffer = NULL;
+  cudaMalloc((void**)&depthBuffer, (int)resolution.x*(int)resolution.y*sizeof(float));
+
+  dBufferLocked = NULL;
+  cudaMalloc((void**)&dBufferLocked, (int)resolution.x*(int)resolution.y*sizeof(int));
+
   //set up interpVariables
   interpVariables = NULL;
   cudaMalloc((void**)&interpVariables, (int)resolution.x*(int)resolution.y*sizeof(varying)); // interpolation result per pixel by rasterizer
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0)); // launch kernel for every pixel
-  
+  checkCUDAErrorWithLine("Kernel failed!");
   varying frag;
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
-  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, interpVariables,frag); // launch kernel for every pixel
-
+  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, interpVariables, depthBuffer, dBufferLocked, frag, zFar); // launch kernel for every pixel
+  checkCUDAErrorWithLine("Kernel failed!");
   //------------------------------
   //memory stuff
   //------------------------------
@@ -374,38 +440,39 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
   //------------------------------
 //  cudaMat4 cuProjection = utilityCore::glmMat4ToCudaMat4(projection);
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(resolution, projection, view, zNear, zFar, device_vbo, device_vbo_eye, vbosize, device_nbo, nbosize);
-
+  checkCUDAErrorWithLine("Kernel failed!");
   cudaDeviceSynchronize();
   //------------------------------
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize)); // launch for every primitive
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_vbo_eye, vbosize, device_nbo, nbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
-
+  checkCUDAErrorWithLine("Kernel failed!");
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, interpVariables, resolution, zNear, zFar); // launch for every primitive
-  checkCUDAError("Kernel failed!");
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, interpVariables, depthBuffer, dBufferLocked, resolution, zNear, zFar); // launch for every primitive
+  checkCUDAErrorWithLine("Kernel failed!");
   cudaDeviceSynchronize();
+  checkCUDAErrorWithLine("Kernel failed!");
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(interpVariables, resolution); // launch for every pixel
-
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(interpVariables, resolution, lightPosition, framebuffer); // launch for every pixel
+  checkCUDAErrorWithLine("Kernel failed!");
   cudaDeviceSynchronize();
   //------------------------------
   //write fragments to framebuffer
   //------------------------------
-  render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, interpVariables, framebuffer); // launch for every pixel
+//  render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, interpVariables, framebuffer); // launch for every pixel
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer); // launch for every pixel
 
   cudaDeviceSynchronize();
 
   kernelCleanup();
 
-  checkCUDAError("Kernel failed!");
+  checkCUDAErrorWithLine("Kernel failed!");
 }
 
 void kernelCleanup(){
@@ -413,8 +480,11 @@ void kernelCleanup(){
   cudaFree( device_vbo );
   cudaFree( device_vbo_eye );
   cudaFree( device_cbo );
+  cudaFree( device_nbo );
   cudaFree( device_ibo );
   cudaFree( framebuffer );
+  cudaFree( depthBuffer );
+  cudaFree( dBufferLocked );
   cudaFree( interpVariables );
 }
 

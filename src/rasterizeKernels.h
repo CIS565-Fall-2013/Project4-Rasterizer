@@ -15,8 +15,10 @@
 #else
     #include <cutil_math.h>
 #endif
+#define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
 
+void checkCUDAError(const char *msg, int line);
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, glm::mat4 projection, glm::mat4 view, float zNear, float zFar, float* vbo, int vbosize, float *nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, glm::mat4 projection, glm::mat4 view, float zNear, float zFar, glm::vec3 lightPosition, float* vbo, int vbosize, float *nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize);
 
 #endif //RASTERIZEKERNEL_H
