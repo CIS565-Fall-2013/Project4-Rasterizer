@@ -256,7 +256,14 @@ void keyboard(unsigned char key, int x, int y)
 		Look = glm::inverse(glm::mat3(u_variables.viewTransform))*glm::vec3(0.0f,0.0f,-1.0f);
 		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -5.0f,Look);
 		break;
-
+	case 'x':
+		Look = glm::inverse(glm::mat3(u_variables.viewTransform))*glm::vec3(0.0f,0.0f,-1.0f);
+		u_variables.viewTransform = glm::translate(u_variables.viewTransform, 0.05f*Look);
+		break;		
+	case 'z':
+		Look = glm::inverse(glm::mat3(u_variables.viewTransform))*glm::vec3(0.0f,0.0f,-1.0f);
+		u_variables.viewTransform = glm::translate(u_variables.viewTransform, -0.05f*Look);
+		break;
 
 
 	}
