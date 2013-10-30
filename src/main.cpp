@@ -215,7 +215,7 @@ void keyboard(unsigned char key, int x, int y)
 	switch (key) 
 	{
 	case(27)://ESC
-		shut_down(1);    
+		shut_down(0);    
 		break;
 	case '1':
 		u_pipelineOpts.fShaderProgram = AMBIENT_LIGHTING;
