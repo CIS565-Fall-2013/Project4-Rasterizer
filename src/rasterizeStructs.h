@@ -1,22 +1,27 @@
 #pragma once
 #include "glm/glm.hpp"
 
+struct vertex {
+	glm::vec3 pos;
+	glm::vec3 color;
+	//For Blinn-Phong
+	glm::vec3 eyeNormal;
+	glm::vec3 eyeLightDirection;
+	glm::vec3 eyeHalfVector;
+};
+
 struct triangle {
-	glm::vec3 p0;
-	glm::vec3 p1;
-	glm::vec3 p2;
-	glm::vec3 n0;
-	glm::vec3 n1;
-	glm::vec3 n2;
-	glm::vec3 c0;
-	glm::vec3 c1;
-	glm::vec3 c2;
+	vertex v0;
+	vertex v1;
+	vertex v2;
 };
 
 struct fragment{
 	glm::vec3 color;
 	glm::vec3 normal;
 	glm::vec3 position;
+	glm::vec3 lightDir;
+	glm::vec3 halfVector;
 };
 
 struct uniforms{
@@ -24,13 +29,17 @@ struct uniforms{
 	glm::mat4 perspectiveTransform;
 	glm::mat4 modelTransform;
 	glm::vec4 lightPos;
+	glm::vec3 lightColor;
+	glm::vec3 blinnPhongParams;
+	glm::vec3 diffuseColor;
+	glm::vec3 specularColor;
+	float shininess;
 };
 
 
-enum FRAGMENT_SHADER {DEPTH_SHADING, AMBIENT_LIGHTING, PHONG_SHADING, NORMAL_SHADING};
+enum FRAGMENT_SHADER {DEPTH_SHADING, AMBIENT_LIGHTING, BLINN_PHONG_SHADING, NORMAL_SHADING};
 struct pipelineOpts{
 	FRAGMENT_SHADER fShaderProgram;
-	bool useFaceNormals;
 	bool showTriangleColors;
 
 };

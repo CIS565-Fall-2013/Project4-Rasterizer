@@ -21,30 +21,30 @@ __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
 
 //LOOK: finds the axis aligned bounding box for a given triangle
 __host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, glm::vec3& maxpoint){
-  minpoint = glm::vec3(glm::min(glm::min(tri.p0.x, tri.p1.x),tri.p2.x), 
-        glm::min(glm::min(tri.p0.y, tri.p1.y),tri.p2.y),
-        glm::min(glm::min(tri.p0.z, tri.p1.z),tri.p2.z));
-  maxpoint = glm::vec3(glm::max(glm::max(tri.p0.x, tri.p1.x),tri.p2.x), 
-        glm::max(glm::max(tri.p0.y, tri.p1.y),tri.p2.y),
-        glm::max(glm::max(tri.p0.z, tri.p1.z),tri.p2.z));
+  minpoint = glm::vec3(glm::min(glm::min(tri.v0.pos.x, tri.v1.pos.x),tri.v2.pos.x), 
+        glm::min(glm::min(tri.v0.pos.y, tri.v1.pos.y),tri.v2.pos.y),
+        glm::min(glm::min(tri.v0.pos.z, tri.v1.pos.z),tri.v2.pos.z));
+  maxpoint = glm::vec3(glm::max(glm::max(tri.v0.pos.x, tri.v1.pos.x),tri.v2.pos.x), 
+        glm::max(glm::max(tri.v0.pos.y, tri.v1.pos.y),tri.v2.pos.y),
+        glm::max(glm::max(tri.v0.pos.z, tri.v1.pos.z),tri.v2.pos.z));
 }
 
 //LOOK: calculates the signed area of a given triangle
 __host__ __device__ float calculateSignedArea(triangle tri){
-  return 0.5*((tri.p2.x - tri.p0.x)*(tri.p1.y - tri.p0.y) - (tri.p1.x - tri.p0.x)*(tri.p2.y - tri.p0.y));
+  return 0.5*((tri.v2.pos.x - tri.v0.pos.x)*(tri.v1.pos.y - tri.v0.pos.y) - (tri.v1.pos.x - tri.v0.pos.x)*(tri.v2.pos.y - tri.v0.pos.y));
 }
 
 //LOOK: helper function for calculating barycentric coordinates
 __host__ __device__ float calculateBarycentricCoordinateValue(glm::vec2 a, glm::vec2 b, glm::vec2 c, triangle tri){
   triangle baryTri;
-  baryTri.p0 = glm::vec3(a,0); baryTri.p1 = glm::vec3(b,0); baryTri.p2 = glm::vec3(c,0);
+  baryTri.v0.pos = glm::vec3(a,0); baryTri.v1.pos = glm::vec3(b,0); baryTri.v2.pos = glm::vec3(c,0);
   return calculateSignedArea(baryTri)/calculateSignedArea(tri);
 }
 
 //LOOK: calculates barycentric coordinates
 __host__ __device__ glm::vec3 calculateBarycentricCoordinate(triangle tri, glm::vec2 point){
-  float beta  = calculateBarycentricCoordinateValue(glm::vec2(tri.p0.x,tri.p0.y), point, glm::vec2(tri.p2.x,tri.p2.y), tri);
-  float gamma = calculateBarycentricCoordinateValue(glm::vec2(tri.p0.x,tri.p0.y), glm::vec2(tri.p1.x,tri.p1.y), point, tri);
+  float beta  = calculateBarycentricCoordinateValue(glm::vec2(tri.v0.pos.x,tri.v0.pos.y), point, glm::vec2(tri.v2.pos.x,tri.v2.pos.y), tri);
+  float gamma = calculateBarycentricCoordinateValue(glm::vec2(tri.v0.pos.x,tri.v0.pos.y), glm::vec2(tri.v1.pos.x,tri.v1.pos.y), point, tri);
   float alpha = 1.0-beta-gamma;
   return glm::vec3(alpha,beta,gamma);
 }
@@ -62,19 +62,19 @@ __host__ __device__ bool isBarycentricCoordInBounds(glm::vec3 barycentricCoord){
 __host__ __device__ void transformTriToScreenSpace(triangle &tri, glm::vec2 resolution)
 {
 	//Scale and shift x
-	tri.p0.x = (tri.p0.x+1.0)*0.5f*resolution.x;
-	tri.p1.x = (tri.p1.x+1.0)*0.5f*resolution.x;
-	tri.p2.x = (tri.p2.x+1.0)*0.5f*resolution.x;
+	tri.v0.pos.x = (tri.v0.pos.x+1.0)*0.5f*resolution.x;
+	tri.v1.pos.x = (tri.v1.pos.x+1.0)*0.5f*resolution.x;
+	tri.v2.pos.x = (tri.v2.pos.x+1.0)*0.5f*resolution.x;
 
 	//Scale and shift y
-	tri.p0.y = (tri.p0.y+1.0)*0.5f*resolution.y;
-	tri.p1.y = (tri.p1.y+1.0)*0.5f*resolution.y;
-	tri.p2.y = (tri.p2.y+1.0)*0.5f*resolution.y;
+	tri.v0.pos.y = (tri.v0.pos.y+1.0)*0.5f*resolution.y;
+	tri.v1.pos.y = (tri.v1.pos.y+1.0)*0.5f*resolution.y;
+	tri.v2.pos.y = (tri.v2.pos.y+1.0)*0.5f*resolution.y;
 
 	//Scale and shift z
-	tri.p0.z = (tri.p0.z+1.0)*0.5f;
-	tri.p1.z = (tri.p1.z+1.0)*0.5f;
-	tri.p2.z = (tri.p2.z+1.0)*0.5f;
+	tri.v0.pos.z = (tri.v0.pos.z+1.0)*0.5f;
+	tri.v1.pos.z = (tri.v1.pos.z+1.0)*0.5f;
+	tri.v2.pos.z = (tri.v2.pos.z+1.0)*0.5f;
 }
 
 #endif
