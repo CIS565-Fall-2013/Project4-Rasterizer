@@ -91,6 +91,9 @@ void runCuda(){
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
 
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
                     1.0, 0.0, 0.0};
@@ -101,7 +104,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -270,7 +273,7 @@ void initCamera()
 	vec3 up = vec3(0,1,0);
 	vec3 cameraPosition = vec3(0, 0, 2);
 	vec3 center = vec3(0);
-	mat4 projection = glm::perspective(-fovy, float(width)/float(height), zNear, zFar);
+	mat4 projection = glm::perspective(-fovy, float(width)/float(height), zNear, zFar); // LOOK: Passed in -fovy to have the image rightside up
     mat4 view = glm::lookAt(cameraPosition, center, up);
 	cam->zFar = zFar;
 	cam->zNear = zNear;

@@ -18,6 +18,7 @@ glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
 float* device_cbo;
+float* device_nbo;
 int* device_ibo;
 triangle* primitives;
 
@@ -144,17 +145,18 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 //Transform incoming vertex position from model to clip coordinates.
 //Use model matrix to transform into model space. Use view matrix to transform into camera space. Then,
 //use projection matrix to transform into clip space. Next, convert to NDC. Lastly, convert to window coordinates
-__global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 mvp, vec2 reso)
+__global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosize, mat4 mvp, mat4 mvInvT, vec2 reso, float zNear, float zFar)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
   if(index<vbosize/3)
   {
-	  const int vboId1 = index * 3;
-	  const int vboId2 = vboId1 + 1;
-	  const int vboId3 = vboId1 + 2;
+	  const int id1 = index * 3;
+	  const int id2 = id1 + 1;
+	  const int id3 = id1 + 2;
 
-	  vec4 hPoint(vbo[vboId1], vbo[vboId2], vbo[vboId3], 1.0f);
+	  // set up vbo
+	  vec4 hPoint(vbo[id1], vbo[id2], vbo[id3], 1.0f);
 	  
 	  // to clip
 	  hPoint = mvp * hPoint;
@@ -167,19 +169,28 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 mvp, vec2 reso)
 	  vec3 windowPoint;
 
 	  // add 1 to get NDC to range [0, 2]. Then multiply by reso.x or y * 0.5 so that window coordinates go from [0, reso.x or y]
-	  windowPoint.x = reso.x * (ndcPoint.x + 1.f) * 0.5f; 
-	  windowPoint.y = reso.y * (ndcPoint.y + 1.f) * 0.5f;
-	  windowPoint.z = ndcPoint.z;
+	  windowPoint.x = reso.x * (ndcPoint.x + 1.f) * 0.5f; // range: [0, reso.x]
+	  windowPoint.y = reso.y * (ndcPoint.y + 1.f) * 0.5f; // range: [0, reso.y]
+	  //windowPoint.z = ndcPoint.z; // range: [-1, 1]
+	  windowPoint.z = 0.5f * (zFar - zNear) * ndcPoint.z + 0.5f * (zFar + zNear); // range: [zNear, zFar]
 
-	  vbo[vboId1] = windowPoint.x;
-	  vbo[vboId2] = windowPoint.y;
-	  vbo[vboId3] = windowPoint.z;
+	  vbo[id1] = windowPoint.x;
+	  vbo[id2] = windowPoint.y;
+	  vbo[id3] = windowPoint.z;
+
+	  // set up nbo
+	  vec4 normal(nbo[id1], nbo[id2], nbo[id3], 0.0f);
+	  vec4 normalEye = mvInvT * normal;
+
+	  nbo[id1] = normalEye.x;
+	  nbo[id2] = normalEye.y;
+	  nbo[id3] = normalEye.z;
   }
 }
 
 //TODO: Implement primative assembly
 //Given the vbo, cbo, ibo, group them into triangles and output the result
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives)
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, triangle* primitives)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
@@ -192,17 +203,17 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  const int iboId3 = iboId1 + 2;
 
 	  // vbo indices for each ibo index
-	  const int vboId11 = ibo[iboId1] * 3;
-	  const int vboId12 = vboId11 + 1;
-	  const int vboId13 = vboId11 + 2;
+	  const int nvboId11 = ibo[iboId1] * 3;
+	  const int nvboId12 = nvboId11 + 1;
+	  const int nvboId13 = nvboId11 + 2;
 
-	  const int vboId21 = ibo[iboId2] * 3;
-	  const int vboId22 = vboId21 + 1;
-	  const int vboId23 = vboId21 + 2;
+	  const int nvboId21 = ibo[iboId2] * 3;
+	  const int nvboId22 = nvboId21 + 1;
+	  const int nvboId23 = nvboId21 + 2;
 
-	  const int vboId31 = ibo[iboId3] * 3;
-	  const int vboId32 = vboId31 + 1;
-	  const int vboId33 = vboId31 + 2;
+	  const int nvboId31 = ibo[iboId3] * 3;
+	  const int nvboId32 = nvboId31 + 1;
+	  const int nvboId33 = nvboId31 + 2;
 	  
 	  // cbo indices
 	  const int cboId1 = index % 3;
@@ -210,9 +221,14 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  const int cboId3 = cboId2 + 2;
 
 	  // retrieve vertices
-	  vec3 vert1 = vec3(vbo[vboId11], vbo[vboId12], vbo[vboId13]);
-	  vec3 vert2 = vec3(vbo[vboId21], vbo[vboId22], vbo[vboId23]);
-	  vec3 vert3 = vec3(vbo[vboId31], vbo[vboId32], vbo[vboId33]);
+	  vec3 vert1 = vec3(vbo[nvboId11], vbo[nvboId12], vbo[nvboId13]);
+	  vec3 vert2 = vec3(vbo[nvboId21], vbo[nvboId22], vbo[nvboId23]);
+	  vec3 vert3 = vec3(vbo[nvboId31], vbo[nvboId32], vbo[nvboId33]);
+
+	  // retrieve normals
+	  vec3 normal1 = vec3(nbo[nvboId11], nbo[nvboId12], nbo[nvboId13]);
+	  vec3 normal2 = vec3(nbo[nvboId21], nbo[nvboId22], nbo[nvboId23]);
+	  vec3 normal3 = vec3(nbo[nvboId31], nbo[nvboId32], nbo[nvboId33]);
 
 	  // retrieve colors
 	  vec3 vert1Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
@@ -228,6 +244,9 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  tri.c0 = vert1Color;
 	  tri.c1 = vert2Color;
 	  tri.c2 = vert3Color;
+	  tri.n0 = normal1;
+	  tri.n1 = normal2;
+	  tri.n2 = normal3;
 
 	  primitives[index] = tri;
   }
@@ -241,9 +260,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	{
 		triangle tri = primitives[index];
 
-		//float signedArea = calculateSignedArea(tri);
+		//float signedarea = calculateSignedArea(tri);
 
-		//if (signedArea < 1e-10)
+		//if (signedarea < 1e-10)
 		//	return;
 
 		vec3 triMinPoint;
@@ -266,11 +285,19 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 				vec3 bc = calculateBarycentricCoordinate(tri, pointInTri); // call is causing crash.
 				if (isBarycentricCoordInBounds(bc))
 				{
-					// TODO: Compute normal & depth check
+					// TODO: depth check
 					int depthBufferId = y * resolution.x + x;
 					float z = getZAtCoordinate(bc, tri);
-					depthbuffer[depthBufferId].position = vec3(x, y, z); // interpolate tri positions too?
+					
+					depthbuffer[depthBufferId].position = tri.p0 * bc.x + tri.p1 * bc.y + tri.p2 * bc.z;
 					depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
+					depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;
+
+					// normal test 
+					//if (depthbuffer[depthBufferId].normal.z > 0)
+					//	depthbuffer[depthBufferId].color = depthbuffer[depthBufferId].normal;
+					//else
+					//	depthbuffer[depthBufferId].color = depthbuffer[depthBufferId].normal;
 
 					// test
 					//fragment frag;
@@ -309,7 +336,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize)
+void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize)
 {
   // set up crucial magic
   int tileSize = 8;
@@ -351,6 +378,10 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
 
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, cbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
+
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
@@ -367,18 +398,20 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   mat4 viewMatrix = cam->view;
   mat4 projectionMatrix = cam->projection;
   mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+  mat4 mvInvT = transpose(inverse(viewMatrix * modelMatrix));
+  float zFar = cam->zFar;
+  float zNear = cam->zNear;
   vec2 reso = cam->resolution;
   
-  
   // launch vertex shader kernel
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, mvp, reso);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, mvp, mvInvT, reso, zNear, zFar);
   cudaDeviceSynchronize();
   //checkCUDAErrorWithLine("vertex shader kernel failed");
   //------------------------------
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, device_nbo, nbosize, primitives);
   cudaDeviceSynchronize();
   //checkCUDAErrorWithLine("primitive assembly kernel failed");
   //------------------------------

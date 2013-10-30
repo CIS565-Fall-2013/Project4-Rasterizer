@@ -64,6 +64,8 @@ float* vbo;
 int vbosize;
 float* cbo;
 int cbosize;
+float* nbo;
+int nbosize;
 int* ibo;
 int ibosize;
 
