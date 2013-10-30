@@ -285,7 +285,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	if(x<=resolution.x && y<=resolution.y){
 		switch(opts.fShaderProgram)
 		{
-		case DEPTH_BUFFER:
+		case DEPTH_SHADING:
 			depthFSImpl(depthbuffer, index, u_variables, opts);
 			break;
 		case AMBIENT_LIGHTING:
