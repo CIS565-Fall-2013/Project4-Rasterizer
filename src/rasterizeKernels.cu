@@ -314,36 +314,53 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		  return; //cull face, it's facing away.
 	  }
 
-	  glm::vec3 p0;
-	  glm::vec3 p1;
-	  glm::vec3 p2;
-	  //we want to sort p0, p1, p2, such that p0 has the lowest y-value, p1 middle, p2 highest. 
-	 // There are 6 possible permutations:
-	  if( currTri.p2.y >= currTri.p1.y && currTri.p1.y >= currTri.p0.y ){ //p2 >= p1 >= p0
-		  p2 = currTri.p2; //highest
-		  p1 = currTri.p1; //middle 
-		  p0 = currTri.p0; //low
-	  } else if( currTri.p2.y >= currTri.p0.y && currTri.p0.y >= currTri.p1.y ){ //p2 >= p0 >= p1
-		  p2 = currTri.p2; // highest
-		  p1 = currTri.p0; //middle
-		  p0 = currTri.p1; //low
-	  } else if( currTri.p1.y >= currTri.p2.y && currTri.p2.y >= currTri.p0.y ){ //p1 >= p2 >= p0
-		  p2 = currTri.p1; // highest
-		  p1 = currTri.p2; //middle
-		  p0 = currTri.p0; //low
-	  } else if( currTri.p1.y >= currTri.p0.y && currTri.p0.y >= currTri.p2.y ){ //p1 >= p0 >= p2
-		  p2 = currTri.p1; // highest
-		  p1 = currTri.p0; //middle
-		  p0 = currTri.p2; //low
-	  } else if( currTri.p0.y >= currTri.p2.y && currTri.p2.y >= currTri.p1.y ){ //p0 >= p2 >= p1
-		  p2 = currTri.p0; // highest
-		  p1 = currTri.p2; //middle
-		  p0 = currTri.p1; //low
-	  } else { //p0 >= p1 >= p2
-		  p2 = currTri.p0; // highest
-		  p1 = currTri.p1; //middle
-		  p0 = currTri.p2; //low
+	  //compute the AABB for the triangle (pad it out so we don't accidentally miss something on the edge)
+	  float minX = min(min(currTri.p0.x, currTri.p1.x), currTri.p2.x) - 1;
+	  float maxX = max(max(currTri.p0.x, currTri.p1.x), currTri.p2.x) + 1;
+	  float minY = min(min(currTri.p0.y, currTri.p1.y), currTri.p2.y) - 1;
+	  float maxY = max(max(currTri.p0.y, currTri.p1.y), currTri.p2.y) + 1;
+
+	  //loop through the AABB of the triangle, testing to see if point is in triangle. If yes, write it to depthbuffer. If no, don't.
+	  for(float y = minY; y <= maxY; y = y + 1){
+		  for(float x = minX; x <= maxX; x = x + 1){
+			  glm::vec2 currPoint(x, y);
+			  glm::vec3 baryCoords = calculateBarycentricCoordinate(currTri, currPoint);
+			  if(isBarycentricCoordInBounds(baryCoords)){ //we are inside
+				  writePointInTriangle(currTri, index, currPoint, depthbuffer, resolution);
+			  }
+		  }
 	  }
+
+	 // glm::vec3 p0;
+	 // glm::vec3 p1;
+	 // glm::vec3 p2;
+	 // //we want to sort p0, p1, p2, such that p0 has the lowest y-value, p1 middle, p2 highest. 
+	 //// There are 6 possible permutations:
+	 // if( currTri.p2.y >= currTri.p1.y && currTri.p1.y >= currTri.p0.y ){ //p2 >= p1 >= p0
+		//  p2 = currTri.p2; //highest
+		//  p1 = currTri.p1; //middle 
+		//  p0 = currTri.p0; //low
+	 // } else if( currTri.p2.y >= currTri.p0.y && currTri.p0.y >= currTri.p1.y ){ //p2 >= p0 >= p1
+		//  p2 = currTri.p2; // highest
+		//  p1 = currTri.p0; //middle
+		//  p0 = currTri.p1; //low
+	 // } else if( currTri.p1.y >= currTri.p2.y && currTri.p2.y >= currTri.p0.y ){ //p1 >= p2 >= p0
+		//  p2 = currTri.p1; // highest
+		//  p1 = currTri.p2; //middle
+		//  p0 = currTri.p0; //low
+	 // } else if( currTri.p1.y >= currTri.p0.y && currTri.p0.y >= currTri.p2.y ){ //p1 >= p0 >= p2
+		//  p2 = currTri.p1; // highest
+		//  p1 = currTri.p0; //middle
+		//  p0 = currTri.p2; //low
+	 // } else if( currTri.p0.y >= currTri.p2.y && currTri.p2.y >= currTri.p1.y ){ //p0 >= p2 >= p1
+		//  p2 = currTri.p0; // highest
+		//  p1 = currTri.p2; //middle
+		//  p0 = currTri.p1; //low
+	 // } else { //p0 >= p1 >= p2
+		//  p2 = currTri.p0; // highest
+		//  p1 = currTri.p1; //middle
+		//  p0 = currTri.p2; //low
+	 // }
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  
@@ -353,48 +370,48 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
-	  float triHeight = (p2.y - p0.y);
+	  //float triHeight = (p2.y - p0.y);
 
-	  if( p0.y > p1.y || p1.y > p2.y){
-		  printf("Trololo\n");
-	  }
+	  //if( p0.y > p1.y || p1.y > p2.y){
+		 // printf("Trololo\n");
+	  //}
 	  //TODO: in the size-zero cases, I might have to draw a line.
-	  if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
-		  float topHeight = (p1.y - p0.y);
-		  glm::vec2 gradToMiddle, gradToBottom;
-		  glm::vec2 rasterStart, rasterEnd;
-		  gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, 1);
-		  if( abs(topHeight) > NATHANS_EPSILON ){ //top is not flat
-			  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, 1);
-			  rasterStart = glm::vec2(p0);
-			  rasterEnd = glm::vec2(p0);
-			  while(rasterStart.y <= p1.y && rasterEnd.y <= p1.y){
-				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index);
-				  rasterStart += gradToBottom;
-				  rasterEnd += gradToMiddle;
-			  }
-			  rasterStart -= gradToBottom;
-			  rasterEnd = glm::vec2(p1);
-		  } else { //top is flat, thus we don't start at a point, we start at a line
-			  rasterStart = glm::vec2(p0);
-			  rasterEnd = glm::vec2(p1);
-			  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index); //this line is the "top"
-		  }
-		  float bottomHeight = (p2.y - p1.y);
-		  if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
-			  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, 1);
-			  while(rasterStart.y <= p2.y && rasterEnd.y <= p2.y){
-				  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index);
-				  rasterStart += gradToBottom;
-				  rasterEnd += gradMidToBot;
-			  }
-		  } else { //bottom is flat, but we need to rasterize at least one line
-			  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, resolution, currTri, index);
-		  }
-	  } else{ //rasterize two straight lines, since the triangle is "flat"
-		  rasterizeHorizLine(glm::vec2(p0), glm::vec2(p1), depthbuffer, resolution, currTri, index);
-		  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, resolution, currTri, index);
-	  }
+	  //if( abs(triHeight) > NATHANS_EPSILON ){ //not a size-zero triangle
+		 // float topHeight = (p1.y - p0.y);
+		 // glm::vec2 gradToMiddle, gradToBottom;
+		 // glm::vec2 rasterStart, rasterEnd;
+		 // gradToBottom = glm::vec2((p2.x - p0.x) / triHeight, 1);
+		 // if( abs(topHeight) > NATHANS_EPSILON ){ //top is not flat
+			//  gradToMiddle = glm::vec2((p1.x - p0.x) / topHeight, 1);
+			//  rasterStart = glm::vec2(p0);
+			//  rasterEnd = glm::vec2(p0);
+			//  while(rasterStart.y <= p1.y && rasterEnd.y <= p1.y){
+			//	  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index);
+			//	  rasterStart += gradToBottom;
+			//	  rasterEnd += gradToMiddle;
+			//  }
+			//  rasterStart -= gradToBottom;
+			//  rasterEnd = glm::vec2(p1);
+		 // } else { //top is flat, thus we don't start at a point, we start at a line
+			//  rasterStart = glm::vec2(p0);
+			//  rasterEnd = glm::vec2(p1);
+			//  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index); //this line is the "top"
+		 // }
+		 // float bottomHeight = (p2.y - p1.y);
+		 // if( abs(bottomHeight) > NATHANS_EPSILON ){ //bottom is not flat
+			//  glm::vec2 gradMidToBot = glm::vec2((p2.x - p1.x)/bottomHeight, 1);
+			//  while(rasterStart.y <= p2.y && rasterEnd.y <= p2.y){
+			//	  rasterizeHorizLine(rasterStart, rasterEnd, depthbuffer, resolution, currTri, index);
+			//	  rasterStart += gradToBottom;
+			//	  rasterEnd += gradMidToBot;
+			//  }
+		 // } else { //bottom is flat, but we need to rasterize at least one line
+			//  rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, resolution, currTri, index);
+		 // }
+	  //} else{ //rasterize two straight lines, since the triangle is "flat"
+		 // rasterizeHorizLine(glm::vec2(p0), glm::vec2(p1), depthbuffer, resolution, currTri, index);
+		 // rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, resolution, currTri, index);
+	  //}
   }
 }
 
@@ -413,7 +430,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	  //depthbuffer[index] = currFrag;
 
 	  if( currFrag.triIdx >= 0){
-		  /*currFrag.color = currFrag.modelNormal;*/
+		  //currFrag.color = currFrag.modelNormal;
 		  glm::vec3 lightVec = glm::normalize(lightPos - currFrag.modelPosition);
 		  float diffuseCoeff = glm::clamp(glm::dot(currFrag.modelNormal, lightVec), 0.0f, 1.0f);
 		  currFrag.color = diffuseCoeff * currFrag.color;
