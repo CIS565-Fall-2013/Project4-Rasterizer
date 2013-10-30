@@ -8,6 +8,8 @@
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
 
+using namespace glm;
+
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
 #else
@@ -135,9 +137,17 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 modelViewProjection, vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
+      glm::vec4 worldVertex(vbo[index*3], vbo[index*3+1], vbo[index*3+2], 1);
+      glm::vec4 projectedVertex = modelViewProjection * worldVertex;
+      projectedVertex = (1/projectedVertex.w) * projectedVertex;
+      float xNDC = (projectedVertex.x + 1)/2.0f;
+      float yNDC = (projectedVertex.y + 1)/2.0f;
+      vbo[index*3] = xNDC*resolution.x;
+      vbo[index*3+1] = yNDC* resolution.y;
+      vbo[index*3+2] = projectedVertex.z;
   }
 }
 
@@ -146,6 +156,21 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
+		int vboIndexStart1 = ibo[index*3];
+		int vboIndexStart2 = ibo[index*3+1];
+		int vboIndexStart3 = ibo[index*3+2];
+
+		//create primitive
+		triangle t;
+
+		t.p0 = vec3(vbo[vboIndexStart1*3], vbo[vboIndexStart1*3+1], vbo[vboIndexStart1*3+2]);
+		t.p1 = vec3(vbo[vboIndexStart2*3], vbo[vboIndexStart2*3+1], vbo[vboIndexStart2*3+2]);
+		t.p2 = vec3(vbo[vboIndexStart3*3], vbo[vboIndexStart3*3+1], vbo[vboIndexStart3*3+2]);
+		t.c0 = vec3(1,0,0);//vec3(cbo[vboIndexStart1*3], cbo[vboIndexStart1*3+1], cbo[vboIndexStart1*3+2]);
+		t.c1 = vec3(0,1,0);//vec3(cbo[vboIndexStart2*3], cbo[vboIndexStart2*3+1], cbo[vboIndexStart2*3+2]);
+		t.c2 = vec3(0,0,1);//vec3(cbo[vboIndexStart3*3], cbo[vboIndexStart3*3+1], cbo[vboIndexStart3*3+2]);
+
+		primitives[index] = t;
   }
 }
 
@@ -153,6 +178,33 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+
+	vec3 minP;
+	vec3 maxP;
+
+	getAABBForTriangle(primitives[index], minP, maxP);
+
+	for (int x = minP.x; x < maxP.x; x++){
+		for (int y = minP.y; y < maxP.y; y++){
+			vec3 barycentricCoord = calculateBarycentricCoordinate(primitives[index], vec2((float)x,(float)y));
+			if (isBarycentricCoordInBounds(barycentricCoord)){
+				vec3 bc = vec3(barycentricCoord.x, barycentricCoord.y, getZAtCoordinate(barycentricCoord, primitives[index]));
+				//interpolate color
+				vec3 colorP0 = primitives[index].c0;
+				vec3 colorP1 = primitives[index].c1;
+				vec3 colorP2 = primitives[index].c2;
+
+				vec3 c = barycentricCoord.x*colorP0+barycentricCoord.y*colorP1+barycentricCoord.z*colorP2;
+					
+				fragment f;
+				f.color = c;
+				f.normal = vec3(0,0,1);
+				f.position = bc;
+				int dbindex = y*resolution.x+x;
+				depthbuffer[dbindex] = f;
+			}
+		}
+	}
   }
 }
 
@@ -178,7 +230,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, 
+						int ibosize, mat4 modelViewProjection){
 
   // set up crucial magic
   int tileSize = 8;
@@ -226,7 +279,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, modelViewProjection, resolution);
+  checkCUDAError("Kernel failed at vertexShadeKernel!");
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -234,26 +288,30 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  checkCUDAError("Kernel failed at primitiveAssemblyKernel!");
 
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
   rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  checkCUDAError("Kernel failed at rasterizationKernel!");
 
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
   //------------------------------
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  checkCUDAError("Kernel failed at fragmentShadeKernel!");
 
   cudaDeviceSynchronize();
   //------------------------------
   //write fragments to framebuffer
   //------------------------------
   render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer);
+  checkCUDAError("Kernel failed at render!");
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
-
+  checkCUDAError("Kernel failed at sendImageToPBO!");
   cudaDeviceSynchronize();
 
   kernelCleanup();

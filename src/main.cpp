@@ -82,6 +82,7 @@ int main(int argc, char** argv){
 //---------RUNTIME STUFF---------
 //-------------------------------
 
+
 void runCuda(){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
@@ -90,8 +91,8 @@ void runCuda(){
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
 
-  float newcbo[] = {0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
+  float newcbo[] = {0.0, 0.0, 1.0, 
+                    0.0, 1.0, 0.0, 
                     1.0, 0.0, 0.0};
   cbo = newcbo;
   cbosize = 9;
@@ -99,8 +100,14 @@ void runCuda(){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+
+  glm::mat4 view = glm::lookAt(eye, center, up);
+  glm::mat4 proj = glm::perspective(fov, (float)width/(float)height, zNear, zFar);
+  modelViewProjection = proj*view*model;
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, modelViewProjection);
+  //projection, view, zNear, zFar, lightPosition,
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

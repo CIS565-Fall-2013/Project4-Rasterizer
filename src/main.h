@@ -24,6 +24,7 @@
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
+#include "glm/gtc/matrix_transform.hpp"
 
 #if CUDA_VERSION >= 5000
     #include <helper_cuda.h>
@@ -59,6 +60,17 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+
+glm::vec3 eye = glm::vec3(0,0,1);
+glm::vec3 center = glm::vec3(0,0,0);
+glm::vec3 up = glm::vec3(0,-1,0); //flip view for some reason
+
+float fov = 90.0f;
+float zNear = 0.10;
+float zFar = 100.0;
+
+glm::mat4 model = glm::mat4(1.0f);
+glm::mat4 modelViewProjection;
 
 //-------------------------------
 //----------CUDA STUFF-----------
