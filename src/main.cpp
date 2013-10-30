@@ -42,7 +42,7 @@ int main(int argc, char** argv){
 	u_variables.specularColor = glm::vec3(1.0,1.0,1.0);
 	u_variables.shininess = 8.0f;
 
-	u_variables.viewTransform = glm::lookAt(glm::vec3(1.0,1.0,1.0), glm::vec3(0,0,0), glm::vec3(0.0,0.0,-1.0));
+	u_variables.viewTransform = glm::lookAt(glm::vec3(1.0,0.0,1.0), glm::vec3(0,0,0), glm::vec3(0.0,0.0,-1.0));
 	u_variables.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 0.1f, 5.0f);
 
 	glm::mat4 scale = glm::mat4(1.0f);
@@ -212,6 +212,8 @@ void display(){
 
 void keyboard(unsigned char key, int x, int y)
 {
+
+	glm::vec3 Right, Look;
 	switch (key) 
 	{
 	case(27)://ESC
@@ -232,6 +234,31 @@ void keyboard(unsigned char key, int x, int y)
 	case 'c':
 		u_pipelineOpts.showTriangleColors = !u_pipelineOpts.showTriangleColors;
 		break;
+	case 'a':
+		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, 5.0f, glm::vec3(0.0f,0.0f,1.0f));
+		break;
+	case 'd':
+		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -5.0f, glm::vec3(0.0f,0.0f,1.0f));
+		break;
+	case 's':
+		Right = glm::inverse(glm::mat3(u_variables.viewTransform))*glm::vec3(1.0f,0.0f,0.0f);
+		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, 5.0f,Right);
+		break;
+	case 'w':
+		Right = glm::inverse(glm::mat3(u_variables.viewTransform))*glm::vec3(1.0f,0.0f,0.0f);
+		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -5.0f,Right);
+		break;
+	case 'q':
+		Look = glm::inverse(glm::mat3(u_variables.viewTransform))*glm::vec3(0.0f,0.0f,-1.0f);
+		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, 5.0f,Look);
+		break;
+	case 'e':
+		Look = glm::inverse(glm::mat3(u_variables.viewTransform))*glm::vec3(0.0f,0.0f,-1.0f);
+		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -5.0f,Look);
+		break;
+
+
+
 	}
 }
 
