@@ -36,9 +36,9 @@ int main(int argc, char** argv){
 	u_pipelineOpts.showTriangleColors = false;
 
 	u_variables.blinnPhongParams  = glm::vec3(0.1,0.6,0.3);//Ambient, diffuse, specular.
-	u_variables.lightPos = glm::vec4(-1.0f,-1.0f,10.0f,1.0f);
+	u_variables.lightPos = glm::vec4(-1.0f,1.0f,10.0f,1.0f);
 	u_variables.lightColor = glm::vec3(1.0f,1.0f,1.0f);
-	u_variables.diffuseColor = glm::vec3(0.6,0.6,0.6);
+	u_variables.diffuseColor = glm::vec3(0.8,0.8,0.8);
 	u_variables.specularColor = glm::vec3(1.0,1.0,1.0);
 	u_variables.shininess = 8.0f;
 
