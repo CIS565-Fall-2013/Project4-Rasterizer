@@ -76,7 +76,7 @@ int main(int argc, char** argv);
 //---------RUNTIME STUFF---------
 //-------------------------------
 
-void runCuda();
+void runCuda(bool &isFirstTime);
 
 #ifdef __APPLE__
 	void display();

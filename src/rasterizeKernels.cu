@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <cuda.h>
 #include <cmath>
+#include <ctime>
 #include <thrust/random.h>
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
@@ -187,7 +188,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 //  int primitivesCount = ibosize/3;
 
-  if(index < indexStep/*primitivesCount*/)
+  if(index < indexStep)
   {
 	  triangle thisTriangle;
 	  
@@ -273,22 +274,12 @@ __global__ void convertToScreenSpace(triangle* primitives, int primitivesCount, 
 
 	  primitives [index] = primitiveShared [threadIdx.x];
   }
+}
 
-//  __syncthreads ();
-
-  //if(index<primitivesCount)
-  //{
-	 // fragment	curFragment;
-	 // curFragment.position.z = 1e6;
-	 // // First, throw out all back facing tris (Back Face Culling).
-	 // // Here, we simply do nothing if we find such a tri.
-	 // if (calculateSignedArea (primitiveShared [threadIdx.x]) > 0)
-	 // {
-		//  // Next, check if the pixel handled by the current thread is inside the bounding box of tri.
-		//  if (
-		//  primitiveShared [threadIdx.x].;
-	 // }
-  //}
+// Back face culling.
+__global__ void	backFaceCull (triangle* primitive, int primitivesCount)
+{
+	;
 }
 
 // Core rasterization.
@@ -388,8 +379,9 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize)
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, bool &isFirstTime)
 {
+	int nPrims = ibosize / 3;
   // set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -446,24 +438,39 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
   checkCUDAError("Primitive Assembly failed!");
   cudaDeviceSynchronize();
-  triangle * primHost = new triangle [ibosize / 3];
-  cudaMemcpy (primHost, primitives, sizeof (triangle) * (ibosize / 3), cudaMemcpyDeviceToHost);
   //------------------------------
   // Map to Screen Space
   //------------------------------
   convertToScreenSpace<<<primitiveBlocks, tileSize, tileSize*sizeof (triangle)>>>(primitives, ibosize/3, resolution);
   checkCUDAError("Conversion to Screen Space failed!");
   cudaDeviceSynchronize();
-//  triangle * primHost = new triangle [ibosize / 3];
-  cudaMemcpy (primHost, primitives, sizeof (triangle) * (ibosize / 3), cudaMemcpyDeviceToHost);
- // delete [] primHost;
+  std::cout << "No. of tris: " << ibosize/3 << "\n";
+  //------------------------------
+  // Map to Screen Space
+  //------------------------------
+  int * primCount = NULL;
+  cudaMalloc((void**)&primCount, sizeof(int));
+  cudaMemset (primCount, ibosize/3, sizeof (int));
+  backFaceCull<<<primitiveBlocks, tileSize, tileSize*sizeof (triangle)>>>(primitives, ibosize/3, resolution);
+  checkCUDAError("Back face cull failed!");
+
+  cudaFree (primCount);
+  primCount = NULL;
+  cudaDeviceSynchronize();
   //-----------------------------------------
   // Rasterization - rasterize each primitive
   //-----------------------------------------
+  time_t current = time (NULL);
   for (int i = 0; i<(ibosize / 3);  i++)
-	  rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y*sizeof(fragment)>>>(primitives, i, depthbuffer, resolution);
+	rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y*sizeof(fragment)>>>(primitives, i, depthbuffer, resolution);
   checkCUDAError("Rasterization failed!");
   cudaDeviceSynchronize();
+  if (isFirstTime)
+  {
+//	  thrust
+	  std::cout << "\nRasterized in " << difftime (time (NULL), current) << " seconds. No. of tris: " << ibosize/3 << "\n";
+	  isFirstTime = false;
+  }
   //------------------------------
   //fragment shader
   //------------------------------

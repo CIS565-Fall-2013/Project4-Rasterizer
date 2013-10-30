@@ -3,6 +3,8 @@
 
 #include "main.h"
 
+bool first = true;
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -83,7 +85,7 @@ int main(int argc, char** argv){
 //---------RUNTIME STUFF---------
 //-------------------------------
 
-void runCuda(){
+void runCuda(bool &isFirstTime){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
   dptr=NULL;
@@ -101,7 +103,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, isFirstTime);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -149,7 +151,7 @@ void runCuda(){
 #else
 
   void display(){
-    runCuda();
+    runCuda(first);
 	time_t seconds2 = time (NULL);
 
     if(seconds2-seconds >= 1){
@@ -257,7 +259,7 @@ void initCuda(){
   // Clean up on program exit
   atexit(cleanupCuda);
 
-  runCuda();
+  runCuda(first);
 }
 
 void initTextures(){
