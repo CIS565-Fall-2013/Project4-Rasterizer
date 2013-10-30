@@ -192,9 +192,21 @@ void runCuda(){
   {
     switch (key) 
     {
-       case(27):
+       case(27)://ESC
          shut_down(1);    
          break;
+	   case '1':
+		   u_pipelineOpts.fShaderProgram = AMBIENT_LIGHTING;
+		   break;
+	   case '2':
+		   u_pipelineOpts.fShaderProgram = DEPTH_SHADING;
+		   break;
+	   case '3':
+		   u_pipelineOpts.fShaderProgram = NORMAL_SHADING;
+		   break;
+	   case '4':
+		   u_pipelineOpts.fShaderProgram = PHONG_SHADING;
+		   break;
     }
   }
 
