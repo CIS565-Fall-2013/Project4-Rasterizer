@@ -267,33 +267,19 @@ void initCamera()
 	float fovy = 60.0f;
 	float zNear = 0.10f;
 	float zFar = 5.0f;
-	vec3 cameraPosition = vec3(0, 0, 1);
-	vec3 viewDir = vec3(0,0,-1);
-	mat4 projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);
-    mat4 view = glm::lookAt(cameraPosition, glm::vec3(0), glm::vec3(0,1,0));
-
+	vec3 up = vec3(0,1,0);
+	vec3 cameraPosition = vec3(0, 0, 2);
+	vec3 center = vec3(0);
+	mat4 projection = glm::perspective(-fovy, float(width)/float(height), zNear, zFar);
+    mat4 view = glm::lookAt(cameraPosition, center, up);
+	cam->zFar = zFar;
+	cam->zNear = zNear;
 	cam->fovy = fovy;
 	cam->position = cameraPosition;
-	cam->viewDir = viewDir;
 	cam->projection = projection;
 	cam->view = view;
 	cam->resolution = vec2(width, height);
-	cam->up = vec3(0,1,0);
-
-	mat4 viewport(1);
-
-	float left = 0.0f;
-	float bot = 0.0f;
-	float right = width;
-	float top = height;
-
-	viewport[0] = vec4((right - left) / 2.f, 0, 0, 0);
-	viewport[1] = vec4(0, (top - bot) / 2.f, 0, 0);
-	viewport[2] = vec4(0, 0, 0.5f, 0);
-	viewport[3] = vec4((right + left) / 2.f, (top + bot) / 2.f, 0.5f, 1);
-	//viewport[3] = vec4(0.5f, 0.5f, 0.5f, 1);
-
-	cam->viewport = viewport;
+	cam->up = up;
 }
 
 void initTextures(){

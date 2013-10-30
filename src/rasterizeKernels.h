@@ -10,6 +10,7 @@
 #include <cmath>
 #include "rasterizeStructs.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>

@@ -20,13 +20,13 @@ struct fragment{
 
 struct camera {
 	float fovy;
+	float zNear;
+	float zFar;
 	glm::vec2 resolution;
 	glm::vec3 position;
-	glm::vec3 viewDir;
 	glm::vec3 up;
 	glm::mat4 view;
 	glm::mat4 projection;
-	glm::mat4 viewport;
 };
 
 #endif

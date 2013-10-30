@@ -144,7 +144,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 //Transform incoming vertex position from model to clip coordinates.
 //Use model matrix to transform into model space. Use view matrix to transform into camera space. Then,
 //use projection matrix to transform into clip space. Next, convert to NDC. Lastly, convert to window coordinates
-__global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 mvp, vec2 reso, mat4 viewport)
+__global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 mvp, vec2 reso)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -164,15 +164,10 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 mvp, vec2 reso, 
 	  vec4 ndcPoint(hPoint.x / wClip, hPoint.y / wClip, hPoint.z / wClip, hPoint.w / wClip);
 	  
 	  // to window
-	  //vec4 windowPoint = viewport * ndcPoint;
-	 
-	  //vec3 windowPoint = vec3(reso.x / 2.0f * ndcPoint.x + (hPoint.x + reso.x / 2.f), 
-	//						  reso.y / 2.0f * ndcPoint.y + (hPoint.y + reso.y / 2.f),
-	//						  4.9f / 2.0f * ndcPoint.z + (hPoint.z + 5.1f / 2.f));
-
 	  vec3 windowPoint;
 
-	  windowPoint.x = reso.x * (ndcPoint.x + 1.f) * 0.5f;
+	  // add 1 to get NDC to range [0, 2]. Then multiply by reso.x or y * 0.5 so that window coordinates go from [0, reso.x or y]
+	  windowPoint.x = reso.x * (ndcPoint.x + 1.f) * 0.5f; 
 	  windowPoint.y = reso.y * (ndcPoint.y + 1.f) * 0.5f;
 	  windowPoint.z = ndcPoint.z;
 
@@ -362,16 +357,21 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   //------------------------------
   //vertex shader
   //------------------------------
-  // copy over camera information
+
+  // turn table
   mat4 modelMatrix(1);
+  float d = (int)frame % 361;
+  modelMatrix = glm::rotate(modelMatrix, -d, vec3(0,1,0));
+
+  // retrieve camera information
   mat4 viewMatrix = cam->view;
   mat4 projectionMatrix = cam->projection;
   mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
   vec2 reso = cam->resolution;
-  mat4 viewport = cam->viewport;
+  
   
   // launch vertex shader kernel
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, mvp, reso, viewport);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, mvp, reso);
   cudaDeviceSynchronize();
   //checkCUDAErrorWithLine("vertex shader kernel failed");
   //------------------------------
