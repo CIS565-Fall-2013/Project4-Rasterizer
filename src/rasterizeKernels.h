@@ -20,7 +20,10 @@
 
 #define MININFINITE -1000000000000000
 #define MAXINFINITE 10000000000000000
-
+#define PHONE 1
+#define DEPTH 0
+#define BACKFACECULL 1 // 18FPS WITHOUT //24 WITH
+#define ANTIA 1
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize,
 	float* nbo, int nbosize

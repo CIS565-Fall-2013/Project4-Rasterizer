@@ -36,11 +36,14 @@ struct fragment{
   glm::vec3 normal;
   glm::vec3 position;
   int isLock; // atomics
+  int hasMatColor; // for antialising, if it is 1 means it has valid color
+  //0 means it is the background color
 };
 struct light{	
 	glm::vec3 ambientLColor;
 	glm::vec3 pos;
 	glm::vec3 color;
+	glm::vec3 bgColor;
 	float emitPower;
 };
 
@@ -52,6 +55,7 @@ struct material{
 	float kd;
 	float ks;
 };
+
 
 //Multiplies a cudaMat4 matrix and a vec4
 __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
