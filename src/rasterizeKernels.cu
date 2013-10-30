@@ -88,7 +88,7 @@ __global__ void clearImage(glm::vec2 resolution, glm::vec3* image, glm::vec3 col
 }
 
 //Kernel that clears a given fragment buffer with a given fragment
-__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag){
+__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag, int* lock){
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
     int index = x + (y * resolution.x);
@@ -97,6 +97,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       f.position.x = x;
       f.position.y = y;
       buffer[index] = f;
+	  lock[index] = 0;
     }
 }
 
@@ -145,9 +146,9 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize,glm::mat4 mvpp, glm::v
 	   //To convert to screen co-ordinates
 	  //webglfactory.blogspot.com/2011/05/how-to-convert-world-to-screen.html
 
-	  vbo[3*index]   =(int)floor((v.x/v.w + 1)*resolution.x/2);
-	  vbo[3*index+1] =(int)floor((-v.y/v.w + 1)*resolution.y/2); 
-	  vbo[3*index+2] = v.z/v.w;
+	  vbo[3*index]   = (int)floor((v.x/v.w + 1)*resolution.x/2); // v.x/v.w ;//
+	  vbo[3*index+1] =  (int)floor((-v.y/v.w + 1)*resolution.y/2); //v.y/v.w ;//
+	  vbo[3*index+2] = v.z/v.w ;
   }
 }
 
@@ -167,14 +168,18 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution,int* lock){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 
 	  glm::vec3 minpoint,maxpoint,bCoord;
 	  getAABBForTriangle(primitives[index], minpoint,maxpoint);
 	  int p = 0 ;
-
+	  bool done = false ; 
+	   /*   minpoint.x=(int)floor((minpoint.x+ 1)*resolution.x/2);
+		  maxpoint.x=(int)floor((maxpoint.x+ 1)*resolution.x/2);
+		  maxpoint.y=(int)floor((-minpoint.y + 1)*resolution.y/2);
+		  minpoint.y=(int)floor((-maxpoint.y + 1)*resolution.y/2);*/
 	     // Implement culling
 	 	 if (minpoint.x  >= resolution.x) return;
 		 if (minpoint.y >= resolution.y) return;
@@ -184,22 +189,49 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		 //Implement clipping 
 		 if(minpoint.x < 0)  
 			 minpoint.x = 0;
-		 if(maxpoint.x > resolution.x)
-			 maxpoint.x = resolution.x;
+		 
+		 if(maxpoint.x > resolution.x-1)
+			 maxpoint.x = resolution.x-1;
+
 		 if(minpoint.y < 0)
 			 minpoint.y = 0 ;
-		 if(maxpoint.y > resolution.y)
-			 maxpoint.y = resolution.y;
+
+		 if(maxpoint.y > resolution.y-1)
+			 maxpoint.y = resolution.y-1;
+
+		 //minpoint.x = max(minpoint.x, 0);
+   //      maxpoint.x = min(maxpoint.x, (int)resolution.x - 1);
+   //      minpoint.y = max(minpoint.y, 0);
+   //      maxpoint.y = min( maxpoint.y , (int)resolution.y - 1);
 
 	  for(int i = (int)minpoint.x ; i < (int)maxpoint.x ; i++)
 	  {
 		  for(int j = (int)minpoint.y ; j < (int)maxpoint.y ; j++)
 		  {
+			//float a = ((i * 2 + 1 - resolution.x)/(resolution.x)) ;
+			//float b = ((j * 2 + 1 - resolution.y )/(resolution.y)) ;
 			bCoord = calculateBarycentricCoordinate(primitives[index], glm::vec2(i,j));
+			
 			if(isBarycentricCoordInBounds(bCoord))
 			{
 				p = (i + j*resolution.x);
-				depthbuffer[p].color = primitives[index].c0 * bCoord.x + primitives[index].c1 * bCoord.y + primitives[index].c2 * bCoord.z;
+				done = false ;
+				while(!done)
+				{
+					//supercomputingblog.com/cuda/cuda-tutorial-4-atomic-operations/
+					int l= atomicExch(&lock[p], 1 );
+					if(l == 0)
+					{
+						float currentZ = getZAtCoordinate(bCoord, primitives[index]);
+						if(currentZ > depthbuffer[p].position.z)
+						{
+						depthbuffer[p].color = primitives[index].c0 * bCoord.x + primitives[index].c1 * bCoord.y + primitives[index].c2 * bCoord.z;
+						depthbuffer[p].position.z = currentZ ;
+						}
+						done = true;
+						atomicExch(&lock[p], 0);
+					}
+				}
 			}
 		  }
 	  }
@@ -245,6 +277,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
 
+  
+  int* lock = NULL;
+  cudaMalloc((void**)&lock, (resolution.x * resolution.y) * sizeof(int));
+
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
@@ -252,7 +288,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
-  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
+  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag,lock);
 
   //------------------------------
   //memory stuff
@@ -268,6 +304,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);  
   
+
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
@@ -293,7 +330,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution,lock);
 
   cudaDeviceSynchronize();
   //------------------------------
