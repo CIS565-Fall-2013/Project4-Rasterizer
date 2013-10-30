@@ -39,7 +39,7 @@ __host__ __device__ glm::vec4 multiplyMV_4(cudaMat4 m, glm::vec4 v){
 	r.x = (m.x.x*v.x)+(m.x.y*v.y)+(m.x.z*v.z)+(m.x.w*v.w);
 	r.y = (m.y.x*v.x)+(m.y.y*v.y)+(m.y.z*v.z)+(m.y.w*v.w);
 	r.z = (m.z.x*v.x)+(m.z.y*v.y)+(m.z.z*v.z)+(m.z.w*v.w);
-	r.x = (m.w.x*v.x)+(m.w.y*v.y)+(m.w.z*v.z)+(m.w.w*v.w);
+	r.w = (m.w.x*v.x)+(m.w.y*v.y)+(m.w.z*v.z)+(m.w.w*v.w);
 
 	return r;
 }
@@ -72,6 +72,7 @@ __host__ __device__ glm::vec3 calculateBarycentricCoordinate(triangle tri, glm::
   float gamma = calculateBarycentricCoordinateValue(glm::vec2(tri.p0.x,tri.p0.y), glm::vec2(tri.p1.x,tri.p1.y), point, tri);
   float alpha = 1.0-beta-gamma;
   return glm::vec3(alpha,beta,gamma);
+	//return glm::vec3(0,0,0);
 }
 
 //LOOK: checks if a barycentric coordinate is within the boundaries of a triangle

@@ -145,6 +145,8 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP, glm::ve
 	  //apply mvp transform to go to clip space and write back to VBO
 	  glm::vec4 point(vbo[vInd],vbo[vInd+1], vbo[vInd+2], 1.0f);
 	  
+	  point;
+
 	  point=multiplyMV_4(MVP, point);
 	  
 	  //perspective division to NDC and write to memory
@@ -152,9 +154,11 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP, glm::ve
 	  point.y /= point.w;
 	  point.z /= point.w;
 
+	  point;
+
 	  //transfrom to screen coord
-	  point.x = (point.x-1)*(resolution.x/2.0f);
-	  point.y = (point.y-1)*(resolution.y/2.0f);
+	  point.x = (point.x+1)*(resolution.x/2.0f);
+	  point.y = (point.y+1)*(resolution.y/2.0f);
 	  point.z = (zFar - zNear)/2.0f*point.z + (zFar + zNear)/2.0f;
 
 	  //write to memory
@@ -197,40 +201,75 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 
 //TODO: Implement a rasterization method, such as scanline.
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
-  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<primitivesCount){
-	  
-	  //rasterize with barycentric method
-	  triangle tri = primitives[index];
+  //need atomics to work....
+	
+	//int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  //if(index<primitivesCount){
+	 // 
+	 // //rasterize with barycentric method
+	 // triangle tri = primitives[index];
 
-	  //find bounding box around triangle
-	  glm::vec3 low, high;
-	  getAABBForTriangle(tri, low, high);
+	 // //find bounding box around triangle
+	 // glm::vec3 low, high;
+	 // getAABBForTriangle(tri, low, high);
 
-	  //for each pixel in BB range, test if pixel is inside triangle
+	 // //for each pixel in BB range, test if pixel is inside triangle
 
-	  for (int i = clamp(low.x, 0.0f, resolution.x-1); i<=ceil(high.x) && i<resolution.x; ++i){
-		  for(int j = clamp(low.y, 0.0f, resolution.y-1); j<=ceil(high.y) && j<resolution.y; ++j){
-			//  
-			  int fragIndex = i*resolution.x + j;
-			  fragment frag = depthbuffer[fragIndex];
-			  frag.color = tri.p2;
+	 // for (int i = clamp(low.x, 0.0f, resolution.x-1); i<=ceil(high.x) && i<resolution.x; ++i){
+		//  for(int j = clamp(low.y, 0.0f, resolution.y-1); j<=ceil(high.y) && j<resolution.y; ++j){
+		//	  int fragIndex = i*resolution.x + j;
+		//	  fragment frag = depthbuffer[fragIndex];
 
-			  //convert pixel to barycentric coord
-			  //glm::vec3 baryCoord = calculateBarycentricCoordinate(tri, glm::vec2(i, j));
+		//	  //convert pixel to barycentric coord
+		//	  glm::vec3 baryCoord = calculateBarycentricCoordinate(tri, glm::vec2(i, j));
 
-			//  //check if within the triangle
-			//  if(isBarycentricCoordInBounds(baryCoord)){
-			//	  frag.position = glm::vec3(0,0,0);
-			//	  frag.color = glm::vec3(1,0,0);
-			//	  frag.normal = glm::vec3(0,0,1);
-			//	  depthbuffer[fragIndex] = frag;
-			//  }
-			  depthbuffer[fragIndex] = frag;
-		  }
-	  }
+		//	//  //check if within the triangle
+		//	  if(isBarycentricCoordInBounds(baryCoord)){
+		//		  frag.position = glm::vec3(i,j,0);
+		//		  frag.color = glm::vec3(1,0,0);
+		//		  frag.normal = glm::vec3(0,0,1);
+		//	  }
+		//	  depthbuffer[fragIndex] = frag;
+		//  }
+	 // }
+  //}
+}
 
-  }
+//per fragment rasterization
+__global__ void rasterizationKernelFrag(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	int index = x + (y*resolution.x);
+
+	if(x <= resolution.x && y<=resolution.y){
+		
+		for(int i = 0; i < primitivesCount; ++i){
+			
+			triangle tri = primitives[i];
+			fragment frag = depthbuffer[index];
+
+			//find bounding box around triangle
+			glm::vec3 low, high;
+			getAABBForTriangle(tri, low, high);
+			
+			//throw out this fragment if ouside bounding box
+			if(x<low.x || x>high.x || y<low.y || y>high.y)
+				continue;
+
+			//convert pixel to barycentric coord
+			glm::vec3 baryCoord = calculateBarycentricCoordinate(tri, glm::vec2(x, y));
+
+			//check if within the triangle
+			if(isBarycentricCoordInBounds(baryCoord)){
+				frag.position = glm::vec3(x,y,0);
+				frag.color = glm::vec3(1,0,0);
+				frag.normal = glm::vec3(0,0,1);
+			}
+			depthbuffer[index] = frag;
+		}
+	
+	}
 }
 
 //TODO: Implement a fragment shader
@@ -318,7 +357,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::mat4 mvp = projection*view*model;
   //std::cout<<"mvp"<<std::endl;
   //utilityCore::printMat4(mvp);
-
+  mvp = glm::mat4(1.0f);
   //glm::mat4 mvp = glm::mat4 (1.0f);
 
   //------------------------------
@@ -337,7 +376,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  //rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernelFrag<<<fullBlocksPerGrid, threadsPerBlock>>>(primitives, ibosize/3, depthbuffer, resolution);
 
   cudaDeviceSynchronize();
   //------------------------------

@@ -36,7 +36,8 @@ obj::~obj(){
 }
 
 void obj::buildVBOs(){
-	recenter();
+	//recenter(); ??? why?
+	
 	vector<float> VBOvec;
 	vector<float> NBOvec;
 	vector<int> IBOvec;
@@ -101,6 +102,7 @@ void obj::buildVBOs(){
 }
 
 void obj::compareMaxMin(float x, float y, float z){
+
 	if(maxminSet==true){
 		if(x>xmax){ xmax = x; }
 		if(x<xmin){ xmin = x; }
