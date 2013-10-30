@@ -61,4 +61,15 @@ __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle 
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
 }
 
+// Transform the screen integer pixel position to the scale image.
+__host__ __device__ glm::vec2 screen2scale(float x, float y, glm::vec2 resolution) {
+  return glm::vec2((x - (resolution.x - 1) / 2) / (resolution.x / 2), -(y - (resolution.y - 1) / 2) / (resolution.y / 2));
+}
+
+// Transform the scale image position to the integer pixel one in the image.
+__host__ __device__ void scale2screen(glm::vec3 point, int & xs, int & ys, glm::vec2 resolution) {
+  xs = (int)floor((point.x + 1) * resolution.x / 2);
+  ys = (int)floor((- point.y + 1) * resolution.y / 2);
+}
+
 #endif

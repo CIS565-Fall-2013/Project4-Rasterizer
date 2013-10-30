@@ -31,4 +31,9 @@ struct camera {
   float fovy;
 };
 
+struct light {
+  glm::vec3 position;
+  glm::vec3 color;
+};
+
 #endif // end of CUDASTRUCTS_H

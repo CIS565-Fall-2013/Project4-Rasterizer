@@ -74,6 +74,7 @@ float zFar = 100.0f;
 glm::mat4* model;
 glm::mat4* view;
 glm::mat4* projection;
+glm::mat4* screen;
 cudaMat4* transformModel2Projection;
 
 // Mouse Interaction
@@ -101,9 +102,11 @@ void runCuda();
 #ifdef __APPLE__
 	void display();
 #else
-	void display();
-	void keyboard(unsigned char key, int x, int y);
-	void special_function(int key, int x, int y);
+    void display();
+    void keyboard(unsigned char key, int x, int y);
+    void specialFunction(int key, int x, int y);
+    void mouseClick(int button, int state, int x, int y);
+    void mouseMotion(int x, int y);
 #endif
 
 //-------------------------------

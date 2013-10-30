@@ -255,6 +255,26 @@ C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/co
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\host_defines.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/debug.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/compiler_fence.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\intrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\setjmp.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\immintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\nmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\smmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\tmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\pmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\emmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\malloc.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ammintrin.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mm3dnow.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/forceinline.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/config/hd_warning_disable.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/detail/cstdint.h
@@ -275,8 +295,6 @@ c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\exception
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstddef
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\cstddef
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\eh.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\malloc.h
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xstring
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmemory
@@ -488,24 +506,6 @@ s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
 s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\algorithm
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\memory
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\intrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\setjmp.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\immintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\wmmintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\nmmintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\smmintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\tmmintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\pmmintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\emmintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xmmintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\ammintrin.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mm3dnow.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\crtdefs.h
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\mmintrin.h
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared

@@ -135,73 +135,80 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, const cudaMat4* transform){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, const cudaMat4 transform){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index < vbosize/3){
-    glm::vec3 newVertex = multiplyMV(*transform, glm::vec4(vbo[3 * index], vbo[3 * index + 1], vbo[3 * index + 2], 1.0f));
-
+    glm::vec3 newVertex = multiplyMV(transform, glm::vec4(vbo[3 * index], vbo[3 * index + 1], vbo[3 * index + 2], 1.0f));
     vbo[3 * index]     = newVertex.x;
-	vbo[3 * index + 1] = newVertex.y;
-	vbo[3 * index + 2] = newVertex.z;
+    vbo[3 * index + 1] = newVertex.y;
+    vbo[3 * index + 2] = newVertex.z;
   }
 }
 
-//TODO: Implement primative assembly
+//TODO: Implement primitive assembly
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
-  if(index<primitivesCount){
+  if(index < primitivesCount){
     // The actual indices of vertices are stored in the index buffer object.
     const int* vertexIndex = &ibo[3 * index];
     primitives[index].p0 = glm::vec3(vbo[3 * vertexIndex[0]], vbo[3 * vertexIndex[0] +1], vbo[3 * vertexIndex[0] + 2]);
-	primitives[index].p1 = glm::vec3(vbo[3 * vertexIndex[1]], vbo[3 * vertexIndex[1] +1], vbo[3 * vertexIndex[1] + 2]);
-	primitives[index].p2 = glm::vec3(vbo[3 * vertexIndex[2]], vbo[3 * vertexIndex[2] +1], vbo[3 * vertexIndex[2] + 2]);
+    primitives[index].p1 = glm::vec3(vbo[3 * vertexIndex[1]], vbo[3 * vertexIndex[1] +1], vbo[3 * vertexIndex[1] + 2]);
+    primitives[index].p2 = glm::vec3(vbo[3 * vertexIndex[2]], vbo[3 * vertexIndex[2] +1], vbo[3 * vertexIndex[2] + 2]);
 
     // The size of cbo is nine, only needs to give the nine RGB values to the color in the triangle variable's color vector.
     primitives[index].c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
-	primitives[index].c1 = glm::vec3(cbo[3], cbo[4], cbo[5]);
-	primitives[index].c2 = glm::vec3(cbo[6], cbo[7], cbo[8]);
+    primitives[index].c1 = glm::vec3(cbo[3], cbo[4], cbo[5]);
+    primitives[index].c2 = glm::vec3(cbo[6], cbo[7], cbo[8]);
   }
 }
 
 //TODO: Implement a rasterization method, such as scanline.
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<primitivesCount){
+  if(index < primitivesCount){
     // Initialize triangle and back face culling if the normal of z is point to the back
     triangle currentTriangle = primitives[index];
-	glm::vec3 normal = glm::normalize(glm::cross(currentTriangle.p1 - currentTriangle.p0, currentTriangle.p2 - currentTriangle.p0));
-	if (normal.z < 0)
-		return;
+    glm::vec3 normal = glm::normalize(glm::cross(currentTriangle.p1 - currentTriangle.p0, currentTriangle.p2 - currentTriangle.p0));
+    //if (normal.z < 0.0f || z > )
+    //  return;
 	
-	// Add min max vectors so as to obtain the bounds.
-	glm::vec3 minPoint, maxPoint;
-	getAABBForTriangle(currentTriangle, minPoint, maxPoint);
-    
-	// Clipping the points outside the  image inside.
-    minPoint.x = minPoint.x < 0 ? 0 : minPoint.x;
-    minPoint.y = minPoint.y < 0 ? 0 : minPoint.y;
-	maxPoint.x = maxPoint.x > resolution.x ? 0 : maxPoint.x;
-	maxPoint.y = maxPoint.y > resolution.y ? 0 : maxPoint.y;
+    // Add min max vectors and integers for the bounds and project the min back to the screen coordinate
+    glm::vec3 minPoint, maxPoint;
+	int minX, minY, maxX, maxY;
+    getAABBForTriangle(currentTriangle, minPoint, maxPoint);
+	scale2screen(minPoint, minX, maxY, resolution);
+    scale2screen(maxPoint, maxX, minY, resolution);
+
+    if (minX >= resolution.x || minY >= resolution.y || minX < 0 || minY < 0 ) 
+      return;
+
+    // Clipping the points outside the  image inside.
+    minX = minX < 0 ? 0 : minX;
+    minY = minY < 0 ? 0 : minY;
+    maxX = (maxX > resolution.x - 1) ? resolution.x - 1 : maxX;
+    maxY = (maxY > resolution.y - 1) ? resolution.y - 1 : maxY;
 
     // Loop and rasterize the interpolated area across the current primitive.
     int idx;
 	float depth = 0;
-    for (int y = minPoint.y; y < maxPoint.y; ++ y) {
-      for (int x = minPoint.x; x < minPoint.x; ++ x) {
+    for (int y = minY; y < maxY; ++ y) {
+      for (int x = minX; x < maxX; ++ x) {
         idx = y * resolution.x + x; 
-        glm::vec3 barycentricCoordinates = calculateBarycentricCoordinate(currentTriangle, glm::vec2(x, y));
-        
+        glm::vec3 barycentricCoordinates = calculateBarycentricCoordinate(currentTriangle, screen2scale(x, y, resolution));
+
         // Determine whether the current pixel is within the bounds of the current primitive
         if (isBarycentricCoordInBounds(barycentricCoordinates)) {
           depth = getZAtCoordinate(barycentricCoordinates, currentTriangle);
+          if (depth < 0.0f || depth > 1.0f)
+            return;
           // Depth Test
-		  if(depth < depthbuffer[index].position.z) {
-              depthbuffer[index].position.x = x;
-              depthbuffer[index].position.y = y;
-              depthbuffer[index].position.z = depth;
-			  depthbuffer[index].normal = normal;
-			  depthbuffer[index].color = barycentricCoordinates.x * currentTriangle.c0 + barycentricCoordinates.y * currentTriangle.c1 + barycentricCoordinates.z * currentTriangle.c2;
+          if(depth > depthbuffer[idx].position.z) {
+              depthbuffer[idx].position.x = screen2scale(x, y, resolution).x;
+              depthbuffer[idx].position.y = screen2scale(x, y, resolution).y;
+              depthbuffer[idx].position.z = depth;
+              depthbuffer[idx].normal = normal;
+              depthbuffer[idx].color = barycentricCoordinates.x * currentTriangle.c0 + barycentricCoordinates.y * currentTriangle.c1 + barycentricCoordinates.z * currentTriangle.c2;
 		  }
 		}
 	  } // for x
@@ -210,11 +217,24 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, light light){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
+    // Compute the vectors of light, view and H in Blinn-Phong lighting model, referring to http://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_shading_model
+    glm::vec3 position = depthbuffer[index].position;
+    glm::vec3 normal   = depthbuffer[index].normal;
+	glm::vec3 L        = glm::normalize(light.position - position);
+    glm::vec3 V        = glm::normalize(- position);
+    glm::vec3 H        = glm::normalize(L + V);
+
+    // Compute the diffusion and Blinn-Phong lighting
+    float diffuse  = glm::max(glm::dot(normal, L), 0.0f);
+	float specular = glm::max(glm::pow(glm::dot(H, normal), 10.0f), 0.0f);
+
+    // Compute final color
+    depthbuffer[index].color *= (0.5f * diffuse + 0.5f * specular) * light.color;
   }
 }
 
@@ -226,6 +246,54 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
   int index = x + (y * resolution.x);
 
   if(x<=resolution.x && y<=resolution.y){
+    if (ANTIALIASING) {
+      // Using super sampling and initialize with the central pixel, the corner flag indicates which corner the pixel is
+      int sampleNum = 1;
+	  glm::vec3 sampling = depthbuffer[index].color;
+
+	  // Left side
+	  sampleNum += (x > 0) ? 1 : 0;
+      sampling += (x > 0) ? depthbuffer[index - 1].color : glm::vec3(0.0f);
+	  // Upper side
+	  sampleNum += (y > 0) ? 1 : 0;
+	  sampling += (y > 0) ? depthbuffer[index - (int)resolution.x].color : glm::vec3(0.0f);
+	  // Right side
+	  sampleNum += (x < resolution.x - 1) ? 1 : 0;
+	  sampling += (x < resolution.x - 1) ? depthbuffer[index + 1].color : glm::vec3(0.0f);
+	  // Bottom side
+	  sampleNum += (x < resolution.y - 1) ? 1 : 0;
+	  sampling += (x < resolution.y - 1) ? depthbuffer[index + (int)resolution.x].color : glm::vec3(0.0f);
+
+	  // Four corners
+	  sampleNum += (sampleNum == 5) ? 4 : 0;
+      sampling += (sampleNum == 9) ? (depthbuffer[index - (int)resolution.x - 1].color + depthbuffer[index - (int)resolution.x + 1].color + depthbuffer[index + (int)resolution.x - 1].color + depthbuffer[index + (int)resolution.x + 1].color) : glm::vec3(0.0f);
+	  if (sampleNum == 9) {
+        framebuffer[index] =  sampling / 9.0f; 
+        return;
+      }
+
+	  // Two corners
+	  sampleNum += (sampleNum == 4) ? 2 : 0;
+      sampling += (sampleNum == 6) ? depthbuffer[index - (int)resolution.x - 1].color : glm::vec3(0.0f);
+      if (sampleNum == 6) {
+        framebuffer[index] =  sampling / 6.0f;
+        return;
+	  }
+
+	  // One corner
+	  sampleNum += (sampleNum == 3) ? 1 : 0;
+	  if((x == 0) && (y == 0)) {
+        sampling += depthbuffer[index + (int)resolution.x + 1].color;
+	  } else if ((x == resolution.x -1) && (y == 0)) {
+        sampling += depthbuffer[index + (int)resolution.x - 1].color;
+	  } else if ((y == resolution.y -1) && (x == 0)) {
+        sampling += depthbuffer[index - (int)resolution.x + 1].color;
+	  } else {
+        sampling += depthbuffer[index - (int)resolution.x - 1].color;
+	  }
+      framebuffer[index] =  sampling / 4.0f;
+
+	} else
     framebuffer[index] = depthbuffer[index].color;
   }
 }
@@ -282,7 +350,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, transform);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, *transform);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -301,7 +369,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  light light;
+  light.position = glm::vec3(0.0f);
+  light.color = glm::vec3(1.0f);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, light);
 
   cudaDeviceSynchronize();
   //------------------------------

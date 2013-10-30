@@ -31,9 +31,9 @@ int main(int argc, char** argv){
   }
 
   // Initialization of camera parameters
-  cam.position = glm::vec3(1.0f, 1.0f, 1.35f);
+  cam.position = glm::vec3(0.0f, 1.0f, 1.0f);
   cam.up       = glm::vec3(0.0f, -1.0f, 0.0f);
-  cam.fovy     = 60.0f;
+  cam.fovy     = 45.0f;
 
   // Initialize transformation
   model      = new glm::mat4(1.0f);
@@ -83,7 +83,9 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
-    glutSpecialFunc(special_function);
+    glutSpecialFunc(specialFunction);
+    glutMouseFunc(mouseClick);
+    glutMotionFunc(mouseMotion);
 
     glutMainLoop();
   #endif
@@ -166,7 +168,7 @@ void runCuda(){
 #else
 bool pauseFlag = false;
   void display(){
-    //if(!pauseFlag)
+    if(!pauseFlag)
       runCuda();
 
 	time_t seconds2 = time (NULL);
@@ -210,8 +212,8 @@ bool pauseFlag = false;
     }
   }
 
-  void special_function(int key, int x, int y)
-  {// callback function for glutSpecialFunc
+  void specialFunction(int key, int x, int y) {
+    // callback function for glutSpecialFunc
     switch (key)
     {
       case(GLUT_KEY_UP):
@@ -233,6 +235,13 @@ bool pauseFlag = false;
     return;
   }
 
+  void mouseClick(int button, int state, int x, int y) {
+    // NEED ADDED
+  }
+
+  void mouseMotion(int x, int y) {
+    // NEED ADDED
+  }
 #endif
   
 //-------------------------------
