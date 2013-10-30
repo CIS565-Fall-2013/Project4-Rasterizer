@@ -266,8 +266,8 @@ void initCamera()
 
 	float fovy = 60.0f;
 	float zNear = 0.10f;
-	float zFar = 5.0;
-	vec3 cameraPosition = vec3(0, 0, 2);
+	float zFar = 5.0f;
+	vec3 cameraPosition = vec3(0, 0, 1);
 	vec3 viewDir = vec3(0,0,-1);
 	mat4 projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);
     mat4 view = glm::lookAt(cameraPosition, glm::vec3(0), glm::vec3(0,1,0));
@@ -291,6 +291,7 @@ void initCamera()
 	viewport[1] = vec4(0, (top - bot) / 2.f, 0, 0);
 	viewport[2] = vec4(0, 0, 0.5f, 0);
 	viewport[3] = vec4((right + left) / 2.f, (top + bot) / 2.f, 0.5f, 1);
+	//viewport[3] = vec4(0.5f, 0.5f, 0.5f, 1);
 
 	cam->viewport = viewport;
 }

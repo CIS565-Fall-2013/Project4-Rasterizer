@@ -152,20 +152,30 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 mvp, vec2 reso, 
   {
 	  const int vboId1 = index * 3;
 	  const int vboId2 = vboId1 + 1;
-	  const int vboId3 = vboId2 + 2;
+	  const int vboId3 = vboId1 + 2;
 
-	  vec4 hPoint = vec4(vbo[vboId1], vbo[vboId2], vbo[vboId3], 1.0);
+	  vec4 hPoint(vbo[vboId1], vbo[vboId2], vbo[vboId3], 1.0f);
 	  
 	  // to clip
 	  hPoint = mvp * hPoint;
 	  float wClip = hPoint.w;
 
 	  // to ndc
-	  vec4 ndcPoint = vec4(hPoint.x / wClip, hPoint.y / wClip, hPoint.z / wClip, hPoint.w / wClip);
+	  vec4 ndcPoint(hPoint.x / wClip, hPoint.y / wClip, hPoint.z / wClip, hPoint.w / wClip);
 	  
 	  // to window
-	  vec4 windowPoint = viewport * ndcPoint;
+	  //vec4 windowPoint = viewport * ndcPoint;
 	 
+	  //vec3 windowPoint = vec3(reso.x / 2.0f * ndcPoint.x + (hPoint.x + reso.x / 2.f), 
+	//						  reso.y / 2.0f * ndcPoint.y + (hPoint.y + reso.y / 2.f),
+	//						  4.9f / 2.0f * ndcPoint.z + (hPoint.z + 5.1f / 2.f));
+
+	  vec3 windowPoint;
+
+	  windowPoint.x = reso.x * (ndcPoint.x + 1.f) * 0.5f;
+	  windowPoint.y = reso.y * (ndcPoint.y + 1.f) * 0.5f;
+	  windowPoint.z = ndcPoint.z;
+
 	  vbo[vboId1] = windowPoint.x;
 	  vbo[vboId2] = windowPoint.y;
 	  vbo[vboId3] = windowPoint.z;
@@ -187,17 +197,17 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  const int iboId3 = iboId1 + 2;
 
 	  // vbo indices for each ibo index
-	  const int vboId11 = iboId1;
-	  const int vboId12 = iboId1 + 1;
-	  const int vboId13 = iboId1 + 2;
+	  const int vboId11 = ibo[iboId1] * 3;
+	  const int vboId12 = vboId11 + 1;
+	  const int vboId13 = vboId11 + 2;
 
-	  const int vboId21 = iboId2;
-	  const int vboId22 = iboId2 + 1;
-	  const int vboId23 = iboId2 + 2;
+	  const int vboId21 = ibo[iboId2] * 3;
+	  const int vboId22 = vboId21 + 1;
+	  const int vboId23 = vboId21 + 2;
 
-	  const int vboId31 = iboId3;
-	  const int vboId32 = iboId3 + 1;
-	  const int vboId33 = iboId3 + 2;
+	  const int vboId31 = ibo[iboId3] * 3;
+	  const int vboId32 = vboId31 + 1;
+	  const int vboId33 = vboId31 + 2;
 	  
 	  // cbo indices
 	  const int cboId1 = index % 3;
@@ -235,9 +245,15 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	if(index<primitivesCount)
 	{
 		triangle tri = primitives[index];
+
+		//float signedArea = calculateSignedArea(tri);
+
+		//if (signedArea < 1e-10)
+		//	return;
+
 		vec3 triMinPoint;
 		vec3 triMaxPoint;
-
+		
 		getAABBForTriangle(tri, triMinPoint, triMaxPoint);
 	  
 		triMinPoint.x = triMinPoint.x > 0 ? triMinPoint.x : 0;
@@ -246,19 +262,25 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		triMaxPoint.y = triMaxPoint.y < resolution.y ? triMaxPoint.y : resolution.y;
 
 		// go through each pixel within the AABB for the triangle and fill the depthbuffer (fragments) appropriately
+		
 		for (int x = triMinPoint.x ; x < triMaxPoint.x ; ++x)
 		{
 			for (int y = triMinPoint.y ; y < triMaxPoint.y ; ++y)
 			{
-				vec2 pointInTri(x,y);
-				vec3 bc = calculateBarycentricCoordinate(tri, pointInTri);
+				vec2 pointInTri((float)x,(float)y);
+				vec3 bc = calculateBarycentricCoordinate(tri, pointInTri); // call is causing crash.
 				if (isBarycentricCoordInBounds(bc))
 				{
 					// TODO: Compute normal & depth check
-					int depthBufferId = x * resolution.x + y;
+					int depthBufferId = y * resolution.x + x;
 					float z = getZAtCoordinate(bc, tri);
-					depthbuffer[depthBufferId].position = vec3(x, y, z);
+					depthbuffer[depthBufferId].position = vec3(x, y, z); // interpolate tri positions too?
 					depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
+
+					// test
+					//fragment frag;
+					//frag.color = vec3(1,1,1);
+					//depthbuffer[depthBufferId] = frag;
 				}
 			}
 		}
@@ -347,37 +369,37 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
   vec2 reso = cam->resolution;
   mat4 viewport = cam->viewport;
-
+  
   // launch vertex shader kernel
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, mvp, reso, viewport);
-  checkCUDAErrorWithLine("vertex shader kernel failed");
   cudaDeviceSynchronize();
+  //checkCUDAErrorWithLine("vertex shader kernel failed");
   //------------------------------
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
-  checkCUDAErrorWithLine("primitive assembly kernel failed");
   cudaDeviceSynchronize();
+  //checkCUDAErrorWithLine("primitive assembly kernel failed");
   //------------------------------
   //rasterization
   //------------------------------
   rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
-  checkCUDAErrorWithLine("rasterization kernel failed");
   cudaDeviceSynchronize();
+  //checkCUDAErrorWithLine("rasterization kernel failed");
   //------------------------------
   //fragment shader
   //------------------------------
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
-  checkCUDAErrorWithLine("fragment shader kernel failed");
   cudaDeviceSynchronize();
+  //checkCUDAErrorWithLine("fragment shader kernel failed");
   //------------------------------
   //write fragments to framebuffer
   //------------------------------
   render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer);
-  checkCUDAErrorWithLine("render kernel failed");
+  //checkCUDAErrorWithLine("render kernel failed");
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
-  checkCUDAErrorWithLine("send image to pbo kernel failed");
+  //checkCUDAErrorWithLine("send image to pbo kernel failed");
   cudaDeviceSynchronize();
 
   kernelCleanup();
