@@ -71,6 +71,12 @@ __host__ __device__ void printVec3(glm::vec3 m){
 	printf("%f, %f, %f;\n", m[0], m[1], m[2]);
 }
 
+__host__ __device__ glm::vec3 reflect(glm::vec3 I, glm::vec3 N)
+{
+	glm::vec3 R = I - 2.0f * N * glm::dot(I, N);
+	return R;
+}
+
 __host__ __device__ unsigned int FloatFlip(unsigned int f)
 {
 	unsigned int mask = -int(f >> 31) | 0x80000000;
@@ -196,11 +202,13 @@ __global__ void vertexShadeKernel(glm::vec2 resolution, glm::mat4 projection, gl
 	  vbo_eye[3*index]   = vertex.x;
 	  vbo_eye[3*index+1] = vertex.y;
 	  vbo_eye[3*index+2] = vertex.z;
+	  	 
 	  // transform normal to eye space
-	  normal = view*normal;
+	  normal = glm::transpose(glm::inverse(view))*normal;
 	  nbo[3*index]   = normal.x;
 	  nbo[3*index+1] = normal.y;
-	  nbo[3*index+2] = normal.z;
+	  nbo[3*index+2] = normal.z;	 
+	  
 	  // project to clip space
 	  vertex = projection* vertex;
 	  // transform to NDC
@@ -251,8 +259,11 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 		  getAABBForTriangle(thisTriangle, triMin, triMax);  
 		  // if wholly outside of rendering area, discard
 		  if(triMin.x > resolution.x || triMin.y > resolution.y || triMin.z > zFar || 
-			 triMax.x < 0            || triMax.y < 0            || triMax.z < zNear) return; // all out-of-screen tris not culled 
-		  
+			 triMax.x < 0            || triMax.y < 0            || triMax.z < zNear) 
+			 {
+				 printf("triangle %d is outside!\n", index);
+				 return; // all out-of-screen tris not culled 
+		     }
 		  else {
 			  glm::vec2 pixelCoords;
 			  float depth;
@@ -316,6 +327,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 //					  float oldDepth = atomicMin(depthBuffer[pixelIndex], depth);
 					  if(isBarycentricCoordInBounds(barycentricCoords) /*&& 0 == atomicExch(&dBufferLocked[pixelIndex], 1)*//*atomicMin(&depthBuffer[pixelIndex], intDepth)*/)
 					  {
+
 //						  do{} while(0 != atomicExch(&dBufferLocked[pixelIndex], 1));
 						  /*if(0 == dBufferLocked[pixelIndex])
 							  atomicExch(&dBufferLocked[pixelIndex], 1);
@@ -324,21 +336,36 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 							  do{} while(0 != dBufferLocked[pixelIndex]);
 							  atomicExch(&dBufferLocked[pixelIndex], 1);
 						  }*/
-						  int old;
+						  /*int old;
 						  
 						  do{
 							//  old = atomicCAS(&dBufferLocked[pixelIndex], 0, 1);
 							  old = atomicExch(&dBufferLocked[pixelIndex], 1);
 						  } while(0 != old);
-
-						  if(depth < depthBuffer[pixelIndex]) 
+*/
+						  bool wait = true;
+//						  if(depth < depthBuffer[pixelIndex]) 
+//						  interpVariables[pixelIndex].color = glm::vec3(1.0f);
+						  while(wait)
 						  {
-							  depthBuffer[pixelIndex] = depth;
-					  		  interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;						  
-					  		  interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
-							  interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
+
+							  if(0 == atomicExch(&dBufferLocked[pixelIndex], 1))
+							  {
+								//do{} while(atomicCAS(&dBufferLocked[pixelIndex], 0, 1));  
+								  if(depth < depthBuffer[pixelIndex]) 
+								  {
+									  depthBuffer[pixelIndex] = depth;
+					  				  interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;						  
+					  				  interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
+									  interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
+								  }
+								  dBufferLocked[pixelIndex] = 0;
+								  wait = false;
+								  //atomicExch(&dBufferLocked[pixelIndex], 0);
+
+							  }
+	//						  wait = false;
 						  }
-						  atomicExch(&dBufferLocked[pixelIndex], 0);
 					  }	
 				  }
 			  }
@@ -354,11 +381,21 @@ __global__ void fragmentShadeKernel(varying* interpVariables, glm::vec2 resoluti
   int index = x + (y * resolution.x);
   
   if(x<=resolution.x && y<=resolution.y){
+	  float specular = 400.0;
+	  float ka = 0.1;
+	  float kd = 0.7;
+	  float ks = 0.2;
 	  varying inVariables = interpVariables[index];
+
 	  glm::vec3 lightVector = glm::normalize(lightPosition - inVariables.position);
 	  glm::vec3 normal = glm::normalize(inVariables.normal);
-	  framebuffer[index] = glm::vec3(1.0f) * inVariables.color * glm::clamp(glm::dot(normal, lightVector), 0.0f, 1.0f);
-//	  framebuffer[index] = interpVariables[index].color;
+	  float diffuseTerm = glm::clamp(glm::dot(normal, lightVector), 0.0f, 1.0f);
+
+	  glm::vec3 R = glm::normalize(reflect(-lightVector, normal));
+	  glm::vec3 V = glm::normalize(- inVariables.position);
+      float specularTerm = pow( fmaxf(glm::dot(R, V), 0.0), specular );
+
+	  framebuffer[index] = ka*inVariables.color + glm::vec3(1.0f) * (kd*inVariables.color*diffuseTerm + ks*specularTerm);
   }
 }
 
@@ -459,6 +496,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
   //------------------------------
   //fragment shader
   //------------------------------
+  glm::vec4 lightEyeSpace = view * glm::vec4(lightPosition, 1.0f);
+  lightPosition = glm::vec3(lightEyeSpace.x, lightEyeSpace.y, lightEyeSpace.z);
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(interpVariables, resolution, lightPosition, framebuffer); // launch for every pixel
   checkCUDAErrorWithLine("Kernel failed!");
   cudaDeviceSynchronize();

@@ -8,7 +8,7 @@
 	#include <GL/glfw.h>
 #else
 	#include <GL/glew.h>
-	#include <GL/glut.h>
+	#include <GL/freeglut.h>
 #endif
 
 #include <stdlib.h>
@@ -70,13 +70,13 @@ int ibosize;
 int width=800; int height=800;
 
 float fovy = 70.0f;
-float zNear = 0.1f;
+float zNear = 0.13f;
 float zFar = 100.0f;
 
 glm::mat4 projection;
 glm::mat4 view;
 glm::vec3 cameraPosition(0,0,1);
-glm::vec3 lightPosition(30.5,30.5,30);
+glm::vec3 lightPosition(3.5,3.5,3.5);
 
 //-------------------------------
 //----------Mouse Control--------
@@ -108,6 +108,7 @@ void runCuda();
 	void keyboard(unsigned char key, int x, int y);
 	void mouseClick(int button, int state, int x, int y);
 	void mouseMotion(int x, int y);
+	void mouseWheel(int button, int dir, int x, int y);
 #endif
 
 //-------------------------------

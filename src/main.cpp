@@ -77,6 +77,8 @@ int main(int argc, char** argv){
   glutKeyboardFunc(keyboard);
   glutMouseFunc(mouseClick);
   glutMotionFunc(mouseMotion);
+  glutMouseWheelFunc(mouseWheel);
+
 
   glutMainLoop();
 #endif
@@ -233,6 +235,7 @@ void runCuda(){
 	  {// left button
 		  viewPhi -= dx * 0.002f;
 		  viewTheta -= dy * 0.002f;
+		  viewTheta = glm::clamp(viewTheta, float(1e-6), float(PI-(1e-6)));
 		  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta), r*sin(viewTheta)*cos(viewPhi));
 		  view = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0), glm::vec3(0,1,0));
 	  } 
@@ -241,6 +244,14 @@ void runCuda(){
 	  mouse_old_y = y;
   }
 
+  void mouseWheel(int button, int dir, int x, int y)
+  {
+	  r -= dir>0 ? 0.1f : -0.1f;
+	  r = glm::clamp(r, zNear, zFar);
+	  printf("r = %f\n", r);
+	  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta), r*sin(viewTheta)*cos(viewPhi));
+	  view = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0), glm::vec3(0,1,0));
+  }
 #endif
   
 //-------------------------------
