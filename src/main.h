@@ -60,6 +60,9 @@ int cbosize;
 int* ibo;
 int ibosize;
 
+//camera stuff
+camera cam;
+
 //-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------

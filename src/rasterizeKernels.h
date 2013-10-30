@@ -17,7 +17,21 @@
     #include <cutil_math.h>
 #endif
 
+//-------------------------------
+//---------CAMERA STUFF----------
+//-------------------------------
+//stores cam data needed for viewport transformation
+struct camera{
+	glm::vec3 eye;
+	glm::vec3 up;
+	glm::vec3 center;
+	float fov;
+	float zNear;
+	float zFar;
+};
+
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
+					   camera& cam);
 
 #endif //RASTERIZEKERNEL_H

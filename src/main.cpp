@@ -29,6 +29,14 @@ int main(int argc, char** argv){
     return 0;
   }
 
+  //set up camera
+  cam.eye = glm::vec3(0,0,-5);
+  cam.up = glm::vec3(0,1,0);
+  cam.center = glm::vec3(0,0,0);
+  cam.fov = 45;
+  cam.zNear = 0.1f;
+  cam.zFar = 1000;
+
   frame = 0;
   seconds = time (NULL);
   fpstracker = 0;
@@ -100,7 +108,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, cam);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

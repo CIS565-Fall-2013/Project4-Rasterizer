@@ -7,6 +7,7 @@
 #include <thrust/random.h>
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
+#include "glm/gtc/matrix_transform.hpp"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -135,23 +136,31 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP, glm::vec2 resolution, float zNear, float zFar){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
 	  
 	  int vInd = index*3;
 	  
 	  //apply mvp transform to go to clip space and write back to VBO
-	  glm::vec3 point(vbo[vInd],vbo[vInd+1], vbo[vInd+2]);
+	  glm::vec4 point(vbo[vInd],vbo[vInd+1], vbo[vInd+2], 1.0f);
 	  
-	  point=multiplyMV(MVP, glm::vec4(point,1.0f));
+	  point=multiplyMV_4(MVP, point);
 	  
+	  //perspective division to NDC and write to memory
+	  point.x /= point.w;
+	  point.y /= point.w;
+	  point.z /= point.w;
+
+	  //transfrom to screen coord
+	  point.x = (point.x-1)*(resolution.x/2.0f);
+	  point.y = (point.y-1)*(resolution.y/2.0f);
+	  point.z = (zFar - zNear)/2.0f*point.z + (zFar + zNear)/2.0f;
+
+	  //write to memory
 	  vbo[vInd]=point.x;
 	  vbo[vInd+1]=point.y;
 	  vbo[vInd+2]=point.z;
-
-	  //perspective division?
-
   }
 }
 
@@ -190,7 +199,36 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+	  
+	  //rasterize with barycentric method
+	  triangle tri = primitives[index];
 
+	  //find bounding box around triangle
+	  glm::vec3 low, high;
+	  getAABBForTriangle(tri, low, high);
+
+	  //for each pixel in BB range, test if pixel is inside triangle
+
+	  for (int i = clamp(low.x, 0.0f, resolution.x-1); i<=ceil(high.x) && i<resolution.x; ++i){
+		  for(int j = clamp(low.y, 0.0f, resolution.y-1); j<=ceil(high.y) && j<resolution.y; ++j){
+			//  
+			  int fragIndex = i*resolution.x + j;
+			  fragment frag = depthbuffer[fragIndex];
+			  frag.color = tri.p2;
+
+			  //convert pixel to barycentric coord
+			  //glm::vec3 baryCoord = calculateBarycentricCoordinate(tri, glm::vec2(i, j));
+
+			//  //check if within the triangle
+			//  if(isBarycentricCoordInBounds(baryCoord)){
+			//	  frag.position = glm::vec3(0,0,0);
+			//	  frag.color = glm::vec3(1,0,0);
+			//	  frag.normal = glm::vec3(0,0,1);
+			//	  depthbuffer[fragIndex] = frag;
+			//  }
+			  depthbuffer[fragIndex] = frag;
+		  }
+	  }
 
   }
 }
@@ -201,6 +239,8 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
+
+
   }
 }
 
@@ -217,7 +257,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, camera& cam){
 
   // set up crucial magic
   int tileSize = 8;
@@ -262,13 +302,29 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
-  //build the MVP matrix, temp identity matrix for now
-  glm::mat4 mvp(1.0f);
+  //build the MVP matrix
+  glm::mat4 model(1.0f);		//temp identity model view matrix for now
+  //std::cout<<"model"<<std::endl;
+  //utilityCore::printMat4(model);
+
+  glm::mat4 view = glm::lookAt(cam.eye, cam.center, cam.up);
+  //std::cout<<"view"<<std::endl;
+  //utilityCore::printMat4(view);
+
+  glm::mat4 projection = glm::perspective(cam.fov, 1.0f, cam.zNear, cam.zFar);
+  //std::cout<<"projection"<<std::endl;
+  //utilityCore::printMat4(projection);
+
+  glm::mat4 mvp = projection*view*model;
+  //std::cout<<"mvp"<<std::endl;
+  //utilityCore::printMat4(mvp);
+
+  //glm::mat4 mvp = glm::mat4 (1.0f);
 
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, utilityCore::glmMat4ToCudaMat4(mvp));
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, utilityCore::glmMat4ToCudaMat4(mvp), resolution, cam.zNear, cam.zFar);
 
   cudaDeviceSynchronize();
   //------------------------------
