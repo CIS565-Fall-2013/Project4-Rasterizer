@@ -34,6 +34,19 @@ __host__ __device__ unsigned int hash(unsigned int a){
 	return a;
 }
 
+__device__ float fatomicMin(float* addr, float value)
+{
+
+	float old = *addr, assumed;
+	do
+	{
+		if(old <= value) return old;
+		assumed = old;
+		old = atomicCAS((unsigned int*)addr, __float_as_int(assumed), __float_as_int(value));
+	}while(old!=assumed);//If someone else has changed this, start over.
+	return old;
+}
+
 //Writes a given fragment to a fragment buffer at a given location
 __host__ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution){
 	if(x<resolution.x && y<resolution.y){
@@ -53,6 +66,12 @@ __host__ __device__ fragment getFromDepthbuffer(int x, int y, fragment* depthbuf
 	}
 }
 
+__host__ __device__ int getDepthBufferIndex(int x, int y, glm::vec2 resolution){
+	if(x<resolution.x && y<resolution.y)
+		return (y*resolution.x) + x;
+
+	return -1;
+}
 
 __host__ __device__ float getDepthFromDepthbuffer(int x, int y, fragment* depthbuffer, glm::vec2 resolution){
 	if(x<resolution.x && y<resolution.y){
@@ -249,11 +268,17 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					frag.lightDir = glm::normalize(tri.v0.eyeLightDirection*bCoords.x+tri.v1.eyeLightDirection*bCoords.y+tri.v2.eyeLightDirection*bCoords.z);
 					frag.halfVector = glm::normalize(tri.v0.eyeHalfVector*bCoords.x+tri.v1.eyeHalfVector*bCoords.y+tri.v2.eyeHalfVector*bCoords.z);
 
+					int index = getDepthBufferIndex(x,y,resolution);
 
-					//Handle race conditions in a lousy way
-					while(frag.position.z < getDepthFromDepthbuffer(x,y,depthbuffer,resolution))
+					//Use fmin to 
+					float olddepth = depthbuffer[index].position.z;
+					if(frag.position.z < olddepth)
 					{
-						writeToDepthbuffer(x,y,frag, depthbuffer,resolution);
+						float readback = fatomicMin(&(depthbuffer[index].position.z),frag.position.z);
+
+						if(frag.position.z < readback)//If this is true, we won the race condition
+							writeToDepthbuffer(x,y,frag, depthbuffer,resolution);
+
 					}
 				}
 			}

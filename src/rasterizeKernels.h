@@ -18,6 +18,8 @@
 #endif
 
 #define MAX_DEPTH 10000.0f
+#define DEPTH_EPSILON 0.0000000000001f
+
 
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize, uniforms viewMats, pipelineOpts opts);
