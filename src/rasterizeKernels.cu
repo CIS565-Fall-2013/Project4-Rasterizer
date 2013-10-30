@@ -158,7 +158,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize,  float* nbo, int nbos
 		vertexEyeNorm = u_variables->viewTransform*u_variables->modelTransform*vertexEyeNorm;
 		vertexEyeNorm = glm::normalize(vertexEyeNorm);
 
-		glm::vec3 vertexColor = glm::vec3(cbo[index*3+0],cbo[index*3+1],cbo[index*3+2]);
+		glm::vec3 vertexColor = glm::vec3(cbo[(index%3)*3+0],cbo[(index%3)*3+1],cbo[(index%3)*3+2]);
 
 		//Apply perspective matrix and perspective division
 		glm::vec4 pos = u_variables->perspectiveTransform*vertexEyePos;
@@ -282,6 +282,7 @@ __host__ __device__ void blinnPhongFSImpl(fragment* depthbuffer, int index,  uni
 		float NdotHV = glm::max(glm::dot(frag.normal,frag.halfVector),0.0f);
 		frag.color +=  u_variables->blinnPhongParams.z * u_variables->lightColor * u_variables->specularColor * glm::pow(NdotHV, u_variables->shininess);
 	}
+	depthbuffer[index] = frag;
 }
 
 __host__ __device__ void normalFSImpl(fragment* depthbuffer, int index,  uniforms* u_variables, pipelineOpts opts)
@@ -302,20 +303,22 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 	int index = x + (y * resolution.x);
 	if(x<=resolution.x && y<=resolution.y){
-		switch(opts.fShaderProgram)
-		{
-		case DEPTH_SHADING:
-			depthFSImpl(depthbuffer, index, u_variables, opts);
-			break;
-		case AMBIENT_LIGHTING:
-			ambientFSImpl(depthbuffer, index, u_variables, opts);
-			break;
-		case NORMAL_SHADING:
-			normalFSImpl(depthbuffer, index, u_variables, opts);
-			break;
-		case BLINN_PHONG_SHADING:
-			blinnPhongFSImpl(depthbuffer, index, u_variables, opts);
-			break;
+		if(depthbuffer[index].position.z < MAX_DEPTH){
+			switch(opts.fShaderProgram)
+			{
+			case DEPTH_SHADING:
+				depthFSImpl(depthbuffer, index, u_variables, opts);
+				break;
+			case AMBIENT_LIGHTING:
+				ambientFSImpl(depthbuffer, index, u_variables, opts);
+				break;
+			case NORMAL_SHADING:
+				normalFSImpl(depthbuffer, index, u_variables, opts);
+				break;
+			case BLINN_PHONG_SHADING:
+				blinnPhongFSImpl(depthbuffer, index, u_variables, opts);
+				break;
+			}
 		}
 
 	}
@@ -372,7 +375,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	device_uniforms = NULL;
 	cudaMalloc((void**)&device_uniforms, sizeof(uniforms));
 	cudaMemcpy( device_uniforms, &u_variables, sizeof(uniforms), cudaMemcpyHostToDevice);
-	
+
 
 	device_ibo = NULL;
 	cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
