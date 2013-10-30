@@ -274,6 +274,7 @@ void keyboard(unsigned char key, int x, int y)
 
 //MOUSE STUFF
 bool dragging = false;
+bool rightclick = false;
 int drag_x_last = -1;
 int drag_y_last = -1;
 void mouse_click(int button, int state, int x, int y) {
@@ -283,8 +284,17 @@ void mouse_click(int button, int state, int x, int y) {
 			drag_x_last = x;
 			drag_y_last = y;
 		}
-		else
+		else{
 			dragging = false;
+		}
+	}
+	if(button == GLUT_RIGHT_BUTTON) {
+		if(state == GLUT_DOWN)
+		{
+			rightclick = true;
+		}else{
+			rightclick = false;
+		}
 	}
 }
 
@@ -298,10 +308,19 @@ void mouse_move(int x, int y) {
 		float delX = x-drag_x_last;
 		float delY = y-drag_y_last;
 		float rotSpeed = 0.5f;
-		//Simple rotation
-		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -rotSpeed*delX, Up);
-		u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -rotSpeed*delY,Right);
+		if(rightclick)
+		{
+			//Operations about view direction.
+			//Rotate about view
+			u_variables.viewTransform = glm::rotate(u_variables.viewTransform, rotSpeed*delX, Look);
+			//Zoom
+			//u_variables.viewTransform = glm::translate(u_variables.viewTransform, delY*0.005f*Look);
 
+		}else{
+			//Simple rotation
+			u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -rotSpeed*delX, Up);
+			u_variables.viewTransform = glm::rotate(u_variables.viewTransform, -rotSpeed*delY, Right);
+		}
 		drag_x_last = x;
 		drag_y_last = y;
 	}
