@@ -135,9 +135,19 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize,glm::mat4 mvpp, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
+	  float a = vbo[3*index];
+	  float b = vbo[3*index+1];
+	  float c = vbo[3*index+2];
+	  glm::vec4 v = (mvpp * glm::vec4(a,b,c,1.0f));
+	   //To convert to screen co-ordinates
+	  //webglfactory.blogspot.com/2011/05/how-to-convert-world-to-screen.html
+
+	  vbo[3*index]   =(int)floor((v.x/v.w + 1)*resolution.x/2);
+	  vbo[3*index+1] =(int)floor((-v.y/v.w + 1)*resolution.y/2); 
+	  vbo[3*index+2] = v.z/v.w;
   }
 }
 
@@ -146,6 +156,13 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
+	  primitives[index].p0 = glm::vec3(vbo[3*(ibo[3*index])],vbo[(3*ibo[3*index])+1],vbo[(3*ibo[3*index])+2]);
+	  primitives[index].p1 = glm::vec3(vbo[3*(ibo[3*index+1])],vbo[(3*ibo[3*index+1])+1],vbo[(3*ibo[3*index+1])+2]);
+	  primitives[index].p2 = glm::vec3(vbo[3*(ibo[3*index+2])],vbo[(3*ibo[3*index+2])+1],vbo[(3*ibo[3*index+2])+2]);
+
+	  primitives[index].c0 = glm::vec3(1,0,0);// glm::vec3(cbo[0],cbo[1],cbo[2]); //glm::vec3(1,1,1);//
+	  primitives[index].c1 = glm::vec3(0,1,0);// glm::vec3(cbo[3],cbo[4],cbo[5]);
+	  primitives[index].c2 = glm::vec3(0,0,1);// glm::vec3(cbo[6],cbo[7],cbo[8]);
   }
 }
 
@@ -153,6 +170,40 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+
+	  glm::vec3 minpoint,maxpoint,bCoord;
+	  getAABBForTriangle(primitives[index], minpoint,maxpoint);
+	  int p = 0 ;
+
+	     // Implement culling
+	 	 if (minpoint.x  >= resolution.x) return;
+		 if (minpoint.y >= resolution.y) return;
+		 if (maxpoint.x < 0) return;
+		 if (maxpoint.y < 0) return;
+
+		 //Implement clipping 
+		 if(minpoint.x < 0)  
+			 minpoint.x = 0;
+		 if(maxpoint.x > resolution.x)
+			 maxpoint.x = resolution.x;
+		 if(minpoint.y < 0)
+			 minpoint.y = 0 ;
+		 if(maxpoint.y > resolution.y)
+			 maxpoint.y = resolution.y;
+
+	  for(int i = (int)minpoint.x ; i < (int)maxpoint.x ; i++)
+	  {
+		  for(int j = (int)minpoint.y ; j < (int)maxpoint.y ; j++)
+		  {
+			bCoord = calculateBarycentricCoordinate(primitives[index], glm::vec2(i,j));
+			if(isBarycentricCoordInBounds(bCoord))
+			{
+				p = (i + j*resolution.x);
+				depthbuffer[p].color = primitives[index].c0 * bCoord.x + primitives[index].c1 * bCoord.y + primitives[index].c2 * bCoord.z;
+			}
+		  }
+	  }
+
   }
 }
 
@@ -162,6 +213,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
+	  depthbuffer[index].color = depthbuffer[index].color;
   }
 }
 
@@ -178,7 +230,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize,glm::mat4 MVP ){
 
   // set up crucial magic
   int tileSize = 8;
@@ -214,20 +266,19 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   device_vbo = NULL;
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
-  cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
-
-  device_cbo = NULL;
-  cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
-  cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
-
+  cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);  
+  
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
-
+  
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, MVP, resolution);
+  /*float* h_vbo = new float[vbosize];
+  cudaMemcpy(h_vbo,device_vbo , (vbosize)*sizeof(float), cudaMemcpyDeviceToHost);
+  h_vbo[1];*/
   cudaDeviceSynchronize();
   //------------------------------
   //primitive assembly
@@ -235,6 +286,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
 
+  /*triangle* h_tri = new triangle[ibosize/3];
+   cudaMemcpy( h_tri,primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost);
+ h_tri[0];*/
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
