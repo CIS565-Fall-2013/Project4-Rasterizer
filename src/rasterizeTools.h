@@ -66,15 +66,15 @@ __host__ __device__ void transformTriToScreenSpace(triangle &tri, glm::vec2 reso
 	tri.p1.x = (tri.p1.x+1.0)*0.5f*resolution.x;
 	tri.p2.x = (tri.p2.x+1.0)*0.5f*resolution.x;
 
-	//Scale and shift (and flip) y
-	tri.p0.y = (-tri.p0.y+1.0)*0.5f*resolution.y;
-	tri.p1.y = (-tri.p1.y+1.0)*0.5f*resolution.y;
-	tri.p2.y = (-tri.p2.y+1.0)*0.5f*resolution.y;
+	//Scale and shift y
+	tri.p0.y = (tri.p0.y+1.0)*0.5f*resolution.y;
+	tri.p1.y = (tri.p1.y+1.0)*0.5f*resolution.y;
+	tri.p2.y = (tri.p2.y+1.0)*0.5f*resolution.y;
 
-	//Scale and shift (and flip) z
-	tri.p0.z = (-tri.p0.z+1.0)*0.5f;
-	tri.p1.z = (-tri.p1.z+1.0)*0.5f;
-	tri.p2.z = (-tri.p2.z+1.0)*0.5f;
+	//Scale and shift z
+	tri.p0.z = (tri.p0.z+1.0)*0.5f;
+	tri.p1.z = (tri.p1.z+1.0)*0.5f;
+	tri.p2.z = (tri.p2.z+1.0)*0.5f;
 }
 
 #endif

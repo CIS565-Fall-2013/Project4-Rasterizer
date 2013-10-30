@@ -19,6 +19,7 @@ struct fragment{
 struct uniforms{
 	glm::mat4 viewTransform;
 	glm::mat4 perspectiveTransform;
+	glm::mat4 modelTransform;
 };
 
 

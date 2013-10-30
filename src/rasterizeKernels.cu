@@ -141,7 +141,8 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, uniforms u_variables,
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<vbosize/3){
 		glm::vec4 vertexPos = glm::vec4(vbo[index*3+0],vbo[index*3+1],vbo[index*3+2],1.0);
-		vertexPos = u_variables.perspectiveTransform*u_variables.viewTransform*vertexPos;
+		vertexPos = u_variables.perspectiveTransform*u_variables.viewTransform*u_variables.modelTransform*vertexPos;
+
 		//Perspective division
 		vertexPos.x /= vertexPos.w;
 		vertexPos.y /= vertexPos.w;
