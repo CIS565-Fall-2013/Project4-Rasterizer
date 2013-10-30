@@ -449,9 +449,12 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 void kernelCleanup(){
 	cudaFree( primitives );
 	cudaFree( device_vbo );
+	cudaFree( device_nbo);
 	cudaFree( device_cbo );
 	cudaFree( device_ibo );
 	cudaFree( framebuffer );
 	cudaFree( depthbuffer );
+	cudaFree( verticies );
+	cudaFree( device_uniforms);
 }
 
