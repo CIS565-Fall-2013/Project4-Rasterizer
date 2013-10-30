@@ -77,9 +77,21 @@ glm::mat4* projection;
 glm::mat4* screen;
 cudaMat4* transformModel2Projection;
 
+//-------------------------------
+//------INTERACTION STUFF--------
+//-------------------------------
 // Mouse Interaction
-int lastX = 0;
-int lastY = 0;
+static int lastX = 0;
+static int lastY = 0;
+static bool buttonDown = false;
+
+// Keyboard Interaction
+static float dX = 0.0f;
+
+//-------------------------------
+//--------ANTI ALIASING----------
+//-------------------------------
+bool antialiasing = false;
 
 //-------------------------------
 //----------CUDA STUFF-----------

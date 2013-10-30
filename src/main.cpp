@@ -32,11 +32,12 @@ int main(int argc, char** argv){
 
   // Initialization of camera parameters
   cam.position = glm::vec3(0.0f, 1.0f, 1.0f);
-  cam.up       = glm::vec3(0.0f, -1.0f, 0.0f);
+  cam.up       = glm::vec3(0.0f, 1.0f, 0.0f);
+  cam.view     = glm::normalize(-cam.position);
   cam.fovy     = 45.0f;
 
   // Initialize transformation
-  model      = new glm::mat4(1.0f);
+  model      = new glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.7f)));
   view       = new glm::mat4(glm::lookAt(cam.position, glm::vec3(0.0f), cam.up));
   projection = new glm::mat4(glm::perspective(cam.fovy, (float)width / height, zNear, zFar));
   transformModel2Projection  = new cudaMat4(utilityCore::glmMat4ToCudaMat4(*projection * *view * *model));
@@ -120,7 +121,7 @@ void runCuda(){
   *transformModel2Projection = utilityCore::glmMat4ToCudaMat4(*projection * *view * *model);
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection, cam, antialiasing);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -208,7 +209,9 @@ bool pauseFlag = false;
 	   case(' '):
          pauseFlag = ! pauseFlag;
 		 break;
-
+	   case('a'):
+         antialiasing = ! antialiasing;
+         break;
     }
   }
 
@@ -218,29 +221,64 @@ bool pauseFlag = false;
     {
       case(GLUT_KEY_UP):
         cam.position -= 0.1f * cam.position;        
-        initCuda();
         break;
       case(GLUT_KEY_DOWN):
         cam.position += 0.1f * cam.position;
-        initCuda();
         break;
-	  case(GLUT_KEY_LEFT):
-        //need added
-        break;
-	  case(GLUT_KEY_RIGHT):
-		//need added;
-        break;
+	  //case(GLUT_KEY_LEFT):
+   //     dX -= 5.0f;
+   //     // Rotate around up axis
+	  //  cam.right = glm::normalize(glm::cross(cam.view, cam.up));
+	  //  cam.up    = glm::normalize(glm::cross(cam.right, cam.view));
+   //     glm::vec4 position = glm::rotate(glm::mat4(1.0f), dX, cam.up) * glm::vec4(cam.position, 0.0f);
+   //     cam.position = glm::vec3(position.x, position.y, position.z);
+	  //  cam.view     = glm::normalize(-cam.position);
+   //     break;
+	  //case(GLUT_KEY_RIGHT):
+   //     dX += 5.0f;
+   //     // Rotate around up axis
+	  //  cam.right = glm::normalize(glm::cross(cam.view, cam.up));
+	  //  cam.up    = glm::normalize(glm::cross(cam.right, cam.view));
+   //     glm::vec4 position = glm::rotate(glm::mat4(1.0f), dX, cam.up) * glm::vec4(cam.position, 0.0f);
+   //     cam.position = glm::vec3(position.x, position.y, position.z);
+	  //  cam.view     = glm::normalize(-cam.position);
+   //     break;
     }
-    // glutPostRedisplay();
     return;
   }
 
+  // Mouse interaction code, referring to the glut example code http://graphics.stanford.edu/courses/cs248-01/OpenGLHelpSession/code_example.html
   void mouseClick(int button, int state, int x, int y) {
-    // NEED ADDED
+    if (state == GLUT_LEFT_BUTTON) {
+      buttonDown = (state == GLUT_DOWN) ? true : false;
+      lastX = x;
+      lastY = y;
+    }
   }
 
+  glm::vec4 pos;
   void mouseMotion(int x, int y) {
-    // NEED ADDED
+    if ( x < 0 || y < 0 || x > width || y > height)
+      return;
+    // Using the position of the mouse to change the two rotation angles of the camera
+    if (buttonDown) {
+      float roll  = (x - lastX) / 5.0f;
+      float pitch = - (y - lastY) / 5.0f;
+      // Rotate around up axis
+	  cam.right = glm::normalize(glm::cross(cam.view, cam.up));
+	  cam.up    = glm::normalize(glm::cross(cam.right, cam.view));
+      pos = glm::rotate(glm::mat4(1.0f), roll, cam.up) * glm::vec4(cam.position, 0.0f);
+      cam.position = glm::vec3(pos.x, pos.y, pos.z);
+	  cam.view     = glm::normalize(-cam.position);
+      // Rotate around right axis
+	  cam.right = glm::normalize(glm::cross(cam.view, cam.up));
+	  cam.up    = glm::normalize(glm::cross(cam.right, cam.view));
+      pos = glm::rotate(glm::mat4(1.0f), pitch, cam.right) * glm::vec4(cam.position, 0.0f);
+      cam.position = glm::vec3(pos.x, pos.y, pos.z);
+	  cam.view     = glm::normalize(-cam.position);
+	}
+    lastX = x;
+    lastY = y;
   }
 #endif
   

@@ -11,6 +11,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "cudaMat4.h"
+#include "structs.h"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -18,9 +19,9 @@
     #include <cutil_math.h>
 #endif
 
-#define ANTIALIASING 1
+#define ANTIALIASING 0
 
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform, camera cam, bool antialiasing);
 
 #endif //RASTERIZEKERNEL_H

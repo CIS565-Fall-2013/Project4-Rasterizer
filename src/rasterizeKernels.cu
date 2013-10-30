@@ -164,23 +164,23 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 view){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index < primitivesCount){
     // Initialize triangle and back face culling if the normal of z is point to the back
     triangle currentTriangle = primitives[index];
     glm::vec3 normal = glm::normalize(glm::cross(currentTriangle.p1 - currentTriangle.p0, currentTriangle.p2 - currentTriangle.p0));
-    //if (normal.z < 0.0f || z > )
-    //  return;
+    /*if (glm::dot(normal, view) > 0.0f )
+      return;*/
 	
     // Add min max vectors and integers for the bounds and project the min back to the screen coordinate
     glm::vec3 minPoint, maxPoint;
-	int minX, minY, maxX, maxY;
+    int minX, minY, maxX, maxY;
     getAABBForTriangle(currentTriangle, minPoint, maxPoint);
-	scale2screen(minPoint, minX, maxY, resolution);
+    scale2screen(minPoint, minX, maxY, resolution);
     scale2screen(maxPoint, maxX, minY, resolution);
 
-    if (minX >= resolution.x || minY >= resolution.y || minX < 0 || minY < 0 ) 
+    if (minX > resolution.x - 1 || minY > resolution.y - 1 || minX < 0 || minY < 0 ) 
       return;
 
     // Clipping the points outside the  image inside.
@@ -200,8 +200,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
         // Determine whether the current pixel is within the bounds of the current primitive
         if (isBarycentricCoordInBounds(barycentricCoordinates)) {
           depth = getZAtCoordinate(barycentricCoordinates, currentTriangle);
-          if (depth < 0.0f || depth > 1.0f)
-            return;
           // Depth Test
           if(depth > depthbuffer[idx].position.z) {
               depthbuffer[idx].position.x = screen2scale(x, y, resolution).x;
@@ -230,23 +228,23 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
     glm::vec3 H        = glm::normalize(L + V);
 
     // Compute the diffusion and Blinn-Phong lighting
-    float diffuse  = glm::max(glm::dot(normal, L), 0.0f);
+    float diffuse  = glm::max(glm::dot(L, normal), 0.0f);
 	float specular = glm::max(glm::pow(glm::dot(H, normal), 10.0f), 0.0f);
 
     // Compute final color
-    depthbuffer[index].color *= (0.5f * diffuse + 0.5f * specular) * light.color;
+    depthbuffer[index].color *= 2.0f * (0.5f * diffuse + 0.5f * specular) * light.color;
   }
 }
 
 //Writes fragment colors to the framebuffer
-__global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* framebuffer){
+__global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* framebuffer, bool antialiasing){
 
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
 
   if(x<=resolution.x && y<=resolution.y){
-    if (ANTIALIASING) {
+    if (ANTIALIASING || antialiasing) {
       // Using super sampling and initialize with the central pixel, the corner flag indicates which corner the pixel is
       int sampleNum = 1;
 	  glm::vec3 sampling = depthbuffer[index].color;
@@ -274,9 +272,12 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 
 	  // Two corners
 	  sampleNum += (sampleNum == 4) ? 2 : 0;
-      sampling += (sampleNum == 6) ? depthbuffer[index - (int)resolution.x - 1].color : glm::vec3(0.0f);
       if (sampleNum == 6) {
-        framebuffer[index] =  sampling / 6.0f;
+		sampling += x == 0 ? depthbuffer[index - (int)resolution.x + 1].color + depthbuffer[index + (int)resolution.x + 1].color: glm::vec3(0.0f);
+        sampling += y == 0 ? depthbuffer[index + (int)resolution.x - 1].color + depthbuffer[index + (int)resolution.x + 1].color: glm::vec3(0.0f);
+        sampling += x == resolution.x ? depthbuffer[index - (int)resolution.x - 1].color + depthbuffer[index + (int)resolution.x - 1].color: glm::vec3(0.0f);
+        sampling += y == resolution.y ? depthbuffer[index - (int)resolution.x - 1].color + depthbuffer[index - (int)resolution.x + 1].color: glm::vec3(0.0f);
+		framebuffer[index] =  sampling / 6.0f;
         return;
 	  }
 
@@ -299,7 +300,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform, camera cam, bool antialiasing){
   
   // set up crucial magic
   int tileSize = 8;
@@ -363,7 +364,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cam.view);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -378,7 +379,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //write fragments to framebuffer
   //------------------------------
-  render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer);
+  render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer, antialiasing);
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
 
   cudaDeviceSynchronize();

@@ -496,6 +496,12 @@ s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
 s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
 s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\structs.h
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
+s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
+c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\string
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
 s:\fall2013\cis565 gpu programming\project4-rasterizer\src\rasterizeTools.h
@@ -577,14 +583,9 @@ c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfwrap1
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xxshared
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\iterator
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\sstream
-c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\string
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\vector
 c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\include\xfunctional
 s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
 s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
 s:\fall2013\cis565 gpu programming\project4-rasterizer\src\structs.h
-s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm/glm.hpp
-s:\fall2013\cis565 gpu programming\project4-rasterizer\src\glm\core/_fixes.hpp
-s:\fall2013\cis565 gpu programming\project4-rasterizer\src\cudaMat4.h
-C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h

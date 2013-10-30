@@ -26,8 +26,9 @@ struct fragment {
 
 struct camera {
   glm::vec3 position;
-  glm::vec3 right;
+  glm::vec3 view;
   glm::vec3 up;
+  glm::vec3 right;
   float fovy;
 };
 
