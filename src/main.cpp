@@ -40,7 +40,7 @@ int main(int argc, char** argv){
 	u_variables.lightColor = glm::vec3(1.0f,1.0f,1.0f);
 	u_variables.diffuseColor = glm::vec3(0.6,0.6,0.6);
 	u_variables.specularColor = glm::vec3(1.0,1.0,1.0);
-	u_variables.shininess = 5.0f;
+	u_variables.shininess = 8.0f;
 
 	u_variables.viewTransform = glm::lookAt(glm::vec3(1.0,1.0,1.0), glm::vec3(0,0,0), glm::vec3(0.0,0.0,-1.0));
 	u_variables.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 0.1f, 5.0f);

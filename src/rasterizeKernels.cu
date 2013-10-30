@@ -93,6 +93,16 @@ __global__ void clearImage(glm::vec2 resolution, glm::vec3* image, glm::vec3 col
 	}
 }
 
+//Kernel that clears a given fragment buffer depth only. Everything else is ignored because it will be overwritten later
+__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer){
+	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+	int index = x + (y * resolution.x);
+	if(x<=resolution.x && y<=resolution.y){
+		buffer[index].position.z = MAX_DEPTH;
+	}
+}
+
 //Kernel that clears a given fragment buffer with a given fragment
 __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag){
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -156,7 +166,6 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize,  float* nbo, int nbos
 		//Normals are in eye space
 		glm::vec4 vertexEyeNorm = glm::vec4(nbo[index*3+0],nbo[index*3+1],nbo[index*3+2],0.0);
 		vertexEyeNorm = u_variables->viewTransform*u_variables->modelTransform*vertexEyeNorm;
-		vertexEyeNorm = glm::normalize(vertexEyeNorm);
 
 		glm::vec3 vertexColor = glm::vec3(cbo[(index%3)*3+0],cbo[(index%3)*3+1],cbo[(index%3)*3+2]);
 
@@ -168,7 +177,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize,  float* nbo, int nbos
 
 		//Emit vertex
 		vOut.pos       = glm::vec3(pos);
-		vOut.eyeNormal = glm::vec3(vertexEyeNorm);
+		vOut.eyeNormal = glm::normalize(glm::vec3(vertexEyeNorm));
 		vOut.eyeHalfVector = glm::normalize(glm::vec3(halfVector));
 		vOut.eyeLightDirection = glm::vec3(eyeLightDir);
 		vOut.color = 	vertexColor;
@@ -341,7 +350,9 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 	int index = x + (y * resolution.x);
 
 	if(x<=resolution.x && y<=resolution.y){
-		framebuffer[index] = depthbuffer[index].color;
+		if(depthbuffer[index].position.z < MAX_DEPTH){//Only 
+			framebuffer[index] = depthbuffer[index].color;
+		}
 	}
 }
 
@@ -370,7 +381,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	frag.color = glm::vec3(0.0f);
 	frag.normal = glm::vec3(0.0f);
 	frag.position = glm::vec3(0.0f,0.0f,MAX_DEPTH);
-	clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
+	clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer);
 
 	//------------------------------
 	//memory stuff
