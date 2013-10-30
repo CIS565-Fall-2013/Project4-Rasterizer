@@ -148,6 +148,10 @@ void runCuda(){
 #else
 
   void display(){
+
+    // DEBUG: display only one frame 
+    if ( frame > 5 )
+      return;
     runCuda();
 	time_t seconds2 = time (NULL);
 

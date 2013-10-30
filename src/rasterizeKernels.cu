@@ -20,6 +20,7 @@ float* device_vbo;
 float* device_cbo;
 int* device_ibo;
 triangle* primitives;
+triangle* host_primitives;
 
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
@@ -135,24 +136,136 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
+/* The vertex shader takes in vertices and applies the transformations
+   that map vertex coordinates to camera coordinates:
+     Pclip = (Mmodel-view-projection)(Pmodel)
+*/
 __global__ void vertexShadeKernel(float* vbo, int vbosize){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  glm::vec4 vertex;
+  glm::vec4 vertex_tformd;
   if(index<vbosize/3){
+    // Assemble vec4 from vbo ... vertex assembly :)
+    vertex.x = vbo[3*index];
+    vertex.y = vbo[3*index+1];
+    vertex.z = vbo[3*index+2]; 
+    vertex.w = 1.0f;
+
+    // Apply model-view-project matrix transform
+    // ... at the moment just the identity 
+    glm::mat4 model_view_project = glm::mat4( 1.0f );
+    // Transform
+    vertex_tformd = model_view_project*vertex;
+
+    // Copy back to vbo and apply perspective division ... not sure if this should be here
+    vbo[3*index] = vertex_tformd.x/vertex_tformd.w;
+    vbo[3*index+1] = vertex_tformd.y/vertex_tformd.w;
+    vbo[3*index+2] = vertex_tformd.z/vertex_tformd.w; 
   }
 }
 
 //TODO: Implement primative assembly
+/* Primative assembly takes vertices from the vbo and triangel indices from the ibo
+   and assembles triangle primatives for the rasterizer to work with 
+*/
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
+
+  int i0;
+  int i1;
+  int i2;
   if(index<primitivesCount){
+    // Pull out indices
+    i0 = ibo[3*index];
+    i1 = ibo[3*index+1];
+    i2 = ibo[3*index+2];
+
+    // Copy over vertex points
+    primitives[index].p0 = glm::vec3( vbo[3*i0], vbo[3*i0+1], vbo[3*i0+2] );
+    primitives[index].p1 = glm::vec3( vbo[3*i1], vbo[3*i1+1], vbo[3*i1+2] );
+    primitives[index].p2 = glm::vec3( vbo[3*i2], vbo[3*i2+1], vbo[3*i2+2] );
+
+    // Copy over vertex colors
+    primitives[index].c0 = glm::vec3( cbo[3*i0], cbo[3*i0+1], cbo[3*i0+2] );
+    primitives[index].c1 = glm::vec3( cbo[3*i1], cbo[3*i1+1], cbo[3*i1+2] );
+    primitives[index].c2 = glm::vec3( cbo[3*i2], cbo[3*i2+1], cbo[3*i2+2] );
+            
   }
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+/* 
+   Given triangle coordinates, converted to screen coordinates, find fragments inside of triangle
+*/
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution) {
+
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<primitivesCount){
+
+  glm::vec2 p0;
+  glm::vec2 p1;
+  glm::vec2 p2;
+  glm::vec3 min_point;
+  glm::vec3 max_point;
+
+  triangle tri;
+  glm::vec3 bary_coord;
+
+  float scale_x;
+  float scale_y;
+  float offs_x;
+  float offs_y;
+  if ( index<primitivesCount ) {
+    // Map primitives from world to window coordinates using the viewport transform
+    scale_x = resolution.x/2;
+    scale_y = resolution.y/2;
+    offs_x = resolution.x/2;
+    offs_y = resolution.y/2;
+   
+    tri.p0.x = scale_x*primitives[index].p0.x + offs_x;
+    tri.p1.x = scale_x*primitives[index].p1.x + offs_x;
+    tri.p2.x = scale_x*primitives[index].p2.x + offs_x;
+
+    tri.p0.y = offs_y - scale_y*primitives[index].p0.y;
+    tri.p1.y = offs_y - scale_y*primitives[index].p1.y;
+    tri.p2.y = offs_y - scale_y*primitives[index].p2.y;
+  
+    /* DEBUG
+    primitives[index].p0.x = scale_x*primitives[index].p0.x + offs_x;
+    primitives[index].p1.x = scale_x*primitives[index].p1.x + offs_x;
+    primitives[index].p2.x = scale_x*primitives[index].p2.x + offs_x;
+
+    primitives[index].p0.y = offs_y - scale_y*primitives[index].p0.y ;
+    primitives[index].p1.y = offs_y - scale_y*primitives[index].p1.y ;
+    primitives[index].p2.y = offs_y - scale_y*primitives[index].p2.y ;
+    */
+  
+    // Get pixels to look at for a given triangle 
+    getAABBForTriangle( primitives[index], min_point, max_point );
+
+    // Convert min and max to window coordinates ... y is flipped so min/max 
+    // are flipped for y 
+    min_point.x = max( scale_x*min_point.x + offs_x, 0.0f );
+    min_point.y = max( offs_y - scale_y*max_point.y, 0.0f );
+    max_point.x = min( scale_x*max_point.x + offs_x, resolution.x );
+    max_point.y = max( offs_y - scale_y*min_point.y, resolution.y );
+
+    // For each pixel in the bounding box check if its in the triangle 
+    for ( int x=glm::floor(min_point.x); x<glm::ceil(max_point.x); ++x ) {
+      for ( int y=glm::floor(min_point.y); y<glm::ceil(max_point.x); ++y ) {
+	int frag_index = x + (y * resolution.x);
+	bary_coord = calculateBarycentricCoordinate( tri, glm::vec2( x,y ) );
+	if ( isBarycentricCoordInBounds( bary_coord ) ) {
+	  // Color a fragment just for debugging sake 
+	  //depthbuffer[frag_index].color = glm::vec3( 1.0, 0.0, 0.0 );  
+	  // Interpolate color on triangle ... cause this will look pretty
+	  depthbuffer[frag_index].color = bary_coord[0]*primitives[index].c0 \
+				        + bary_coord[1]*primitives[index].c1 \
+					+ bary_coord[2]*primitives[index].c2;
+
+	}
+      }
+    }
   }
 }
 
@@ -208,6 +321,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitives = NULL;
   cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
 
+  host_primitives = NULL;
+  host_primitives = (triangle*)malloc((ibosize/3)*sizeof(triangle));
+
+
   device_ibo = NULL;
   cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
   cudaMemcpy( device_ibo, ibo, ibosize*sizeof(int), cudaMemcpyHostToDevice);
@@ -226,20 +343,67 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
+  // DEBUG
+  printf( "resolution: [%f, %f] \n", resolution.x, resolution.y );
+  printf( "vbosize: %d", vbosize );
+
+  // DEBUG
+  printf(" vbo -------- \n ");
+  for ( int i=0; i < vbosize/3; i++ ) {
+    printf("[%f, %f, %f] \n", vbo[3*i], vbo[3*i+1], vbo[3*i+2]);
+  }
+
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+
+  // DEBUG
+  cudaMemcpy( vbo, device_vbo, vbosize*sizeof(float), cudaMemcpyDeviceToHost );
+  printf(" vbo_tf -------- \n ");
+  for ( int i=0; i < vbosize/3; i++ ) {
+    printf("[%f, %f, %f] \n", vbo[3*i], vbo[3*i+1], vbo[3*i+2]);
+  }
+
 
   cudaDeviceSynchronize();
   //------------------------------
   //primitive assembly
   //------------------------------
+  // DEBUG
+  printf(" ibo -------- \n ");
+  for ( int i=0; i < ibosize/3; i++ ) {
+    printf("[%d, %d, %d] \n", ibo[3*i], ibo[3*i+1], ibo[3*i+2]);
+  }
+
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+
+  // Host copy of primitives so that I can't print this out and make sure it works
+  cudaMemcpy( host_primitives, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost );
+
+  // DEBUG
+  printf(" primitives ---------- \n " );
+  for ( int i=0; i < ibosize/3; i++ ) {
+    printf("p0: [%f, %f, %f] \n", host_primitives[i].p0.x, host_primitives[i].p0.y, host_primitives[i].p0.z );
+    printf("p1: [%f, %f, %f] \n", host_primitives[i].p1.x, host_primitives[i].p1.y, host_primitives[i].p1.z );
+    printf("p2: [%f, %f, %f] \n", host_primitives[i].p2.x, host_primitives[i].p2.y, host_primitives[i].p2.z );
+  }
 
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
   rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+
+  // Host copy of primitives so that I can't print this out and make sure it works
+  cudaMemcpy( host_primitives, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost );
+
+  // DEBUG
+  printf(" primitives ---------- \n " );
+  for ( int i=0; i < ibosize/3; i++ ) {
+    printf("p0: [%f, %f, %f] \n", host_primitives[i].p0.x, host_primitives[i].p0.y, host_primitives[i].p0.z );
+    printf("p1: [%f, %f, %f] \n", host_primitives[i].p1.x, host_primitives[i].p1.y, host_primitives[i].p1.z );
+    printf("p2: [%f, %f, %f] \n", host_primitives[i].p2.x, host_primitives[i].p2.y, host_primitives[i].p2.z );
+  }
+
 
   cudaDeviceSynchronize();
   //------------------------------
