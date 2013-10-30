@@ -34,10 +34,11 @@ int main(int argc, char** argv){
   cam.position = glm::vec3(0.0f, 1.0f, 1.0f);
   cam.up       = glm::vec3(0.0f, 1.0f, 0.0f);
   cam.view     = glm::normalize(-cam.position);
+  cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
   cam.fovy     = 45.0f;
 
   // Initialize transformation
-  model      = new glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0.0f), glm::vec3(0.0f), glm::vec3(0.7f)));
+  model      = new glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0.0f, -0.2f, 0.0f), glm::vec3(0.0f), glm::vec3(0.7f)));
   view       = new glm::mat4(glm::lookAt(cam.position, glm::vec3(0.0f), cam.up));
   projection = new glm::mat4(glm::perspective(cam.fovy, (float)width / height, zNear, zFar));
   transformModel2Projection  = new cudaMat4(utilityCore::glmMat4ToCudaMat4(*projection * *view * *model));
@@ -212,6 +213,18 @@ bool pauseFlag = false;
 	   case('a'):
          antialiasing = ! antialiasing;
          break;
+       case('u'):
+         cam.position -= 0.1f * cam.up;
+         cam.view     = glm::normalize(-cam.position);
+         cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
+         cam.up       = glm::normalize(glm::cross(cam.right, cam.view));
+         break;
+	   case('d'):
+         cam.position += 0.1f * cam.up;
+         cam.view     = glm::normalize(-cam.position);
+         cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
+         cam.up       = glm::normalize(glm::cross(cam.right, cam.view));
+         break;
     }
   }
 
@@ -225,24 +238,18 @@ bool pauseFlag = false;
       case(GLUT_KEY_DOWN):
         cam.position += 0.1f * cam.position;
         break;
-	  //case(GLUT_KEY_LEFT):
-   //     dX -= 5.0f;
-   //     // Rotate around up axis
-	  //  cam.right = glm::normalize(glm::cross(cam.view, cam.up));
-	  //  cam.up    = glm::normalize(glm::cross(cam.right, cam.view));
-   //     glm::vec4 position = glm::rotate(glm::mat4(1.0f), dX, cam.up) * glm::vec4(cam.position, 0.0f);
-   //     cam.position = glm::vec3(position.x, position.y, position.z);
-	  //  cam.view     = glm::normalize(-cam.position);
-   //     break;
-	  //case(GLUT_KEY_RIGHT):
-   //     dX += 5.0f;
-   //     // Rotate around up axis
-	  //  cam.right = glm::normalize(glm::cross(cam.view, cam.up));
-	  //  cam.up    = glm::normalize(glm::cross(cam.right, cam.view));
-   //     glm::vec4 position = glm::rotate(glm::mat4(1.0f), dX, cam.up) * glm::vec4(cam.position, 0.0f);
-   //     cam.position = glm::vec3(position.x, position.y, position.z);
-	  //  cam.view     = glm::normalize(-cam.position);
-   //     break;
+	  case(GLUT_KEY_LEFT):
+        cam.position -= 0.1f * cam.right;
+        cam.view     = glm::normalize(-cam.position);
+        cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
+        cam.up       = glm::normalize(glm::cross(cam.right, cam.view));
+        break;
+	  case(GLUT_KEY_RIGHT):
+        cam.position += 0.1f * cam.right;
+        cam.view     = glm::normalize(-cam.position);
+        cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
+        cam.up       = glm::normalize(glm::cross(cam.right, cam.view));
+        break;
     }
     return;
   }

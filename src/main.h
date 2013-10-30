@@ -85,9 +85,6 @@ static int lastX = 0;
 static int lastY = 0;
 static bool buttonDown = false;
 
-// Keyboard Interaction
-static float dX = 0.0f;
-
 //-------------------------------
 //--------ANTI ALIASING----------
 //-------------------------------
