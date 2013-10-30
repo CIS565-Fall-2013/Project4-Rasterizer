@@ -97,6 +97,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       fragment f = frag;
       f.position.x = x;
       f.position.y = y;
+	  f.set = false;
       buffer[index] = f;
     }
 }
@@ -145,8 +146,6 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP, glm::ve
 	  //apply mvp transform to go to clip space and write back to VBO
 	  glm::vec4 point(vbo[vInd],vbo[vInd+1], vbo[vInd+2], 1.0f);
 	  
-	  point;
-
 	  point=multiplyMV_4(MVP, point);
 	  
 	  //perspective division to NDC and write to memory
@@ -154,11 +153,9 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP, glm::ve
 	  point.y /= point.w;
 	  point.z /= point.w;
 
-	  point;
-
 	  //transfrom to screen coord
 	  point.x = (point.x+1)*(resolution.x/2.0f);
-	  point.y = (point.y+1)*(resolution.y/2.0f);
+	  point.y = (-point.y+1)*(resolution.y/2.0f);		//flip y coordinate
 	  point.z = (zFar - zNear)/2.0f*point.z + (zFar + zNear)/2.0f;
 
 	  //write to memory
@@ -178,19 +175,19 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  
 	  //get the vertices and colors of the triangle
 	  int iInd = index*3;
-	  int vInd = ibo[iInd];
+	  int vInd = ibo[iInd]*3;
 
 	  tri.p0 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
 	  tri.c0 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
 	  //get 2nd vertex
 	  iInd++;
-	  vInd = ibo[iInd];
+	  vInd = ibo[iInd]*3;
 	  tri.p1 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
 	  tri.c1 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
 	  iInd++;
-	  vInd = ibo[iInd];
+	  vInd = ibo[iInd]*3;
 	  tri.p2 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
 	  tri.c2 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
@@ -262,9 +259,16 @@ __global__ void rasterizationKernelFrag(triangle* primitives, int primitivesCoun
 
 			//check if within the triangle
 			if(isBarycentricCoordInBounds(baryCoord)){
-				frag.position = glm::vec3(x,y,0);
-				frag.color = glm::vec3(1,0,0);
-				frag.normal = glm::vec3(0,0,1);
+				float z = getZAtCoordinate(baryCoord, tri);
+
+				if(frag.set && frag.position.z<z)
+					continue;
+
+				frag.position = glm::vec3(x,y,z);
+				frag.normal = glm::normalize(glm::cross((tri.p0-tri.p1), (tri.p0-tri.p2)));
+				frag.color = glm::normalize(glm::vec3(abs(z/1000.0f)));
+				//frag.color = frag.normal;
+				frag.set = true;
 			}
 			depthbuffer[index] = frag;
 		}
@@ -318,6 +322,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
+  frag.set = false;
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
   //------------------------------
@@ -343,22 +348,12 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   //build the MVP matrix
   glm::mat4 model(1.0f);		//temp identity model view matrix for now
-  //std::cout<<"model"<<std::endl;
-  //utilityCore::printMat4(model);
 
   glm::mat4 view = glm::lookAt(cam.eye, cam.center, cam.up);
-  //std::cout<<"view"<<std::endl;
-  //utilityCore::printMat4(view);
 
   glm::mat4 projection = glm::perspective(cam.fov, 1.0f, cam.zNear, cam.zFar);
-  //std::cout<<"projection"<<std::endl;
-  //utilityCore::printMat4(projection);
 
   glm::mat4 mvp = projection*view*model;
-  //std::cout<<"mvp"<<std::endl;
-  //utilityCore::printMat4(mvp);
-  mvp = glm::mat4(1.0f);
-  //glm::mat4 mvp = glm::mat4 (1.0f);
 
   //------------------------------
   //vertex shader
