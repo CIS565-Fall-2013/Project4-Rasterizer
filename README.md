@@ -15,6 +15,9 @@ RasterMaster was developed as part of coursework at the University of Pennsylvan
 basecode provided by Yining Karl Li and Liam Boone which takes care of I/O and bookkeeping (such as loading an OBJ 
 mesh, mathematical helper functions and so on). 
 
+##Screenshots
+<img src="https://raw.github.com/rohith10/RasterMaster/master/renders/OnePsychedelicCow.png" height="350" width="350"/><br />
+
 ##The Graphics Pipeline
 
 The graphics rendering/rasterization pipeline varies slightly between OpenGL and Direct3D but roughly consists of the 
