@@ -6,6 +6,12 @@
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
+int mousex,mousey;
+
+int mouseStatus;	//0: left hold, 1: mid hold, 2: right hold, -1 nothing
+
+
+
 
 int main(int argc, char** argv){
 
@@ -45,6 +51,21 @@ int main(int argc, char** argv){
   init(argc, argv);
   #endif
 
+  cameraPosition=glm::vec3(0,0,0.8);
+  cameraDir=glm::vec3(0,0,-1);
+  cameraUp=glm::vec3(0,1,0);
+
+  float fovy = 60.0f;
+  float zNear = 0.10;
+  float zFar = 25.0;
+
+  camInfo=cameraInfo(fovy,(float)width/float(height),zNear,zFar);
+  //view = glm::lookAt(cameraPosition, cameraDir+cameraPosition, cameraUp);
+  //projection=glm::inverse(view);
+	updateCameraProjMat();  
+
+  glutMotionFunc(getmousePos);
+  glutMouseFunc(mouseAction);
   initCuda();
 
   initVAO();
@@ -55,7 +76,7 @@ int main(int argc, char** argv){
 
   glUseProgram(passthroughProgram);
   glActiveTexture(GL_TEXTURE0);
-
+	
   #ifdef __APPLE__
     // send into GLFW main loop
     while(1){
@@ -77,6 +98,56 @@ int main(int argc, char** argv){
   kernelCleanup();
   return 0;
 }
+//////////////////////////MOUSE ACTIONS/////////////////////
+void updateCameraProjMat()
+{
+	view = glm::lookAt(cameraPosition, cameraDir+cameraPosition, cameraUp);
+	//projection=glm::inverse(view);
+	projection=view;
+}
+void getmousePos(int x, int y)
+{
+
+	if(mouseStatus==0)
+	{
+		if(y-mousey<-5) cameraPosition+=cameraDir*0.1f;
+		else if(y-mousey>5)cameraPosition-=cameraDir*0.1f;
+	}
+	if(mouseStatus==1)
+	{
+		glm::vec3 right=glm::normalize(glm::cross(cameraDir,cameraUp));
+		if(x-mousex<-5) cameraPosition-=right*0.1f;
+		else if(x-mousex>5) cameraPosition+=right*0.1f;
+	}
+
+	if(mouseStatus==2)
+	{
+		glm::vec3 centerpt=cameraPosition+cameraDir*5.0f;
+		glm::vec3 right=glm::normalize(glm::cross(cameraDir,cameraUp));
+		if(x-mousex<-5) cameraPosition-=right*0.15f;
+		else if(x-mousex>5) cameraPosition+=right*0.15f;
+		cameraDir=glm::normalize(centerpt-cameraPosition);
+		cameraPosition=centerpt-5.0f*cameraDir;
+	}
+	updateCameraProjMat();
+	mousex=x;
+	mousey=y;
+	//printf("%d %d\n",x,y);
+}
+void mouseAction(int button, int dir, int x, int y)
+{
+	//string statusname[4]={"nothing","left","middle","right"};
+	//	printf("%d %d\n", button, dir);
+	if(dir==1) mouseStatus=-1;
+	else
+	{
+		mouseStatus=button;
+		mousex=x;
+		mousey=y;
+	}
+	//printf("%d\n",mouseStatus);
+	//printf("%s\n",statusname[mouseStatus+1]);
+}
 
 //-------------------------------
 //---------RUNTIME STUFF---------
@@ -86,6 +157,7 @@ void runCuda(){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
   dptr=NULL;
+  
 
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
@@ -100,7 +172,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,projection,camInfo);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -156,6 +228,8 @@ void runCuda(){
       fps = fpstracker/(seconds2-seconds);
       fpstracker = 0;
       seconds = seconds2;
+
+	  //printf("seconds:%d", seconds2);
 
     }
 

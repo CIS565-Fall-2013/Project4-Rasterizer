@@ -21,6 +21,7 @@
 #include <time.h>
 #include "glslUtility.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
@@ -66,6 +67,16 @@ int ibosize;
 
 int width=800; int height=800;
 
+cameraInfo camInfo;
+
+glm::mat4 projection;
+glm::mat4 view;
+
+glm::vec3 cameraPosition;
+glm::vec3 cameraDir;
+glm::vec3 cameraUp;
+
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -109,5 +120,10 @@ void cleanupCuda();
 void deletePBO(GLuint* pbo);
 void deleteTexture(GLuint* tex);
 void shut_down(int return_code);
-
+//------------------------------
+//-----------MOUSE OPERATION----
+//-----------------------------
+void updateCameraProjMat();
+void mouseAction(int button, int dir, int x, int y);
+void getmousePos(int x, int y);
 #endif

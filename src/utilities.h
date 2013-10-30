@@ -22,6 +22,24 @@ const float EPSILON                     =.000000001;
 const float ZERO_ABSORPTION_EPSILON     =0.00001;
 const float RAY_BIAS_AMOUNT             =0.0002;
 
+struct cameraInfo
+{
+	float fovy;
+	float fovratio;
+	float zNear;
+	float zFar;
+	cameraInfo()
+	{
+	
+	}
+	cameraInfo(float _fovy, float _fovratio,float  _zNear,float _zFar)
+	{
+		fovy=_fovy;
+		fovratio=_fovratio;
+		zNear=_zNear;
+		zFar=_zFar;
+	}
+};
 namespace utilityCore {
     extern float clamp(float f, float min, float max);
     extern bool replaceString(std::string& str, const std::string& from, const std::string& to);
