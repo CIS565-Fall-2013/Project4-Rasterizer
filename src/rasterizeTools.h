@@ -77,4 +77,18 @@ __host__ __device__ void transformTriToScreenSpace(triangle &tri, glm::vec2 reso
 	tri.v2.pos.z = (tri.v2.pos.z+1.0)*0.5f;
 }
 
+//Returns true if the AABB defined by these two points overlaps with clip region (-1:1, -1:1, -1:1)
+__host__ __device__ bool isAABBInClipSpace(glm::vec3 minpoint, glm::vec3 maxpoint)
+{
+	 if (minpoint.x > 1.0 || -1.0 > maxpoint.x)
+		 return false;
+	 if (minpoint.y > 1.0 || -1.0 > maxpoint.y)
+		 return false;
+	 if (minpoint.z > 1.0 || -1.0 > maxpoint.z)
+		 return false;
+	 
+
+	 return true;
+}
+
 #endif

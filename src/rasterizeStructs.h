@@ -50,5 +50,5 @@ struct pipelineOpts{
 	FRAGMENT_SHADER fShaderProgram;
 	bool showTriangleColors;
 	bool backfaceCulling;
-
+	bool totalClipping;
 };

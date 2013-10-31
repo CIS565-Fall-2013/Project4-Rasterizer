@@ -254,6 +254,30 @@ __global__ void backfaceCulling(triangle* primitives, int* primitiveStageBuffer,
 	}
 }
 
+
+__global__ void totalClipping(triangle* primitives, int* primitiveStageBuffer, int NPrimitives, pipelineOpts opts)
+{
+	
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if(index < NPrimitives)
+	{
+		int primIndex = primitiveStageBuffer[index];
+		if(primIndex >= 0 && primIndex < NPrimitives){
+			triangle tri = primitives[primIndex];
+			
+			glm::vec3 minpoint, maxpoint;
+			
+			getAABBForTriangle(tri, minpoint,maxpoint);
+
+			if(!isAABBInClipSpace(minpoint, maxpoint))
+			{
+				//Backface. Cull it.
+				primitiveStageBuffer[index] = -1;
+			}
+		}
+	}
+}
+
 //TODO: Do this a lot more efficiently and in parallel
 __global__ void rasterizationKernel(triangle* primitives, int* primitiveStageBuffer, int primitivesCount, fragment* depthbuffer, 
 									glm::vec2 resolution, uniforms* u_variables, pipelineOpts opts)
@@ -504,6 +528,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	if(opts.backfaceCulling)
 	{
 		backfaceCulling<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, opts);
+	}
+
+	if(opts.totalClipping)
+	{
+		totalClipping<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, opts);
 	}
 
 	//------------------------------
