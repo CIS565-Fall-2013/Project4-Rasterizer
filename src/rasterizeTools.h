@@ -10,6 +10,7 @@
 #include "cudaMat4.h"
 
 struct triangle {
+
 #if THREE == 0
   glm::vec4 p0;
   glm::vec4 p1;
@@ -22,13 +23,28 @@ struct triangle {
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
+
+#if READ_NORMALS == 0
+  glm::vec3 normal;
+#endif
+
 };
 
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
+  glm::vec3 light_dir;
 };
+
+// Epsilon Check
+__host__ __device__ bool epsilonCheck(float a, float b){
+    if(fabs(fabs(a)-fabs(b))<.000000001){
+        return true;
+    }else{
+        return false;
+    }
+}
 
 //Multiplies a cudaMat4 matrix and a vec4
 __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
@@ -53,8 +69,8 @@ __host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, g
 __host__ __device__ void getTightBoxForTriangle(triangle tri, glm::vec2& minpoint, glm::vec2& maxpoint, glm::vec2 resolution){
 	minpoint = glm::vec2(max(0.0f,min(min(tri.p0.x, tri.p1.x),tri.p2.x)), 
         max(0.0f,min(min(tri.p0.y, tri.p1.y),tri.p2.y)));
-	maxpoint = glm::vec2(min(resolution.x - 1,max(max(tri.p0.x, tri.p1.x),tri.p2.x)),
-		min(resolution.y - 1,max(max(tri.p0.y, tri.p1.y),tri.p2.y)));
+	maxpoint = glm::vec2(min(resolution.x,max(max(tri.p0.x, tri.p1.x),tri.p2.x)),
+		min(resolution.y,max(max(tri.p0.y, tri.p1.y),tri.p2.y)));
 }
 
 //LOOK: calculates the signed area of a given triangle
@@ -91,6 +107,20 @@ __host__ __device__ bool isBarycentricCoordInBounds(glm::vec3 barycentricCoord){
 //LOOK: for a given barycentric coordinate, return the corresponding z position on the triangle
 __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle tri){
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
+}
+
+// Reflect Ray
+__host__ __device__ glm::vec3 reflect(glm::vec3 r, glm::vec3 normal){
+	if(epsilonCheck(glm::length(glm::cross(r, normal)), 0.0f)) return -1.0f * normal;
+	else if(epsilonCheck(glm::dot(-1.0f * r, normal), 0.0f)) return r;
+	else return glm::normalize(r - 2.0f * glm::dot(r, normal) * normal);
+}
+
+// Reflect Ray
+__host__ __device__ glm::vec3 myReflect(glm::vec3 r, glm::vec3 normal){
+	if(epsilonCheck(glm::length(glm::cross(r, normal)), 0.0f)) return -1.0f * normal;
+	else if(epsilonCheck(glm::dot(-1.0f * r, normal), 0.0f)) return r;
+	else return glm::normalize(r - 2.0f * glm::dot(r, normal) * normal);
 }
 
 #endif

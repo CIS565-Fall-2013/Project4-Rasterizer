@@ -65,7 +65,7 @@ int ibosize;
 //---------CAMERA STUFF----------
 //-------------------------------
 
-glm::vec3 eye = glm::vec3(0,0,4);
+glm::vec3 eye = glm::vec3(0,0,5);
 glm::vec3 up = glm::vec3(0,1,0);
 glm::vec3 center = glm::vec3(0,0,0);
 
@@ -74,7 +74,10 @@ float zNear = 0.1f;
 float zFar = 100.0f;
 
 glm::mat4 model = glm::mat4(glm::vec4(-1,0,0,0), glm::vec4(0,-1,0,0), glm::vec4(0,0,1,0), glm::vec4(0,0,0,1));
-glm::mat4 MVP = glm::mat4(1.0f);
+glm::mat4 MV = glm::mat4(1.0f);
+glm::mat4 proj = glm::mat4(1.0f);
+
+glm::vec4 light = glm::normalize(glm::vec4(0,-1,1,1));
 
 //-------------------------------
 //----------CUDA STUFF-----------

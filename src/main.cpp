@@ -100,14 +100,14 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   glm::mat4 view = glm::lookAt(eye, center, up);
-  glm::mat4 proj = glm::perspective(fov, (float)width/height, zNear, zFar);
+  proj = glm::perspective(fov, (float)width/height, zNear, zFar);
   float angle = glm::radians(5.0f);
   model = glm::rotate(model, angle, glm::vec3(0,1,0));
 
-  MVP = proj * view * model;
+  MV = view * model;
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, MVP, zNear, zFar);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, MV, proj, light);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

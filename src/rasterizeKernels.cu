@@ -147,7 +147,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 MVP, glm::vec2 resolution, float zNear, float zFar){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 MV, glm::vec2 resolution, glm::mat4 proj){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 #if THREE == 0 
   int size = vbosize / 4;
@@ -162,15 +162,18 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 MVP, glm::v
 #else 
 	  glm::vec4 in_vertex = glm::vec4(vbo[3 * index], vbo[3 * index + 1], vbo[3 * index + 2], 1.0f);
 #endif
-	  
-	  glm::vec4 P = MVP * in_vertex;
+
+	  glm::vec4 P;
 
 #if POINT_MODE == 1
+	  P = proj * MV * in_vertex;
 	  glm::vec3 P_ndc = glm::vec3(P.x / P.w, P.y / P.w, P.z / P.w);
 
 	  P.x = resolution.x / 2 * P_ndc.x + resolution.x / 2;
 	  P.y = resolution.y / 2 * P_ndc.y + resolution.y / 2;
 	  P.z = P_ndc.z;
+#else 
+	  P = MV * in_vertex;
 #endif
 	  
 #if THREE == 0
@@ -189,7 +192,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 MVP, glm::v
 
 // Primative assembly
 #if POINT_MODE == 0
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives, glm::vec4 light){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index < primitivesCount){
@@ -202,13 +205,23 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  t.p0 = glm::vec4(vbo[4 * a], vbo[4 * a + 1], vbo[4 * a + 2], vbo[4 * a + 3]);
 	  t.p1 = glm::vec4(vbo[4 * b], vbo[4 * b + 1], vbo[4 * b + 2], vbo[4 * b + 3]);
 	  t.p2 = glm::vec4(vbo[4 * c], vbo[4 * c + 1], vbo[4 * c + 2], vbo[4 * c + 3]);
+
+	  t.normal = glm::normalize(glm::cross(glm::vec3(t.p1 - t.p0) , glm::vec3(t.p2 - t.p1)));
 #else 
 	  t.p0 = glm::vec3(vbo[3 * a], vbo[3 * a + 1], vbo[3 * a + 2]);
 	  t.p1 = glm::vec3(vbo[3 * b], vbo[3 * b + 1], vbo[3 * b + 2]);
 	  t.p2 = glm::vec3(vbo[3 * c], vbo[3 * c + 1], vbo[3 * c + 2]);
+
+	  t.normal = glm::normalize(glm::cross(t.p1 - t.p0, t.p2 - t.p1));
 #endif
 
+#if COLOR == 0
 	  t.c0 = t.c1 = t.c2 = glm::vec3(1.0f);
+#else
+	  t.c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
+	  t.c1 = glm::vec3(cbo[3], cbo[4], cbo[5]);
+	  t.c2 = glm::vec3(cbo[6], cbo[7], cbo[8]);
+#endif
 
 	  // TODO : Cull Back-Face Triangle
 
@@ -219,15 +232,19 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   }
 }
 
-__global__ void viewportTransformKernel(triangle* primitives, int primitivesCount, glm::vec2 resolution){
+__global__ void viewportTransformKernel(triangle* primitives, int primitivesCount, glm::vec2 resolution, glm::mat4 proj){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index < primitivesCount){
 		triangle t = primitives[index];
 
 		// Transform to NDC
-		glm::vec4 p0_ndc = t.p0 / t.p0.w;
-		glm::vec4 p1_ndc = t.p1 / t.p1.w;
-		glm::vec4 p2_ndc = t.p2 / t.p2.w;
+		glm::vec4 p0_ndc = proj * t.p0;
+		glm::vec4 p1_ndc = proj * t.p1;
+		glm::vec4 p2_ndc = proj * t.p2;
+
+		p0_ndc = p0_ndc / p0_ndc.w;
+		p1_ndc = p1_ndc / p1_ndc.w;
+		p2_ndc = p2_ndc / p2_ndc.w;
 
 		// Transform to Screen Coords
 		t.p0.x = 1.0f / 2 * resolution.x * p0_ndc.x + (1.0f / 2 * resolution.x);
@@ -241,6 +258,8 @@ __global__ void viewportTransformKernel(triangle* primitives, int primitivesCoun
 		t.p2.x = 1.0f / 2 * resolution.x * p2_ndc.x + (1.0f / 2 * resolution.x);
 		t.p2.y = 1.0f / 2 * resolution.y * p2_ndc.y + (1.0f / 2 * resolution.y);
 		t.p2.z = p2_ndc.z;
+
+		//t.normal = glm::cross(glm::vec3(t.p1 - t.p0), glm::vec3(t.p2 - t.p1));
 		
 		primitives[index] = t;
 	}
@@ -287,7 +306,9 @@ __global__ void rasterizePoints(float* vbo, float vbosize, fragment* depthbuffer
 #if POINT_MODE == 0
 
 #if RASTERIZE_MODE == 0
+
 #if SCANLINE == 0
+
 // Rasterize by Primitive
 // Barycentric with non-geometric clipping
 __device__ void rasterizeByPrimitive(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
@@ -300,9 +321,9 @@ __device__ void rasterizeByPrimitive(triangle* primitives, int primitivesCount, 
 		float z;
 		fragment f;
 		int count, idx;
-		for(int i = minpoint.y; i <= maxpoint.y; i++){
+		for(int i = minpoint.y; i < maxpoint.y; i++){
 			count = 0; // reset line hit counter
-			for(int j = minpoint.x; j <= maxpoint.x && count < 2; j++){
+			for(int j = minpoint.x; j < maxpoint.x && count < 2; j++){
 				bary_center = calculateBarycentricCoordinate(t, glm::vec2(j,i));
 				if(isBarycentricCoordInBounds(bary_center)){
 					if(count == 0) ++count;
@@ -312,10 +333,12 @@ __device__ void rasterizeByPrimitive(triangle* primitives, int primitivesCount, 
 					// Critical Section
 					//lock(&depthbuffer[idx].lock);
 					if(z > depthbuffer[idx].position.z){
-						/*depthbuffer[idx].color.x = t.c0.x * bary_center.x + t.c1.x * bary_center.y + t.c2.x * bary_center.z;
+						depthbuffer[idx].color.x = t.c0.x * bary_center.x + t.c1.x * bary_center.y + t.c2.x * bary_center.z;
 						depthbuffer[idx].color.y = t.c0.y * bary_center.x + t.c1.y * bary_center.y + t.c2.y * bary_center.z;
-						depthbuffer[idx].color.z = t.c0.z * bary_center.x + t.c1.z * bary_center.y + t.c2.z * bary_center.z;*/
-						depthbuffer[idx].color = glm::vec3(1.0f);
+						depthbuffer[idx].color.z = t.c0.z * bary_center.x + t.c1.z * bary_center.y + t.c2.z * bary_center.z;
+#if READ_NORMALS == 0
+						depthbuffer[idx].normal = t.normal;
+#endif
 						depthbuffer[idx].position = glm::vec3(j,i,z);
 					}
 					//unlock(&depthbuffer[idx].lock);
@@ -326,6 +349,36 @@ __device__ void rasterizeByPrimitive(triangle* primitives, int primitivesCount, 
 		}
 	}
 }
+
+#else
+
+// Rasterize by Primitive
+// Bresenham modified Scanline method with clipping
+
+__device__ void rasterizeByPrimitiveByScanLine(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if(index < primitivesCount){
+		triangle t = primitives[index];
+		glm::vec2 minpoint, maxpoint;
+		getTightBoxForTriangle(t, minpoint, maxpoint, resolution);
+
+		float m0 = epsilonCheck((t.p1 - t.p0).x, 0.0f) ? 100000 : (t.p1 - t.p0).y / (t.p1 - t.p0).x;
+		float m1 = epsilonCheck((t.p2 - t.p1).x, 0.0f) ? 100000 : (t.p2 - t.p1).y / (t.p2 - t.p1).x;
+		float m2 = epsilonCheck((t.p0 - t.p2).x, 0.0f) ? 100000 : (t.p0 - t.p2).y / (t.p0 - t.p2).x;
+
+		glm::vec2 i0_min, i0_max, i1_min, i1_max, i2_min, i2_max;
+
+		glm::vec3 bary_center;
+		float z, m;
+		fragment f;
+		int count, idx;
+
+		for(int i = minpoint.y; i <= maxpoint.y; i++){
+
+		}
+	}
+}
+
 #endif
 #else
 // Rasterization by pixel / fragment (one pixel per thread)
@@ -345,11 +398,12 @@ __device__ void rasterizeByFragment(triangle* primitives, int primitivesCount, f
 			if(isBarycentricCoordInBounds(bary_center)){
 				z = getZAtCoordinate(bary_center, t);
 				if(z > depthbuffer[index].position.z){
-					/*depthbuffer[index].color.x = t.c0.x * bary_center.x + t.c1.x * bary_center.y + t.c2.x * bary_center.z;
+					depthbuffer[index].color.x = t.c0.x * bary_center.x + t.c1.x * bary_center.y + t.c2.x * bary_center.z;
 					depthbuffer[index].color.y = t.c0.y * bary_center.x + t.c1.y * bary_center.y + t.c2.y * bary_center.z;
-					depthbuffer[index].color.z = t.c0.z * bary_center.x + t.c1.z * bary_center.y + t.c2.z * bary_center.z;*/
-					//depthbuffer[index].normal = normal(t);
-					depthbuffer[index].color = glm::vec3(1.0f);
+					depthbuffer[index].color.z = t.c0.z * bary_center.x + t.c1.z * bary_center.y + t.c2.z * bary_center.z;
+#if READ_NORMALS == 0
+					depthbuffer[index].normal = t.normal;
+#endif
 					depthbuffer[index].position = glm::vec3(px_center, z);
 				}
 			}
@@ -365,7 +419,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 // Fragment Shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec4 light){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
@@ -376,12 +430,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 	  // no change to color
 #elif SHADING == 1
 	  // LAMBERT SHADING
-	  f.color = f.color * glm::dot(f.normal, glm::vec3(1.0f) - f.position);
-#elif SHADING == 2
-	  // BLINN-PHONG SHADING
-	  glm::vec3 diffuse = f.color * glm::dot(f.normal, LIGHT - f.position);
-	  glm::vec3 specular = glm::dot(reflect(LIGHT - f.position, f.normal), -1.0f * f.position) * glm::vec3(1.0f);
-	  f.color = .5f * diffuse + .5f * specular;
+	  f.color = f.color * glm::dot(f.normal, glm::vec3(light));
 #endif
 	  depthbuffer[index] = f;
   }
@@ -401,7 +450,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, glm::mat4 MVP, float zNear, float zFar){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, glm::mat4 MV, glm::mat4 proj, glm::vec4 light){
 
   // set up crucial magic
   int tileSize = 8;
@@ -447,23 +496,27 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
   //------------------------------
-  //vertex shader
+  //vertex shader  
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, MVP, resolution, zNear, zFar);
-
+  
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, MV, resolution, proj);
   cudaDeviceSynchronize();
+
   //------------------------------
   //primitive assembly
   //------------------------------
-#if POINT_MODE == 0
-  primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
 
+  primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
+
+#if POINT_MODE == 0
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, MV * light);
   cudaDeviceSynchronize();
+
   //------------------------------
   //viewport transformation
   //------------------------------
-  viewportTransformKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, resolution);
+  viewportTransformKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, resolution, proj);
+  cudaDeviceSynchronize();
 
   //------------------------------
   //rasterization
@@ -478,7 +531,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //fragment shader
   //------------------------------
-  //fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, light);
 
   cudaDeviceSynchronize();
   //------------------------------
