@@ -55,11 +55,21 @@ uchar4 *dptr;
 obj* mesh;
 
 float* vbo;
+float* nbo;
 int vbosize;
 float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+
+cam mouseCam;
+float lastx = 0.0f;
+float lasty = 0.0f;
+float motion=0.2;
+bool LMB=false;
+bool MMB=false;
+bool RMB=false;
+
 
 //-------------------------------
 //----------CUDA STUFF-----------
@@ -84,6 +94,9 @@ void runCuda();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void mouseMovement(int x, int y);
+	void mouseMovementUpdate(int x, int y);
+	void mouseClick(int button, int state, int x, int y);
 #endif
 
 //-------------------------------

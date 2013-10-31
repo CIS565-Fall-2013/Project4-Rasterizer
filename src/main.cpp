@@ -72,7 +72,9 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
-
+	glutMouseFunc(mouseClick); //check for mouse click
+	glutMotionFunc(mouseMovement); //check for mouse movement
+	glutPassiveMotionFunc(mouseMovementUpdate); //check for mouse movement
     glutMainLoop();
   #endif
   kernelCleanup();
@@ -89,6 +91,7 @@ void runCuda(){
   dptr=NULL;
 
   vbo = mesh->getVBO();
+  nbo = mesh->getNBO();
   vbosize = mesh->getVBOsize();
 
   float newcbo[] = {0.0, 1.0, 0.0, 
@@ -101,10 +104,11 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, nbo, vbosize, cbo, cbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
+  nbo = NULL;
   cbo = NULL;
   ibo = NULL;
 
@@ -186,6 +190,42 @@ void runCuda(){
          break;
     }
   }
+  void mouseMovement(int x, int y) {
+	float diffx=motion*(x-lastx); //check the difference between the current x and the last x position
+	float  diffy=motion*(y-lasty); //check the difference between the  current y and the last y position
+	lastx=x; //set lastx to the current x position
+	lasty=y; //set lasty to the current y position
+	if(LMB)
+	{
+		mouseCam.theta -= diffy;
+		if (mouseCam.theta > 180)
+			mouseCam.theta = 179.9999;
+		if (mouseCam.theta < 0)
+			mouseCam.theta=0.0001;
+		mouseCam.phi -= diffx;
+	}
+	if(RMB)
+	{
+		mouseCam.rad -= (motion*diffy);
+		if(mouseCam.rad < 0.3)
+			mouseCam.rad = 0.3;
+	}
+}
+
+void mouseMovementUpdate(int x, int y) {
+	lastx=x; //set lastx to the current x position
+	lasty=y; //set lasty to the current y position
+}
+
+void mouseClick(int button, int state, int x, int y) {
+
+	if(button == GLUT_LEFT_BUTTON)
+		LMB = (state==GLUT_DOWN);
+	else if(button == GLUT_MIDDLE_BUTTON)
+		MMB = (state==GLUT_DOWN);
+	else if(button = GLUT_RIGHT_BUTTON)
+		RMB = (state==GLUT_DOWN);
+}
 
 #endif
   

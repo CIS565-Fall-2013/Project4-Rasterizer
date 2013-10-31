@@ -62,9 +62,9 @@ void obj::buildVBOs(){
 
 				if(genNormals==false){
 					vector<int> facenormal = facenormals[k];
-					NBOvec.push_back(normals[facenormal[0]][0]); NBOvec.push_back(normals[facenormal[0]][1]); NBOvec.push_back(normals[facenormal[0]][2]); //NBOvec.push_back(0.0f);
-					NBOvec.push_back(normals[facenormal[i-1]][0]); NBOvec.push_back(normals[facenormal[i-1]][1]); NBOvec.push_back(normals[facenormal[i-1]][2]); //NBOvec.push_back(0.0f);
-					NBOvec.push_back(normals[facenormal[i]][0]); NBOvec.push_back(normals[facenormal[i]][1]); NBOvec.push_back(normals[facenormal[i]][2]); //NBOvec.push_back(0.0f);
+					NBOvec.push_back(normals[facenormal[0]][0]); NBOvec.push_back(normals[facenormal[0]][1]); NBOvec.push_back(normals[facenormal[0]][2]); NBOvec.push_back(0.0f);
+					NBOvec.push_back(normals[facenormal[i-1]][0]); NBOvec.push_back(normals[facenormal[i-1]][1]); NBOvec.push_back(normals[facenormal[i-1]][2]); NBOvec.push_back(0.0f);
+					NBOvec.push_back(normals[facenormal[i]][0]); NBOvec.push_back(normals[facenormal[i]][1]); NBOvec.push_back(normals[facenormal[i]][2]); NBOvec.push_back(0.0f);
 				}else{
                     
 					glm::vec3 a = glm::vec3(p1[0], p1[1], p1[2]) - glm::vec3(p0[0], p0[1], p0[2]);
