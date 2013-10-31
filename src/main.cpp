@@ -31,7 +31,7 @@ int main(int argc, char** argv){
   }
 
   // Initialization of camera parameters
-  cam.position = glm::vec3(0.0f, 1.0f, 1.0f);
+  cam.position = glm::vec3(1.0f, 1.0f, 1.0f);
   cam.up       = glm::vec3(0.0f, 1.0f, 0.0f);
   cam.view     = glm::normalize(-cam.position);
   cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
@@ -42,6 +42,9 @@ int main(int argc, char** argv){
   view       = new glm::mat4(glm::lookAt(cam.position, glm::vec3(0.0f), cam.up));
   projection = new glm::mat4(glm::perspective(cam.fovy, (float)width / height, zNear, zFar));
   transformModel2Projection  = new cudaMat4(utilityCore::glmMat4ToCudaMat4(*projection * *view * *model));
+
+  // Initialize viewport in the model space
+  viewPort   = utilityCore::multiplyMat(utilityCore::glmMat4ToCudaMat4(*projection * *view), glm::vec4(cam.view, 1.0f));
 
   frame = 0;
   seconds = time (NULL);
@@ -92,6 +95,10 @@ int main(int argc, char** argv){
     glutMainLoop();
   #endif
   kernelCleanup();
+  delete model;
+  delete view;
+  delete projection;
+  delete transformModel2Projection;
   return 0;
 }
 
@@ -120,9 +127,10 @@ void runCuda(){
   // Update view and model to projection transform matrices in each step when interacting with keyboard or mouse
   *view = glm::lookAt(cam.position, glm::vec3(0.0f), cam.up);
   *transformModel2Projection = utilityCore::glmMat4ToCudaMat4(*projection * *view * *model);
+  viewPort = utilityCore::multiplyMat(utilityCore::glmMat4ToCudaMat4(*projection * *view), glm::vec4(cam.view, 1.0f));
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection, cam, antialiasing);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection, viewPort, antialiasing);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

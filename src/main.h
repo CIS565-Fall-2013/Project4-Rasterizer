@@ -77,6 +77,9 @@ glm::mat4* projection;
 glm::mat4* screen;
 cudaMat4* transformModel2Projection;
 
+// Viewport in the model space
+glm::vec3 viewPort;
+
 //-------------------------------
 //------INTERACTION STUFF--------
 //-------------------------------

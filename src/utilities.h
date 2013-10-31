@@ -40,5 +40,6 @@ namespace utilityCore {
     extern void printMat4(glm::mat4);
     extern void printVec4(glm::vec4);
     extern void printVec3(glm::vec3);
+    extern glm::vec3 multiplyMat(cudaMat4 m, glm::vec4 v);
 }
 #endif

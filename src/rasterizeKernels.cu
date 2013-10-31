@@ -15,11 +15,13 @@
 #endif
 
 glm::vec3* framebuffer;
-fragment* depthbuffer;
-float* device_vbo;
-float* device_cbo;
-int* device_ibo;
-triangle* primitives;
+fragment*  depthbuffer;
+int*       lock;
+cudaMat4*  transform;
+float*     device_vbo;
+float*     device_cbo;
+int*       device_ibo;
+triangle*  primitives;
 
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
@@ -164,14 +166,14 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 view){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 view, int* lock){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index < primitivesCount){
     // Initialize triangle and back face culling if the normal of z is point to the back
     triangle currentTriangle = primitives[index];
     glm::vec3 normal = glm::normalize(glm::cross(currentTriangle.p1 - currentTriangle.p0, currentTriangle.p2 - currentTriangle.p0));
-    /*if (glm::dot(normal, view) > 0.0f )
-      return;*/
+    if (glm::dot(normal, view) < 0.0f )
+      return;
 	
     // Add min max vectors and integers for the bounds and project the min back to the screen coordinate
     glm::vec3 minPoint, maxPoint;
@@ -198,17 +200,25 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
         glm::vec3 barycentricCoordinates = calculateBarycentricCoordinate(currentTriangle, screen2scale(x, y, resolution));
 
         // Determine whether the current pixel is within the bounds of the current primitive
-        if (isBarycentricCoordInBounds(barycentricCoordinates)) {
-          depth = getZAtCoordinate(barycentricCoordinates, currentTriangle);
-          // Depth Test
-          if(depth > depthbuffer[idx].position.z) {
-              depthbuffer[idx].position.x = screen2scale(x, y, resolution).x;
-              depthbuffer[idx].position.y = screen2scale(x, y, resolution).y;
-              depthbuffer[idx].position.z = depth;
-              depthbuffer[idx].normal = normal;
-              depthbuffer[idx].color = barycentricCoordinates.x * currentTriangle.c0 + barycentricCoordinates.y * currentTriangle.c1 + barycentricCoordinates.z * currentTriangle.c2;
+        if (!isBarycentricCoordInBounds(barycentricCoordinates))
+          continue;
+        depth = getZAtCoordinate(barycentricCoordinates, currentTriangle);
+        bool loopFlag = true;
+        do {
+          if (atomicCAS(&lock[idx], 0, 1) == 0) {
+            //Depth Test
+            if(depth > depthbuffer[idx].position.z) {
+                depthbuffer[idx].position.x = screen2scale(x, y, resolution).x;
+                depthbuffer[idx].position.y = screen2scale(x, y, resolution).y;
+                depthbuffer[idx].position.z = depth;
+                depthbuffer[idx].normal = normal;
+                depthbuffer[idx].color = barycentricCoordinates.x * currentTriangle.c0 + barycentricCoordinates.y * currentTriangle.c1 + barycentricCoordinates.z * currentTriangle.c2;
+		    }
+		  loopFlag = false;
+		  __threadfence();
+          atomicExch(&(lock[idx]), 0);
 		  }
-		}
+        } while (loopFlag);
 	  } // for x
 	} // for y
   }
@@ -300,20 +310,24 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform, camera cam, bool antialiasing){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform, glm::vec3 viewPort, bool antialiasing){
   
   // set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
   dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
 
-  //set up framebuffer
+  // set up framebuffer
   framebuffer = NULL;
   cudaMalloc((void**)&framebuffer, (int)resolution.x*(int)resolution.y*sizeof(glm::vec3));
   
-  //set up depthbuffer
+  // set up depthbuffer
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
+
+  // set up lock
+  lock = NULL;
+  cudaMalloc((void**)&lock, (int)resolution.x * (int)resolution.y * sizeof(int));
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
@@ -364,7 +378,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cam.view);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, viewPort, lock);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -396,5 +410,7 @@ void kernelCleanup(){
   cudaFree( device_ibo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
+  cudaFree( lock );
+  cudaFree( transform );
 }
 

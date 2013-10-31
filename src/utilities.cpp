@@ -117,3 +117,11 @@ void utilityCore::printVec4(glm::vec4 m){
 void utilityCore::printVec3(glm::vec3 m){
     std::cout << m[0] << " " << m[1] << " " << m[2] << std::endl;
 }
+
+glm::vec3 utilityCore::multiplyMat(cudaMat4 m, glm::vec4 v){
+  glm::vec3 r(1,1,1);
+  r.x = (m.x.x*v.x)+(m.x.y*v.y)+(m.x.z*v.z)+(m.x.w*v.w);
+  r.y = (m.y.x*v.x)+(m.y.y*v.y)+(m.y.z*v.z)+(m.y.w*v.w);
+  r.z = (m.z.x*v.x)+(m.z.y*v.y)+(m.z.z*v.z)+(m.z.w*v.w);
+  return r / ((m.w.x*v.x)+(m.w.y*v.y)+(m.w.z*v.z)+(m.w.w*v.w));
+}
