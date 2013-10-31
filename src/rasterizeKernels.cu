@@ -354,7 +354,8 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
     // Interactive drawing modes
     switch (draw_mode) {
       case( DRAW_SOLID ):
-	frag.color = glm::vec3( 1.0, 1.0, 1.0 );
+	if ( glm::length( frag.color ) > 1e-10 )
+	  frag.color = glm::vec3( 1.0, 1.0, 1.0 );
 	break;
       case( DRAW_COLOR ):
 	// Keep color the same
@@ -386,7 +387,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(glm::mat4 view, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(glm::mat4 view, int draw_mode, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
 
   // set up crucial magic
   int tileSize = 8;
@@ -535,7 +536,7 @@ void cudaRasterizeCore(glm::mat4 view, uchar4* PBOpos, glm::vec2 resolution, flo
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, draw_mode);
 
   cudaDeviceSynchronize();
   //------------------------------

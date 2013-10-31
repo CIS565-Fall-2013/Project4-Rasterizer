@@ -9,9 +9,6 @@
 #include "utilities.h"
 #include "cudaMat4.h"
 
-// Drawing modes
-enum { DRAW_SOLID, DRAW_COLOR, DRAW_NORMAL, SHADE_SOLID, SHADE_COLOR };
-
 struct vertex {
   glm::vec3 point;
   glm::vec3 normal;
