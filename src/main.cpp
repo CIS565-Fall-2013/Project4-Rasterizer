@@ -36,7 +36,7 @@ int main(int argc, char** argv){
   if(hasTexture)
   {
 	  BMP img;
-	  char* filename = "../../src/cow.bmp";
+	  char* filename = "../../src/cow.bmp"; // TODO: CHANGE TEXTURE FILE HERE
 	  img.ReadFromFile(filename);
 	  t_width = img.TellWidth();
 	  t_height = img.TellHeight();

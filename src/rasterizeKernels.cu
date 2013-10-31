@@ -23,6 +23,7 @@ float* device_nbo;
 int* device_ibo;
 glm::vec4* device_vtbo;
 glm::vec3* device_texture;
+//glm::vec3* device_bgtexture;
 triangle* primitives;
 
 
@@ -359,9 +360,9 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
 	  
-	  if(depthbuffer[index].normal == glm::vec3(0,0,0))
+	 /* if(depthbuffer[index].normal == glm::vec3(0,0,0))*/
+	  if(depthbuffer[index].hasMatColor == 0)
 	  {
-		  //printf("bg area");
 		  return;
 	  }
 #if PHONE == 1
@@ -459,7 +460,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
   fragment frag;
-  frag.color = glm::vec3(0,0,0);
+  frag.color = glm::vec3(0.78,.93,0.59);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
   frag.isLock = 0;
@@ -507,9 +508,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   light lit;
   lit.color = glm::vec3(0.8,0.8,0.9);
   lit.pos = glm::vec3(10,-120.0f,-50.0f);
-  lit.emitPower = 1.0f; 
+  lit.emitPower = 2.0f; 
   lit.ambientLColor = glm::vec3(1.0,1.0,0.2);
-  lit.bgColor = glm::vec3(0,0,0);
+  lit.bgColor = glm::vec3(1,0.3,0);
 
   material mat;
   mat.diffuseColor = glm::vec3(1.0,1.0,0.0);
