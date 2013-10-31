@@ -631,6 +631,14 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   mouseCam.setFrame();
 
+#if PERFANALYZE
+  float vsTime = 0;
+  float paTime = 0;
+  float bfTime = 0;
+  float rzTime = 0;
+  float fsTime = 0;
+#endif
+
   // set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -678,18 +686,37 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
+#if PERFANALYZE
+// Performance Analysis End
+  cudaEvent_t start,stop;
+  // Generate events
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  // Trigger event 'start'
+  cudaEventRecord(start, 0);
+#endif
   //------------------------------
   //vertex shader
   //------------------------------
   //vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, glm::mat4(1.0f));
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_nbo, vbosize, glm::lookAt(mouseCam.pos,look,up) *model, projection);
-
+  
   //------------------------------
   //vertex shader
   //------------------------------
   perspectiveViewportTransform<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, resolution, glm::vec2(near,far));
 
   cudaDeviceSynchronize();
+
+#if PERFANALYZE
+  // Performance Analysis End
+  cudaEventRecord(stop, 0); // Trigger Stop event
+  cudaEventSynchronize(stop); // Sync events (BLOCKS till last (stop in this case) has been recorded!)
+
+  cudaEventElapsedTime(&vsTime, start, stop); // Calculate runtime, write to elapsedTime -- cudaEventElapsedTime returns value in milliseconds. Resolution ~0.5ms
+#endif
+
   if(!POINTS)
   {
 	  //------------------------------
@@ -697,19 +724,40 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	  //------------------------------
 	  int numTriangles = ibosize/3;
 	  primitiveBlocks = ceil(((float)numTriangles)/((float)tileSize));
+#if PERFANALYZE
+	  // Trigger event 'start'
+	  cudaEventRecord(start, 0);
+#endif
 	  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_nbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, colScheme);
 
 	  cudaDeviceSynchronize();
+#if PERFANALYZE
+	  cudaEventRecord(stop, 0); // Trigger Stop event
+	  cudaEventSynchronize(stop); // Sync events (BLOCKS till last (stop in this case) has been recorded!)
+
+	  cudaEventElapsedTime(&paTime, start, stop); // Calculate runtime, write to elapsedTime -- cudaEventElapsedTime returns value in milliseconds. Resolution ~0.5ms
+#endif
 
 #if BACKFACECULLING
 	  //------------------------------
 	  // Stream Compact Back Face
 	  //------------------------------
+#if PERFANALYZE
+	  // Trigger event 'start'
+	  cudaEventRecord(start, 0);
+#endif
 
 	  thrust::device_ptr<triangle> thrust_primitives = thrust::device_pointer_cast(primitives);
 	  triangle *  thrust_new_prims = thrust::remove_if(thrust_primitives, thrust_primitives+numTriangles, checkNormal()).get();
 	  numTriangles = thrust_new_prims - primitives;
 	  primitiveBlocks = ceil(((float)numTriangles)/((float)tileSize));
+
+#if PERFANALYZE
+	  cudaEventRecord(stop, 0); // Trigger Stop event
+	  cudaEventSynchronize(stop); // Sync events (BLOCKS till last (stop in this case) has been recorded!)
+
+	  cudaEventElapsedTime(&bfTime, start, stop); // Calculate runtime, write to elapsedTime -- cudaEventElapsedTime returns value in milliseconds. Resolution ~0.5ms
+#endif
 
 #if DEBUG
 	  std::cout<<"thrust compaction: new number of triangles: "<<numTriangles<<std::endl;
@@ -717,21 +765,57 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
 #endif
 
+#if PERFANALYZE
+  	  // Trigger event 'start'
+	  cudaEventRecord(start, 0);
+#endif
 	  //------------------------------
 	  //rasterization
 	  //------------------------------
 	  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+	  cudaDeviceSynchronize();
+
+#if PERFANALYZE
+  	  cudaEventRecord(stop, 0); // Trigger Stop event
+	  cudaEventSynchronize(stop); // Sync events (BLOCKS till last (stop in this case) has been recorded!)
+
+	  cudaEventElapsedTime(&rzTime, start, stop); // Calculate runtime, write to elapsedTime -- cudaEventElapsedTime returns value in milliseconds. Resolution ~0.5ms
+#endif
   }
   else
-	pointRasterKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, depthbuffer, resolution);
+  {
 
-  cudaDeviceSynchronize();
+#if PERFANALYZE
+    // Trigger event 'start'
+	cudaEventRecord(start, 0);
+#endif
+	pointRasterKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, depthbuffer, resolution);
+	cudaDeviceSynchronize();
+#if PERFANALYZE	
+	cudaEventRecord(stop, 0); // Trigger Stop event
+	cudaEventSynchronize(stop); // Sync events (BLOCKS till last (stop in this case) has been recorded!)
+
+	cudaEventElapsedTime(&rzTime, start, stop); // Calculate runtime, write to elapsedTime -- cudaEventElapsedTime returns value in milliseconds. Resolution ~0.5ms
+#endif
+  }
+  
   //------------------------------
   //fragment shader
   //------------------------------
+#if PERFANALYZE
+  // Trigger event 'start'
+  cudaEventRecord(start, 0);
+#endif
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, colScheme, light);
 
   cudaDeviceSynchronize();
+#if PERFANALYZE
+  cudaEventRecord(stop, 0); // Trigger Stop event
+  cudaEventSynchronize(stop); // Sync events (BLOCKS till last (stop in this case) has been recorded!)
+
+  cudaEventElapsedTime(&fsTime, start, stop); // Calculate runtime, write to elapsedTime -- cudaEventElapsedTime returns value in milliseconds. Resolution ~0.5ms
+#endif
+
   //------------------------------
   //write fragments to framebuffer
   //------------------------------
@@ -743,6 +827,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   kernelCleanup();
 
   checkCUDAError("Kernel failed!");
+#if PERFANALYZE
+  printf(" vs: %fms  pa: %fms  bf:  %fms  rz  %fms  fs %fms\n",vsTime,paTime,bfTime,rzTime,fsTime);
+#endif
 }
 
 void kernelCleanup(){

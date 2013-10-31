@@ -25,7 +25,7 @@
 #define OPTIMIZE_RASTER 1
 // Will only work on copmute 3.5+, so check with someone
 #define DYNAMICPARALLELISM 0
-
+#define PERFANALYZE 1
 #define BACKFACECULLING 1
 #define BACKFACEIGNORING 1
 
