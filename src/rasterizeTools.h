@@ -26,6 +26,8 @@ struct triangle {
   glm::vec3 eyeNormal0;
   glm::vec3 eyeNormal1;
   glm::vec3 eyeNormal2;
+
+  int toBeDiscard;
 };
 
 struct varying{ // interface between vertex shader and fragment shader
