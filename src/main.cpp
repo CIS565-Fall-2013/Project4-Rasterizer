@@ -44,7 +44,7 @@ int main(int argc, char** argv){
   transformModel2Projection  = new cudaMat4(utilityCore::glmMat4ToCudaMat4(*projection * *view * *model));
 
   // Initialize viewport in the model space
-  viewPort   = utilityCore::multiplyMat(utilityCore::glmMat4ToCudaMat4(*projection * *view), glm::vec4(cam.view, 1.0f));
+  viewPort   = glm::normalize(utilityCore::multiplyMat(utilityCore::glmMat4ToCudaMat4(*projection * *view), glm::vec4(cam.view, 1.0f)));
 
   frame = 0;
   seconds = time (NULL);
@@ -130,7 +130,7 @@ void runCuda(){
   // Update view and model to projection transform matrices in each step when interacting with keyboard or mouse
   *view = glm::lookAt(cam.position, glm::vec3(0.0f), cam.up);
   *transformModel2Projection = utilityCore::glmMat4ToCudaMat4(*projection * *view * *model);
-  viewPort = utilityCore::multiplyMat(utilityCore::glmMat4ToCudaMat4(*projection * *view), glm::vec4(cam.view, 1.0f));
+  viewPort = glm::normalize(utilityCore::multiplyMat(utilityCore::glmMat4ToCudaMat4(*projection * *view), glm::vec4(cam.view, 1.0f)));
 
   // Transformation Feedback
   std::cout <<  "\n The model-view-projection transformation is:" << std::endl;

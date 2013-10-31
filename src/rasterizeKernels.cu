@@ -144,7 +144,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosi
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index < vbosize/3){
     glm::vec3 newVertex = multiplyMV(transform, glm::vec4(vbo[3 * index], vbo[3 * index + 1], vbo[3 * index + 2], 1.0f));
-	glm::vec3 normal    = glm::normalize(multiplyMV(transform, glm::vec4(nbo[3 * index], nbo[3 * index + 1], nbo[3 * index + 2], 0.0f)));
+	glm::vec3 normal    = glm::normalize(multiplyMV(transform, glm::vec4(nbo[3 * index], nbo[3 * index + 1], nbo[3 * index + 2], 1.0f)));
     vbo[3 * index]      = newVertex.x;
     vbo[3 * index + 1]  = newVertex.y;
     vbo[3 * index + 2]  = newVertex.z;
@@ -183,10 +183,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   if(index < primitivesCount){
     // Initialize triangle and back face culling if the normal of z is point to the back
     triangle currentTriangle = primitives[index];
-    //glm::vec3 normal = glm::normalize(glm::cross(currentTriangle.p1 - currentTriangle.p0, currentTriangle.p2 - currentTriangle.p0));
     if (glm::dot(currentTriangle.n0, view) > 0.0f || glm::dot(currentTriangle.n1, view) > 0.0f || glm::dot(currentTriangle.n2, view) > 0.0f )
       return;
-    glm::vec3 normal = glm::normalize((currentTriangle.n0 + currentTriangle.n1 +currentTriangle.n2) / 3.0f);
+    glm::vec3 normal = glm::normalize((currentTriangle.n0 + currentTriangle.n1 + currentTriangle.n2) / 3.0f);
 	
     // Add min max vectors and integers for the bounds and project the min back to the screen coordinate
     glm::vec3 minPoint, maxPoint;
