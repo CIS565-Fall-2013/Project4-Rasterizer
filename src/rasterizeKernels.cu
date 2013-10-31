@@ -97,6 +97,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       fragment f = frag;
       f.position.x = x;
       f.position.y = y;
+	  f.position.z = -100000;
 	  f.set = false;
       buffer[index] = f;
     }
@@ -146,12 +147,16 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP, glm::ve
 	  //apply mvp transform to go to clip space and write back to VBO
 	  glm::vec4 point(vbo[vInd],vbo[vInd+1], vbo[vInd+2], 1.0f);
 	  
+	  point;
+
 	  point=multiplyMV_4(MVP, point);
 	  
 	  //perspective division to NDC and write to memory
 	  point.x /= point.w;
 	  point.y /= point.w;
 	  point.z /= point.w;
+
+	  point.z;
 
 	  //transfrom to screen coord
 	  point.x = (point.x+1)*(resolution.x/2.0f);
@@ -191,6 +196,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  tri.p2 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
 	  tri.c2 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
 
+	  tri;
+
 	  //write to memory
 	  primitives[index]=tri;
   }
@@ -200,36 +207,43 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   //need atomics to work....
 	
-	//int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  //if(index<primitivesCount){
-	 // 
-	 // //rasterize with barycentric method
-	 // triangle tri = primitives[index];
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index<primitivesCount){
+	  
+	  //rasterize with barycentric method
+	  triangle tri = primitives[index];
 
-	 // //find bounding box around triangle
-	 // glm::vec3 low, high;
-	 // getAABBForTriangle(tri, low, high);
+	  //find bounding box around triangle
+	  glm::vec3 low, high;
+	  getAABBForTriangle(tri, low, high);
 
-	 // //for each pixel in BB range, test if pixel is inside triangle
+	  //for each pixel in BB range, test if pixel is inside triangle
 
-	 // for (int i = clamp(low.x, 0.0f, resolution.x-1); i<=ceil(high.x) && i<resolution.x; ++i){
-		//  for(int j = clamp(low.y, 0.0f, resolution.y-1); j<=ceil(high.y) && j<resolution.y; ++j){
-		//	  int fragIndex = i*resolution.x + j;
-		//	  fragment frag = depthbuffer[fragIndex];
+	  for (int i = clamp(low.x, 0.0f, resolution.x-1); i<=ceil(high.x) && i<resolution.x; ++i){
+		  for(int j = clamp(low.y, 0.0f, resolution.y-1); j<=ceil(high.y) && j<resolution.y; ++j){
+			  
+			  int fragIndex = i*resolution.y + j;
+			  fragment frag = depthbuffer[fragIndex];
+			  
+			  //convert pixel to barycentric coord
+			  glm::vec3 baryCoord = calculateBarycentricCoordinate(tri, glm::vec2(i, j));
 
-		//	  //convert pixel to barycentric coord
-		//	  glm::vec3 baryCoord = calculateBarycentricCoordinate(tri, glm::vec2(i, j));
-
-		//	//  //check if within the triangle
-		//	  if(isBarycentricCoordInBounds(baryCoord)){
-		//		  frag.position = glm::vec3(i,j,0);
-		//		  frag.color = glm::vec3(1,0,0);
-		//		  frag.normal = glm::vec3(0,0,1);
-		//	  }
-		//	  depthbuffer[fragIndex] = frag;
-		//  }
-	 // }
-  //}
+			//  //check if within the triangle
+			  if(isBarycentricCoordInBounds(baryCoord)){
+				  float z = getZAtCoordinate(baryCoord, tri);
+				  
+				  //if(z > frag.position.z){
+					  frag.position = glm::vec3(i,j,z);
+					  frag.normal = glm::normalize(glm::cross((tri.p0-tri.p1), (tri.p0-tri.p2)));
+					  //glm::vec3 col(1.0f);
+					  frag.color = baryCoord*(tri.c0 + tri.c1 + tri.c2);
+					  //frag.set = true;
+					  depthbuffer[fragIndex] = frag;
+				  //}
+			  }
+		  }
+	  }
+  }
 }
 
 //per fragment rasterization
@@ -276,6 +290,7 @@ __global__ void rasterizationKernelFrag(triangle* primitives, int primitivesCoun
 	}
 }
 
+
 //TODO: Implement a fragment shader
 __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -283,6 +298,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
 
+	  //diffuse shading
 
   }
 }
@@ -348,17 +364,15 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   //build the MVP matrix
   glm::mat4 model(1.0f);		//temp identity model view matrix for now
-
   glm::mat4 view = glm::lookAt(cam.eye, cam.center, cam.up);
-
   glm::mat4 projection = glm::perspective(cam.fov, 1.0f, cam.zNear, cam.zFar);
-
   glm::mat4 mvp = projection*view*model;
 
   //------------------------------
   //vertex shader
   //------------------------------
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, utilityCore::glmMat4ToCudaMat4(mvp), resolution, cam.zNear, cam.zFar);
+  checkCUDAErrorWithLine("vertex shade failed!");
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -366,19 +380,22 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  checkCUDAErrorWithLine("primitive assembly failed!");
 
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
-  //rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
-  rasterizationKernelFrag<<<fullBlocksPerGrid, threadsPerBlock>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  //rasterizationKernelFrag<<<fullBlocksPerGrid, threadsPerBlock>>>(primitives, ibosize/3, depthbuffer, resolution);
+  checkCUDAErrorWithLine("rasterize kernel failed!");
 
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
   //------------------------------
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  checkCUDAErrorWithLine("fragment failed!");
 
   cudaDeviceSynchronize();
   //------------------------------

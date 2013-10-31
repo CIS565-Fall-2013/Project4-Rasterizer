@@ -73,7 +73,6 @@ __host__ __device__ glm::vec3 calculateBarycentricCoordinate(triangle tri, glm::
   float gamma = calculateBarycentricCoordinateValue(glm::vec2(tri.p0.x,tri.p0.y), glm::vec2(tri.p1.x,tri.p1.y), point, tri);
   float alpha = 1.0-beta-gamma;
   return glm::vec3(alpha,beta,gamma);
-	//return glm::vec3(0,0,0);
 }
 
 //LOOK: checks if a barycentric coordinate is within the boundaries of a triangle
@@ -87,5 +86,6 @@ __host__ __device__ bool isBarycentricCoordInBounds(glm::vec3 barycentricCoord){
 __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle tri){
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
 }
+
 
 #endif

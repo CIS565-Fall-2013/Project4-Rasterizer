@@ -17,6 +17,8 @@
     #include <cutil_math.h>
 #endif
 
+#define checkCUDAErrorWithLine(msg)
+
 //-------------------------------
 //---------CAMERA STUFF----------
 //-------------------------------
