@@ -6,6 +6,9 @@
 
 #include <stdio.h>
 #include <thrust/random.h>
+#include <thrust/remove.h>
+#include <thrust/device_ptr.h>
+#include <thrust/device_vector.h>
 #include <cuda.h>
 #include <cmath>
 #include "glm/glm.hpp"
@@ -18,6 +21,6 @@
 #endif
 
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize,glm::mat4 projection, cameraInfo camInfo);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize,glm::mat4 projection, cameraInfo camInfo,glm::mat4 modelTransform);
 
 #endif //RASTERIZEKERNEL_H

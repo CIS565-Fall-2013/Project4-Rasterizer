@@ -72,6 +72,12 @@ cameraInfo camInfo;
 glm::mat4 projection;
 glm::mat4 view;
 
+glm::vec3 modelTranslate;
+glm::vec4 modelRotation;
+glm::vec3 modelScale;
+
+glm::mat4 modelTransform;
+
 glm::vec3 cameraPosition;
 glm::vec3 cameraDir;
 glm::vec3 cameraUp;

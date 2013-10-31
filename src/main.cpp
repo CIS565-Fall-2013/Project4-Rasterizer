@@ -55,6 +55,10 @@ int main(int argc, char** argv){
   cameraDir=glm::vec3(0,0,-1);
   cameraUp=glm::vec3(0,1,0);
 
+  modelTranslate=glm::vec3(0,0,0);
+  modelRotation=glm::vec4(0,1,0,0);
+  modelScale=glm::vec3(1,1,1);
+
   float fovy = 60.0f;
   float zNear = 0.10;
   float zFar = 25.0;
@@ -102,22 +106,34 @@ int main(int argc, char** argv){
 void updateCameraProjMat()
 {
 	view = glm::lookAt(cameraPosition, cameraDir+cameraPosition, cameraUp);
-	//projection=glm::inverse(view);
 	projection=view;
+
+	modelTransform=glm::mat4(1.0f);
+	modelTransform=glm::scale(modelTransform,modelScale);
+	modelTransform=glm::rotate(modelTransform,modelRotation.w,glm::vec3(modelRotation));
+	modelTransform=glm::translate(modelTransform,modelTranslate);
+
+	
+	//cudaMat4 printmat=utilityCore::glmMat4ToCudaMat4(modelTransform);
+	//utilityCore::printCudaMat4(printmat);
 }
 void getmousePos(int x, int y)
 {
 
 	if(mouseStatus==0)
 	{
-		if(y-mousey<-5) cameraPosition+=cameraDir*0.1f;
-		else if(y-mousey>5)cameraPosition-=cameraDir*0.1f;
+		//if(y-mousey<-5) cameraPosition+=cameraDir*0.1f;
+		//else if(y-mousey>5)cameraPosition-=cameraDir*0.1f;
+		if(y-mousey<-5) modelScale+=glm::vec3(0.2f);
+		else if(y-mousey>5)modelScale-=glm::vec3(0.2f);
 	}
 	if(mouseStatus==1)
 	{
 		glm::vec3 right=glm::normalize(glm::cross(cameraDir,cameraUp));
-		if(x-mousex<-5) cameraPosition-=right*0.1f;
-		else if(x-mousex>5) cameraPosition+=right*0.1f;
+		
+		//if(x-mousex<-5) cameraPosition-=right*0.1f;
+		//else if(x-mousex>5) cameraPosition+=right*0.1f;
+		int dx=x-mousex;
 	}
 
 	if(mouseStatus==2)
@@ -172,7 +188,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,projection,camInfo);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,projection,camInfo, modelTransform);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
