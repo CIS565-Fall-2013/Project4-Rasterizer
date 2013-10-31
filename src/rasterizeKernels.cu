@@ -195,10 +195,6 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 	float fragZ = getZAtCoordinate(currBaryCoords, currTri);
 	currFrag.position = glm::vec3(xyCoords.x, xyCoords.y, fragZ);
 	currFrag.modelPosition = interpVec3(currBaryCoords, currTri.modelspace_p0, currTri.modelspace_p1, currTri.modelspace_p2);
-	//currFrag.normal = currTri.n0; 
-	glm::vec3 v1 = currTri.modelspace_p1 - currTri.modelspace_p0;
-	glm::vec3 v2 = currTri.modelspace_p2 - currTri.modelspace_p0;
-	//currFrag.modelNormal = glm::normalize(glm::cross(v1, v2));
 	currFrag.modelNormal = interpVec3(currBaryCoords, currTri.modelspace_n0, currTri.modelspace_n1, currTri.modelspace_n2);
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
@@ -488,10 +484,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
-  clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
+  clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(1,1,1));
   
   fragment frag;
-  frag.color = glm::vec3(0,0,0);
+  frag.color = glm::vec3(1,1,1);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
