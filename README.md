@@ -13,12 +13,26 @@ NVidia Cards with compute 3.0 supported
 Screenshots
 ---
 
+*Diffuse Shading*
+
 ![Screen](renders/dragon_diffuse.png)
-![Screen](renders/cow.png)
+![Screen](renders/cow_diffuse.png)
+
+*Depth Shading*
+
 ![Screen](renders/dragon.png)
+
+*Normal Shading*
+
 ![Screen](renders/dragon_Normal.png)
+
+*Color Per Triangle*
+
 ![Screen](renders/suzanne_col_per_tri.png)
-![Screen](renders/suzanne_col_per_verts.png)
+
+*Color Per Vertex (interpolated Colors)*
+
+![Screen](renders/suzanne_col_per_vert.png)
 
 --- 
 Features
