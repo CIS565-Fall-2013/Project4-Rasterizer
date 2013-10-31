@@ -8,118 +8,85 @@
 #include <fstream>
 #include <string.h>
 #include "../glm/glm.hpp" 
-
+#include "../glm.h"
 using namespace std;
 
-objLoader::objLoader(string filename, obj* newMesh){
-
-	geomesh = newMesh;
-	cout << "Loading OBJ File: " << filename << endl;
-	ifstream fp_in;
-	char * fname = (char*)filename.c_str();
-	fp_in.open(fname);
-	if(fp_in.is_open()){
-        while (fp_in.good() ){
-			string line;
-            getline(fp_in,line);
-            if(line.empty()){
-                line="42";
-            }
-			istringstream liness(line);
-			if(line[0]=='v' && line[1]=='t'){
-				string v;
-				string x;
-				string y;
-				string z;
-				getline(liness, v, ' ');
-				getline(liness, x, ' ');
-				getline(liness, y, ' ');
-				getline(liness, z, ' ');
-				geomesh->addTextureCoord(glm::vec3(::atof(x.c_str()), ::atof(y.c_str()), ::atof(z.c_str())));
-			}else if(line[0]=='v' && line[1]=='n'){
-				string v;
-				string x;
-				string y;
-				string z;
-				getline(liness, v, ' ');
-				getline(liness, x, ' ');
-				getline(liness, y, ' ');
-				getline(liness, z, ' ');
-				geomesh->addNormal(glm::vec3(::atof(x.c_str()), ::atof(y.c_str()), ::atof(z.c_str())));
-			}else if(line[0]=='v'){
-				string v;
-				string x;
-				string y;
-				string z;
-				getline(liness, v, ' ');
-				getline(liness, x, ' ');
-				getline(liness, y, ' ');
-				getline(liness, z, ' ');
-				geomesh->addPoint(glm::vec3(::atof(x.c_str()), ::atof(y.c_str()), ::atof(z.c_str())));
-			}else if(line[0]=='f'){
-				string v;
-				getline(liness, v, ' ');
-				string delim1 = "//";
-				string delim2 = "/";
-				if(std::string::npos != line.find("//")){
-					//std::cout << "Vertex-Normal Format" << std::endl;
-					vector<int> pointList;
-					vector<int> normalList;
-					while(getline(liness, v, ' ')){
-						istringstream facestring(v);
-						string f;
-						getline(facestring, f, '/');
-						pointList.push_back(::atof(f.c_str())-1);
-
-						getline(facestring, f, '/');
-						getline(facestring, f, ' ');
-						normalList.push_back(::atof(f.c_str())-1);
-
-					}
-					geomesh->addFace(pointList);
-					geomesh->addFaceNormal(normalList);
-				}else if(std::string::npos != line.find("/")){
-					vector<int> pointList;
-					vector<int> normalList;
-					vector<int> texturecoordList;
-					while(getline(liness, v, ' ')){
-						istringstream facestring(v);
-						string f;
-						int i=0;
-						while(getline(facestring, f, '/')){
-							if(i==0){
-								pointList.push_back(::atof(f.c_str())-1);
-							}else if(i==1){
-								texturecoordList.push_back(::atof(f.c_str())-1);
-							}else if(i==2){
-								normalList.push_back(::atof(f.c_str())-1);
-							}
-							i++;
-						}
-					}
-					geomesh->addFace(pointList);
-					geomesh->addFaceNormal(normalList);
-					geomesh->addFaceTexture(texturecoordList);
-				}else{
-					string v;
-					vector<int> pointList;
-					while(getline(liness, v, ' ')){
-						pointList.push_back(::atof(v.c_str())-1);
-					}
-					geomesh->addFace(pointList);
-					//std::cout << "Vertex Format" << std::endl;
-				}
-			}
-		}
-		cout << "Loaded " << geomesh->getFaces()->size() << " faces, " << geomesh->getPoints()->size() << " vertices from " << filename << endl;
-	}else{
-        cout << "ERROR: " << filename << " could not be found" << endl;
+ObjModel* objLoader::load( string &filename )
+{
+    int offset = 0;
+    ObjModel* newMesh;
+    GLMmodel *model = glmReadOBJ( (char*)filename.c_str() );
+    if( model == NULL )
+    {
+        newMesh = NULL;
+        return NULL;
     }
+    glmUnitize( model );
+
+    newMesh = new ObjModel();
+    newMesh->numVert = model->numvertices;
+    newMesh->numIdx = model->numtriangles * 3;
+    newMesh->numNrml = model->numnormals;
+    newMesh->numTxcoord = model->numtexcoords;
+   
+    newMesh->vbo = new float[ newMesh->numVert * 3 ];
+    newMesh->ibo = new int[ newMesh->numIdx ];
+
+    newMesh->nbo = new float[ newMesh->numVert * 3 ];
+    newMesh->tbo = new float[ newMesh->numVert * 2];
+
+    GLMgroup* group = model->groups;
+   
+    //this loop copy index data
+    //and copy normal and texture data in the order indicated by the index data
+    while(group)
+    {
+        GLMtriangle* tri;
+        for( int i = 0; i < group->numtriangles; ++i )
+        {
+            tri = &model->triangles[group->triangles[i]];
+
+            //First we copy the index data
+            newMesh->ibo[3*offset] = tri->vindices[0]-1;
+            newMesh->ibo[3*offset+1] = tri->vindices[1]-1;
+            newMesh->ibo[3*offset+2] = tri->vindices[2]-1;
+
+            //Then copy the normal data in the order determined by the index data
+            if( newMesh->numNrml )
+            {
+                memcpy( &newMesh->nbo[ 3*newMesh->ibo[3*offset] ], &model->normals[ 3*(tri->nindices[0]) ], 3*sizeof(float) );
+                memcpy( &newMesh->nbo[ 3*newMesh->ibo[3*offset+1] ], &model->normals[ 3*(tri->nindices[1]) ], 3*sizeof(float) );
+                memcpy( &newMesh->nbo[ 3*newMesh->ibo[3*offset+2] ], &model->normals[ 3*(tri->nindices[2]) ], 3*sizeof(float) );
+            }
+            //And copy the texture coordinate data
+            if( newMesh->numTxcoord )
+            {
+                memcpy( &newMesh->tbo[ 2*newMesh->ibo[3*offset] ], &model->texcoords[ 3*(tri->tindices[0]) ], 2*sizeof(float) );
+                memcpy( &newMesh->tbo[ 2*newMesh->ibo[3*offset+1] ], &model->texcoords[ 3*(tri->tindices[1]) ], 2*sizeof(float) );
+                memcpy( &newMesh->tbo[ 2*newMesh->ibo[3*offset+2] ], &model->texcoords[ 3*(tri->tindices[2]) ], 2*sizeof(float) );
+            }
+            offset += 1;
+        }
+        group = group->next;
+    }
+
+    //copy vertex data
+    for( int i = 0; i < newMesh->numVert; ++i )
+    {
+        memcpy( &newMesh->vbo[3*i], &model->vertices[3*(i+1)], sizeof(float)*3);
+        
+    }
+
+
+    glmDelete( model );
+    cout<<newMesh->numVert<<" vertices loaded with "<<(newMesh->numIdx/3)<<" faces.\n";
+
+    return newMesh;
 }
 
 objLoader::~objLoader(){
 }
 
-obj* objLoader::getMesh(){
-	return geomesh;
-}
+//obj* objLoader::getMesh(){
+//	return geomesh;
+//}

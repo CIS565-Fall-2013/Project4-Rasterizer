@@ -1,9 +1,13 @@
 // CIS565 CUDA Rasterizer: A simple rasterization pipeline for Patrick Cozzi's CIS565: GPU Computing at the University of Pennsylvania
 // Written by Yining Karl Li, Copyright (c) 2012 University of Pennsylvania
-
 #include "main.h"
+
 #include "util.h"
 #include "statVal.h"
+#ifndef __APPLE__
+#include <GL/freeglut.h>
+#endif
+#include "variables.h"
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -11,36 +15,80 @@ HostStat statVal;
 VertUniform vsUniform;
 FragUniform fsUniform;
 
+//-------------------------------
+//------------GL STUFF-----------
+//-------------------------------
+int frame;
+int fpstracker;
+double seconds;
+int fps = 0;
+GLuint positionLocation = 0;
+GLuint texcoordsLocation = 1;
+const char *attributeLocations[] = { "Position", "Tex" };
+GLuint pbo = (GLuint)NULL;
+GLuint displayImage;
+uchar4 *dptr;
+
+ObjModel* mesh;
+
+float* vbo;
+int vbosize;
+float* cbo;
+int cbosize;
+int* ibo;
+int ibosize;
+
+//CUDA Resources
+cudaGraphicsResource* cudaPboRc = 0;
+size_t cudaRcSize;
+//-------------------------------
+//----------CUDA STUFF-----------
+//-------------------------------
+
+int width=800; int height=800;
+
 glm::mat4 lookAt( glm::vec3 &eye, glm::vec3 &eyeLook, glm::vec3 &up )
 {
     glm::mat4 mat;
+    glm::vec3 V, UP, U, W;
 
-    glm::vec3 V = eyeLook - eye;
+    V = eyeLook - eye;
     V = glm::normalize( V);
-    glm::vec3 UP = glm::normalize( up );
+    UP = glm::normalize( up );
 
-    glm::vec3 U = glm::cross( UP, V );
-    glm::vec3 W = glm::cross( V, U);
+    U = glm::cross( V, UP);
+    U = glm::normalize( U );
+    W = glm::cross( U, V );
+    W = glm::normalize( W );
 
-    mat[0] = glm::vec4( U, glm::dot( -U, eye ) );
-    mat[1] = glm::vec4( W, glm::dot( -W, eye ) );
-    mat[2] = glm::vec4( -V, glm::dot( V, eye ) );
+    mat[0] = glm::vec4( U, -eye[0] );
+    mat[1] = glm::vec4( W, -eye[1] );
+    mat[2] = glm::vec4( -V, -eye[2] );
     mat[3] = glm::vec4( 0.0f, 0.0f, 0.0f, 1.0f );
     
     return glm::transpose( mat );
+    //return mat;
 }
 
-glm::mat4 perspective( float fov, float aspect, float near, float far )
+glm::mat4 perspective( float fov, float aspect, float zNear, float zFar )
 {
     glm::mat4 mat;
     fov = fov * 3.1415926f / 180.0f;
-    mat[0] = glm::vec4( 1.0f / ( aspect * tan(fov/2.0f) ), 0.0f, 0.0f, 0.0f);
+    //mat[0] = glm::vec4( 1.0f / ( aspect * tan(fov/2.0f) ), 0.0f, 0.0f, 0.0f);
+    //mat[1] = glm::vec4( 0.0f, 1.0f/tan(fov/2.0f), 0.0f, 0.0f );
+    //mat[2] = glm::vec4( 0.0f, 0.0f, (zFar+zNear) / (zFar-zNear), -2.0f * zFar *zNear/(zFar-zNear) );
+    //mat[3] = glm::vec4( 0.0f, 0.0f, 1.0f, 0.0f );
+    //return glm::transpose( mat );
+
+    mat[0] = glm::vec4( 1.0f / ( aspect * tan(fov/2.0f) ), 0.0f, 0.0f, 0.0f );
     mat[1] = glm::vec4( 0.0f, 1.0f/tan(fov/2.0f), 0.0f, 0.0f );
-    mat[2] = glm::vec4( 0.0f, 0.0f, (far+near) / (far-near), -2.0f * far *near/(far-near) );
-    mat[3] = glm::vec4( 0.0f, 0.0f, 1.0f, 0.0f );
-    return glm::transpose( mat );
+    mat[2] = glm::vec4( 0.0f, 0.0f, -(zFar+zNear)/(zFar-zNear), -1.0f );
+    mat[3] = glm::vec4( 0, 0, 2*zFar*zNear/(zFar-zNear), 0.0f );
+
+    return mat;
 }
 
+objLoader meshloader;
 int main(int argc, char** argv)
 {
 
@@ -52,12 +100,15 @@ int main(int argc, char** argv)
     getline(liness, header, '='); getline(liness, data, '=');
     if(strcmp(header.c_str(), "mesh")==0)
     {
-      //renderScene = new scene(data);
-      mesh = new obj();
-      objLoader* loader = new objLoader(data, mesh);
-      mesh->buildVBOs();
-      delete loader;
-      loadedScene = true;
+    
+      //objLoader* loader = new objLoader(data, mesh);
+      
+      //delete loader;
+      mesh = meshloader.load( data );
+      if( mesh == NULL )
+          loadedScene = false;
+      else
+          loadedScene = true;
     }
   }
 
@@ -73,15 +124,15 @@ int main(int argc, char** argv)
   fpstracker = 0;
 
   //Setup variables for coordinate calculation
-  statVal.eyePos = glm::vec3( 0.0f, 0.0f, 3.0f );
+  statVal.eyePos = glm::vec3( 0.0f, 0.0f, 4.0f );
   statVal.eyeLook = glm::vec3( 0.0f, 0.0f, 0.0f );
   statVal.upDir = glm::vec3( 0.0f,1.0f, 0.0f );
   statVal.aspect = (float)width/(float)height;
   statVal.nearp = 1.0f;
   statVal.farp = 10.0f;
   statVal.FOV = 60.0f;
-  vsUniform.viewingMat = lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
-  vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
+  vsUniform.viewingMat = glm::lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
+  vsUniform.projMat = glm::perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
 
   // Launch CUDA/GL
   #ifdef __APPLE__
@@ -96,7 +147,7 @@ int main(int argc, char** argv)
   #endif
 
   initCuda();
-
+  
   initVAO();
   initTextures();
 
@@ -127,6 +178,7 @@ int main(int argc, char** argv)
     glutMainLoop();
   #endif
   kernelCleanup();
+  delete mesh;
   return 0;
 }
 
@@ -204,9 +256,9 @@ void runCuda()
   void display()
   {
     //uniform variables setting
-      //vsUniform.viewingMat = glm::lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
+      vsUniform.viewingMat = glm::lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
       //vsUniform.projMat = glm::perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
-      vsUniform.viewingMat = lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
+      //vsUniform.viewingMat = lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
       //vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
       
     runCuda();
@@ -229,6 +281,7 @@ void runCuda()
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, 
         GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
+    glClearColor( 0, 0, 0, 0 );
     glClear(GL_COLOR_BUFFER_BIT);   
 
     // VAO, shader program, and texture already bound
@@ -252,10 +305,14 @@ void runCuda()
 
 void reshape( int w, int h )
 {
+    width = w;
+    height = h;
     statVal.aspect = (float)w/(float)h;
-    vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
-
-    initDeviceBuf( width, height, vbo, vbosize, cbo, cbosize, ibo, ibosize );
+    //vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
+    vsUniform.projMat = glm::perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp);
+    initDeviceBuf( w, h, vbo, vbosize, cbo, cbosize, ibo, ibosize );
+    
+    glViewport( 0, 0, w, h );
 }
 
 void idle()
@@ -267,27 +324,15 @@ void idle()
 //----------SETUP STUFF----------
 //-------------------------------
 
-#ifdef __APPLE__
-  void init(){
-
-    if (glfwInit() != GL_TRUE){
-      shut_down(1);      
-    }
-
-    // 16 bit color, no depth, alpha or stencil buffers, windowed
-    if (glfwOpenWindow(width, height, 5, 6, 5, 0, 0, 0, GLFW_WINDOW) != GL_TRUE){
-      shut_down(1);
-    }
-
-    // Set up vertex array object, texture stuff
-    initVAO();
-    initTextures();
-  }
-#else
   void init(int argc, char* argv[])
   {
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+
+    glutInit(&argc, argv );
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH );
+    glutInitContextVersion( 3,3);
+    glutInitContextFlags( GLUT_FORWARD_COMPATIBLE );
+    glutInitContextProfile( GLUT_COMPATIBILITY_PROFILE );
+
     glutInitWindowSize(width, height);
     glutCreateWindow("CIS565 Rasterizer");
 
@@ -298,13 +343,13 @@ void idle()
     {
       /* Problem: glewInit failed, something is seriously wrong. */
       std::cout << "glewInit failed, aborting." << std::endl;
+      std::cout<<"Error: "<<glewGetErrorString(err)<<endl;
       exit (1);
     }
 
     initVAO();
     initTextures();
   }
-#endif
 
 void initPBO(GLuint* pbo)
 {
@@ -333,8 +378,8 @@ void initCuda()
 
   initPBO(&pbo);
 
-  vbo = mesh->getVBO();
-  vbosize = mesh->getVBOsize();
+  vbo = mesh->vbo;
+  vbosize = 3* mesh->numVert;
 
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
@@ -342,8 +387,8 @@ void initCuda()
   cbo = newcbo;
   cbosize = 9;
 
-  ibo = mesh->getIBO();
-  ibosize = mesh->getIBOsize();
+  ibo = mesh->ibo;
+  ibosize = mesh->numIdx;
 
   initDeviceBuf( width, height, vbo, vbosize, cbo, cbosize, ibo, ibosize );
 
@@ -374,10 +419,10 @@ void initVAO(void)
 
     GLfloat texcoords[] = 
     { 
-        1.0f, 1.0f,
-        0.0f, 1.0f,
         0.0f, 0.0f,
-        1.0f, 0.0f
+        1.0f, 0.0f,
+        1.0f,1.0f,
+        0.0f, 1.0f
     };
 
     GLushort indices[] = { 0, 1, 3, 3, 1, 2 };
@@ -427,6 +472,8 @@ void cleanupCuda()
   }
 
   if(displayImage) deleteTexture(&displayImage);
+
+  cudaDeviceReset();
 }
 
 void deletePBO(GLuint* pbo)
@@ -452,7 +499,7 @@ void deleteTexture(GLuint* tex)
 void shut_down(int return_code)
 {
   kernelCleanup();
-  cudaDeviceReset();
+  //cudaDeviceReset();
   #ifdef __APPLE__
   glfwTerminate();
   #endif

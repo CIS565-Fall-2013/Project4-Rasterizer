@@ -5,10 +5,29 @@
 #define OBJ
 
 #include "../glm/glm.hpp"
+#include "../glm.h"
 #include <string>
 #include <vector>
 
 using namespace std;
+
+class ObjModel{
+public:
+    ObjModel();
+    ~ObjModel();
+public:
+    float* vbo;
+    int* ibo;
+    float* nbo;
+    float* cbo;
+    float* tbo;
+
+    int numVert;
+    int numIdx;
+    int numNrml;
+    int numColor;
+    int numTxcoord;
+};
 
 class obj{
 private:

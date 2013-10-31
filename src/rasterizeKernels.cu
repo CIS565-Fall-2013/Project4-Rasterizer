@@ -9,6 +9,7 @@
 #include "rasterizeTools.h"
 #include "glm/glm.hpp"
 #include "util.h"
+#include "variables.h"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -18,7 +19,8 @@
 
 glm::vec3* framebuffer = 0;
 fragment* depthbuffer = 0;
-float* device_vbo = 0;
+float* device_vbo = 0;   //pre-transformed
+float* device_vbo_t = 0; //post-transformed
 float* device_cbo = 0;
 int* device_ibo = 0;
 triangle* primitives = 0;
@@ -142,7 +144,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, ushort width, ushort height, glm:
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, ushort width, ushort height, int vbosize, VertUniform uniform)
+__global__ void vertexShadeKernel(float* vbo, float* vbo_t, ushort width, ushort height, int vbosize, VertUniform uniform)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   glm::vec4 pos;
@@ -153,19 +155,21 @@ __global__ void vertexShadeKernel(float* vbo, ushort width, ushort height, int v
       pos.z = vbo[ 3*index+2 ];
       pos.w = 1.0f;
 
-      pos = uniform.projMat * uniform.viewingMat * pos;
+      pos = uniform.viewingMat * pos;
+      pos = uniform.projMat * pos;
 
-      //NDC coordinate
+      //Perspective divide
       pos.x /= pos.w;
       pos.y /= pos.w;
+      pos.z /= pos.w;
 
       //convert to window coordinate
       pos.x = width * ( pos.x + 1.0f ) /2.0f;
       pos.y = height * ( pos.y + 1.0f ) / 2.0f;
       //memcpy( &vbo[3*index], &pos[0], sizeof(float)*3 );
-      vbo[3*index] = pos[0];
-      vbo[3*index+1] = pos[1];
-      vbo[3*index+2] = pos[2];
+      vbo_t[3*index] = pos.x;
+      vbo_t[3*index+1] = pos.y;
+      vbo_t[3*index+2] = pos.z;
   }
 }
 
@@ -177,12 +181,13 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 
   triangle pri;
   size_t size;
+  glm::vec3 orient;
   if(index<primitivesCount)
   {
       size = sizeof(float)*3;
-      memcpy( &pri.p[0][0], &vbo[3*ibo[index]], size );
-      memcpy( &pri.p[1][0], &vbo[3*ibo[index+1]], size );
-      memcpy( &pri.p[2][0], &vbo[3*ibo[index+2]], size );
+      memcpy( &pri.p[0][0], &vbo[3*ibo[3*(index)]   ], size );
+      memcpy( &pri.p[1][0], &vbo[3*ibo[3*(index)+1] ], size );
+      memcpy( &pri.p[2][0], &vbo[3*ibo[3*(index)+2] ], size );
       primitives[index] = pri;
   }
 }
@@ -222,24 +227,29 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
       x3 = pri.p[2].x + 0.5f;
 
       //delta
-      Dx12 = x1 - x2;
-      Dx23 = x2 - x3;
-      Dx31 = x3 - x1;
+      Dx12 = x2 - x1;
+      Dx23 = x3 - x2;
+      Dx31 = x1 - x3;
 
-      Dy12 = y1 - y2;
-      Dy23 = y2 - y3;
-      Dy31 = y3 - y1;
+      Dy12 = y2 - y1;
+      Dy23 = y3 - y2;
+      Dy31 = y1 - y3;
 
       //Bounding coordinate
       minx = min( min( x1, x2 ),x3 );
       maxx = max( max( x1, x2 ), x3 );
       miny = min( min( y1, y2 ), y3 );
       maxy = max( max( y1, y2 ), y3 );
+      if( minx < 0 ) minx = 0;
+      if( miny < 0 ) miny = 0;
+      if( maxx >= width ) maxx = width;
+      if( maxy >= height ) maxy = height;
 
       //constant part of half-edge functions
-      C1 = Dy12*x1 - Dx12*y1;
-      C2 = Dy23*x2 - Dx23*y2;
-      C3 = Dy31*x3 - Dx31*y3;
+      
+      C1 = Dy12*x1 - Dx12*y1; //derived from line equation (X1-X2)*(y-Y1) - (Y1-Y2)*(x-X1) = 0
+      C2 = Dy23*x2 - Dx23*y2; //derived from line equation (X2-X3)*(y-Y2) - (Y2-Y3)*(x-X2) = 0
+      C3 = Dy31*x3 - Dx31*y3; //derived from line equation (X3-X1)*(y-Y3) - (Y3-Y1)*(x-X3) = 0
 
       //Correct for fill convention
       if( Dy12 < 0 || ( Dy12 == 0 && Dx12 > 0 ) )
@@ -308,8 +318,11 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	              //color_r = pri.c[base3] / pri.p[base3].z + x_alpha * ( pri.c[base3] / pri.p[base3].z - pri.c[base1] /pri.p[base1].z );
 
                //   x_alpha = ( x-x_r )/(x_l-x_r);
-                  
-                  depthbuffer[y*width+x].color = glm::vec3(1.0f,1.0f,1.0f);
+                  //unsigned int assume = __float_as_int(depthbuffer[x+(width*y)].color.x);
+                  //atomicCAS( (int*)&depthbuffer[x+(width*y)].color.x, assume, 1 );
+                  depthbuffer[x+(width*y)].color.x = 1.0f;
+                  depthbuffer[x+(width*y)].color.y = 1.0f;
+                  depthbuffer[x+(width*y)].color.z = 1.0f;
               } 
               Cx1 -= Dy12;
               Cx2 -= Dy23;
@@ -394,14 +407,14 @@ void cudaRasterizeCore(uchar4* PBOpos, ushort width, ushort height, float frame,
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, width, height, vbosize, vsUniform );
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_vbo_t, width, height, vbosize, vsUniform );
 
   cudaErrorCheck(  cudaDeviceSynchronize() );
   //------------------------------
   //primitive assembly
   //------------------------------
   primitiveBlocks = (ibosize/3 + tileSize-1 )/tileSize;
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo_t, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
 
   cudaErrorCheck( cudaDeviceSynchronize() );
   //------------------------------
@@ -456,6 +469,9 @@ void initDeviceBuf( ushort width, ushort height, float* vbo, int vbosize, float*
     cudaErrorCheck( cudaMalloc((void**)&device_vbo, vbosize*sizeof(float)) );
     cudaErrorCheck( cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice) );
 
+    device_vbo_t = NULL;
+    cudaErrorCheck( cudaMalloc((void**)&device_vbo_t, vbosize*sizeof(float)) );
+
     device_cbo = NULL;
     cudaErrorCheck( cudaMalloc((void**)&device_cbo, cbosize*sizeof(float)) );
     cudaErrorCheck( cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice) );
@@ -472,6 +488,11 @@ void kernelCleanup()
   {
       cudaFree( device_vbo );
       device_vbo = 0;
+  }
+  if( device_vbo_t )
+  {
+      cudaFree( device_vbo_t );
+      device_vbo_t = 0;
   }
   if( device_cbo )
   {
@@ -493,5 +514,6 @@ void kernelCleanup()
       cudaFree( depthbuffer );
       depthbuffer = 0;
   }
+
 }
 

@@ -31,6 +31,12 @@
     <ClInclude Include="..\..\src\statVal.h">
       <Filter>headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\glm.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\variables.h">
+      <Filter>headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\ObjCore\obj.cpp">
@@ -46,6 +52,9 @@
       <Filter>source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\main.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\glm.cpp">
       <Filter>source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -64,5 +73,9 @@
     <CudaCompile Include="..\..\src\rasterizeKernels.cu">
       <Filter>source</Filter>
     </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\passthroughFS.glsl" />
+    <None Include="shaders\passthroughVS.glsl" />
   </ItemGroup>
 </Project>

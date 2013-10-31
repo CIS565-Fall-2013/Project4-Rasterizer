@@ -13,14 +13,17 @@ class objLoader{
 private:
 	obj* geomesh;
 public:
-	objLoader(string, obj*);
+	//objLoader(string &filename, ObjModel* &newMesh );
+    objLoader(){};
 	~objLoader();
+
+    ObjModel* load( string &filename );
     
     //------------------------
     //-------GETTERS----------
     //------------------------
     
-	obj* getMesh();
+	//obj* getMesh();
 };
 
 #endif

@@ -13,7 +13,7 @@
 #ifndef _GLM_H_
 #define _GLM_H_
 
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 
 
 #ifndef M_PI

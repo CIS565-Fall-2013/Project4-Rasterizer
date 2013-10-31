@@ -9,6 +9,38 @@
 
 using namespace std;
 
+
+ObjModel::ObjModel()
+{
+    vbo = 0;
+    ibo = 0;
+    cbo = 0;
+    nbo = 0;
+    tbo = 0;
+    numVert = 0;
+}
+
+ObjModel::~ObjModel()
+{
+    if( vbo )
+        delete [] vbo;
+    vbo = 0;
+
+    if( ibo ) 
+        delete [] ibo;
+    ibo = 0;
+
+    if( cbo )
+        delete [] cbo;
+    cbo = 0;
+    if( nbo )
+        delete [] nbo;
+    nbo = 0;
+    if( tbo )
+        delete [] tbo;
+    tbo = 0;
+}
+
 obj::obj(){
 	vbosize = 0;
 	nbosize = 0;

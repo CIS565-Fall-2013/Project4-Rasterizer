@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\cudaMat4.h" />
+    <ClInclude Include="..\..\src\glm.h" />
     <ClInclude Include="..\..\src\glslUtility.h" />
     <ClInclude Include="..\..\src\main.h" />
     <ClInclude Include="..\..\src\ObjCore\obj.h" />
@@ -21,8 +22,10 @@
     <ClInclude Include="..\..\src\statVal.h" />
     <ClInclude Include="..\..\src\util.h" />
     <ClInclude Include="..\..\src\utilities.h" />
+    <ClInclude Include="..\..\src\variables.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\glm.cpp" />
     <ClCompile Include="..\..\src\glslUtility.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
     <ClCompile Include="..\..\src\ObjCore\obj.cpp" />
@@ -31,6 +34,10 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="..\..\src\rasterizeKernels.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\passthroughFS.glsl" />
+    <None Include="shaders\passthroughVS.glsl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{FF21CA49-522E-4E86-B508-EE515B248FC4}</ProjectGuid>

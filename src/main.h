@@ -8,7 +8,6 @@
 	#include <GL/glfw.h>
 #else
 	#include <GL/glew.h>
-	#include <GL/glut.h>
 #endif
 
 
@@ -38,37 +37,7 @@
 
 using namespace std;
 
-//-------------------------------
-//------------GL STUFF-----------
-//-------------------------------
-int frame;
-int fpstracker;
-double seconds;
-int fps = 0;
-GLuint positionLocation = 0;
-GLuint texcoordsLocation = 1;
-const char *attributeLocations[] = { "Position", "Tex" };
-GLuint pbo = (GLuint)NULL;
-GLuint displayImage;
-uchar4 *dptr;
 
-obj* mesh;
-
-float* vbo;
-int vbosize;
-float* cbo;
-int cbosize;
-int* ibo;
-int ibosize;
-
-//CUDA Resources
-cudaGraphicsResource* cudaPboRc = 0;
-size_t cudaRcSize;
-//-------------------------------
-//----------CUDA STUFF-----------
-//-------------------------------
-
-int width=800; int height=800;
 
 //-------------------------------
 //-------------MAIN--------------
