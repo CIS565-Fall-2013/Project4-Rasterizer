@@ -34,6 +34,10 @@ __host__ __device__ float calculateSignedArea(triangle tri){
 	return 0.5*((tri.p2.x - tri.p0.x)*(tri.p1.y - tri.p0.y) - (tri.p1.x - tri.p0.x)*(tri.p2.y - tri.p0.y));
 }
 
+__host__ __device__ float calculateSignedAreaWithWorldCoordinates(triangle tri){
+	return 0.5*((tri.pw2.x - tri.pw0.x)*(tri.pw1.y - tri.pw0.y) - (tri.pw1.x - tri.pw0.x)*(tri.pw2.y - tri.pw0.y));
+}
+
 //LOOK: helper function for calculating barycentric coordinates
 __host__ __device__ float calculateBarycentricCoordinateValue(glm::vec2 a, glm::vec2 b, glm::vec2 c, triangle tri){
 	triangle baryTri;

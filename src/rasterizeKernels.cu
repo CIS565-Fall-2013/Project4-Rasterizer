@@ -19,6 +19,7 @@
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
+float* device_wvbo;
 float* device_cbo;
 float* device_nbo;
 int* device_ibo;
@@ -149,7 +150,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 //Transform incoming vertex position from model to clip coordinates.
 //Use model matrix to transform into model space. Use view matrix to transform into camera space. Then,
 //use projection matrix to transform into clip space. Next, convert to NDC. Lastly, convert to window coordinates
-__global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosize, mat4 mvp, mat4 mvInvT, vec2 reso, float zNear, float zFar)
+__global__ void vertexShadeKernel(float* vbo, float* wvbo, int vbosize, float* nbo, int nbosize, mat4 mvp, mat4 mv, mat4 mvInvT, vec2 reso, float zNear, float zFar)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -162,6 +163,11 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosi
 	  // set up vbo
 	  vec4 hPoint(vbo[id1], vbo[id2], vbo[id3], 1.0f);
 	  
+	  vec4 worldPoint = mv * hPoint;
+	  wvbo[id1] = worldPoint.x;
+	  wvbo[id2] = worldPoint.y;
+	  wvbo[id3] = worldPoint.z;
+
 	  // to clip
 	  hPoint = mvp * hPoint;
 	  float wClip = hPoint.w;
@@ -176,8 +182,8 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosi
 	  windowPoint.x = reso.x * (ndcPoint.x + 1.f) * 0.5f; // range: [0, reso.x]
 	  windowPoint.y = reso.y * (ndcPoint.y + 1.f) * 0.5f; // range: [0, reso.y]
 	  //windowPoint.z = ndcPoint.z; // range: [-1, 1]
-	  //windowPoint.z = 0.5f * (zFar - zNear) * ndcPoint.z + 0.5f * (zFar + zNear); // range: [zNear, zFar]
-	  windowPoint.z = (ndcPoint.z + 1.f) * 0.5f; // range: [0, 1]
+	  //windowPoint.z = (ndcPoint.z + 1.f) * 0.5f; // range: [0, 1]
+	  windowPoint.z = 0.5f * (zFar - zNear) * ndcPoint.z + 0.5f * (zFar + zNear); // range: [zNear, zFar]
 
 	  vbo[id1] = windowPoint.x;
 	  vbo[id2] = windowPoint.y;
@@ -195,7 +201,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosi
 
 //TODO: Implement primative assembly
 //Given the vbo, cbo, ibo, group them into triangles and output the result
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, triangle* primitives)
+__global__ void primitiveAssemblyKernel(float* vbo, float* wvbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, triangle* primitives)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
@@ -235,14 +241,33 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  vec3 normal2 = vec3(nbo[nvboId21], nbo[nvboId22], nbo[nvboId23]);
 	  vec3 normal3 = vec3(nbo[nvboId31], nbo[nvboId32], nbo[nvboId33]);
 
-	  // retrieve colors
-	  //vec3 vert1Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
-	  //vec3 vert2Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
-	  //vec3 vert3Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+	  // retrieve vertices in world space
+	  vec3 wvert1 = vec3(wvbo[nvboId11], wvbo[nvboId12], wvbo[nvboId13]);
+	  vec3 wvert2 = vec3(wvbo[nvboId21], wvbo[nvboId22], wvbo[nvboId23]);
+	  vec3 wvert3 = vec3(wvbo[nvboId31], wvbo[nvboId32], wvbo[nvboId33]);
 
-	  vec3 vert1Color = vec3(cbo[0], cbo[1], cbo[2]);
-	  vec3 vert2Color = vec3(cbo[3], cbo[4], cbo[5]);
-	  vec3 vert3Color = vec3(cbo[6], cbo[7], cbo[8]);
+	  vec3 vert1Color;
+	  vec3 vert2Color;
+	  vec3 vert3Color;
+
+	  if (cbosize == 9)
+	  {
+		  // retrieve colors
+		  //vec3 vert1Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+		  //vec3 vert2Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+		  //vec3 vert3Color = vec3(cbo[cboId1], cbo[cboId2], cbo[cboId3]);
+
+		  vert1Color = vec3(cbo[0], cbo[1], cbo[2]);
+		  vert2Color = vec3(cbo[3], cbo[4], cbo[5]);
+		  vert3Color = vec3(cbo[6], cbo[7], cbo[8]);
+	  }
+	  else
+	  {
+		  vert1Color = vec3(cbo[nvboId11], cbo[nvboId12], cbo[nvboId13]);
+		  vert2Color = vec3(cbo[nvboId21], cbo[nvboId22], cbo[nvboId23]);
+		  vert3Color = vec3(cbo[nvboId31], cbo[nvboId32], cbo[nvboId33]);
+	  }
+
 
 	  // build triangle
 	  triangle tri;
@@ -256,9 +281,41 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  tri.n0 = normal1;
 	  tri.n1 = normal2;
 	  tri.n2 = normal3;
+	  tri.pw0 = wvert1;
+	  tri.pw1 = wvert2;
+	  tri.pw2 = wvert3;
 
 	  primitives[index] = tri;
   }
+}
+
+// Check if a triangle is facing away or towards the camera.
+__global__ void backFaceCullingKernel(triangle* primitives, int primitivesCount, vec3 cameraPosition)
+{
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (index < primitivesCount)
+	{
+		triangle tri = primitives[index];
+		vec3 normal = tri.n0;
+		vec3 cam = cameraPosition - tri.pw0;
+
+		float d = dot(cam, normal);
+		
+		if (d < 0)
+			tri.toDiscard = true;
+		else 
+			tri.toDiscard = false;
+
+		// try out the signed area method
+		float sa = calculateSignedArea(tri);
+
+		if (sa > 0)
+			tri.toDiscard = true;
+		else
+			tri.toDiscard = false;
+
+		primitives[index] = tri;
+	}
 }
 
 //TODO: Implement a rasterization method, such as scanline.
@@ -269,12 +326,14 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	{
 		triangle tri = primitives[index];
 
+		if (tri.toDiscard)
+			return;
+
+
 		//float signedarea = calculateSignedArea(tri);
 
 		//if (signedarea < 1e-10)
 		//	return;
-
-		// TODO: Backface culling: Use normal to figure out if the triangle is facing the camera or not. Skip the ones that are facing away from the camera.
 
 		vec3 triMinPoint;
 		vec3 triMaxPoint;
@@ -299,13 +358,12 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					int depthBufferId = y * resolution.x + x;
 					float z = getZAtCoordinate(bc, tri);
 					
-
 					if (z > depthbuffer[depthBufferId].position.z)
 					{
-						depthbuffer[depthBufferId].position = tri.p0 * bc.x + tri.p1 * bc.y + tri.p2 * bc.z;
+						depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z; // point in world space
 						depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
-						depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;
-
+						depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;		// normal in world space
+						
 						// depth test
 						//depthbuffer[depthBufferId].color = glm::normalize(vec3(-z,-z,-z));
 					}
@@ -392,20 +450,23 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   //------------------------------
   // turn table
   mat4 modelMatrix(1);
+#if TURN_TABLE == 1
   float d = (int)frame % 361;
   modelMatrix = glm::rotate(modelMatrix, -d, vec3(0,1,0));
+#endif
 
   // retrieve camera information
   mat4 viewMatrix = cam->view;
   mat4 projectionMatrix = cam->projection;
-  mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
-  mat4 mvInvT = transpose(inverse(viewMatrix * modelMatrix));
+  mat4 mv = viewMatrix * modelMatrix;
+  mat4 mvp = projectionMatrix * mv;
+  mat4 mvInvT = transpose(inverse(mv));
   float zFar = cam->zFar;
   float zNear = cam->zNear;
   vec2 reso = cam->resolution;
   
   // launch vertex shader kernel
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, mvp, mvInvT, reso, zNear, zFar);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_wvbo, vbosize, device_nbo, nbosize, mvp, mv, mvInvT, reso, zNear, zFar);
   cudaDeviceSynchronize();
 
 #if DEBUG == 1
@@ -417,12 +478,17 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, device_nbo, nbosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_wvbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, device_nbo, nbosize, primitives);
   cudaDeviceSynchronize();
 
 #if DEBUG == 1
   printVAO(device_nbo, nbosize);
 #endif
+
+#if BACK_FACE_CULLING == 1
+  backFaceCullingKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, cam->position);
+#endif
+
 
   //checkCUDAErrorWithLine("primitive assembly kernel failed");
   //------------------------------
@@ -451,11 +517,14 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
   checkCUDAError("Kernel failed!");
 }
 
-void kernelCleanup(){
+void kernelCleanup() {
   cudaFree( primitives );
   cudaFree( device_vbo );
+  cudaFree( device_wvbo );
   cudaFree( device_cbo );
   cudaFree( device_ibo );
+  cudaFree( device_nbo );
+  cudaFree( device_lights );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
 }
@@ -477,7 +546,6 @@ void printVAO(float* device_vao, int size)
 		printf ("%f,%f,%f\n", v1, v2, v3);
 	}
 
-
 	delete[] vao;
 }
 
@@ -495,6 +563,10 @@ void allocateDeviceMemory( float* vbo, int vbosize, float* cbo, int cbosize, int
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
+  device_wvbo = NULL;
+  cudaMalloc((void**)&device_wvbo, vbosize*sizeof(float));
+  cudaMemcpy( device_wvbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+
   device_cbo = NULL;
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
@@ -504,5 +576,6 @@ void allocateDeviceMemory( float* vbo, int vbosize, float* cbo, int cbosize, int
   cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   device_lights = NULL;
-
+  cudaMalloc((void**)&device_lights, lightsize*sizeof(light));
+  cudaMemcpy( device_lights, lights, lightsize, cudaMemcpyHostToDevice);
 }

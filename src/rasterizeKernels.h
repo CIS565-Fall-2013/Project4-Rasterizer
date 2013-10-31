@@ -19,6 +19,8 @@
 #endif
 
 #define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
+#define BACK_FACE_CULLING 1
+#define TURN_TABLE 1
 
 using glm::mat4;
 using glm::vec4;
@@ -27,6 +29,8 @@ using glm::vec2;
 using glm::clamp;
 using glm::inverse;
 using glm::transpose;
+using glm::dot;
+
 void printVAO(float* device_vao, int size);
 void kernelCleanup();
 void cudaRasterizeCore(camera* cam, uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, light* lights, int lightsize);

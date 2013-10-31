@@ -46,6 +46,7 @@ int main(int argc, char** argv){
   #endif
 
   initCamera();
+  initLights();
   initCuda();
 
   initVAO();
@@ -94,17 +95,24 @@ void runCuda(){
   nbo = mesh->getNBO();
   nbosize = mesh->getNBOsize();
 
+#if RGBONLY == 1
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
                     1.0, 0.0, 0.0};
   cbo = newcbo;
   cbosize = 9;
+#elif RGBONLY == 0
+  vec3 defaultColor(0,0,1);
+  mesh->setColor(defaultColor);
+  cbo = mesh->getCBO();
+  cbosize = mesh->getCBOsize();
+#endif
 
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, NULL, 0);
+  cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, lights, lightsize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -285,6 +293,16 @@ void initCamera()
 	cam->up = up;
 }
 
+void initLights()
+{
+	lightsize = 1;
+	lights = new light[lightsize];
+
+	// first light
+	lights[0].color = vec3(1,1,1);
+	lights[0].position = vec3(0, 5.f, 2.f);
+}
+
 void initTextures(){
     glGenTextures(1,&displayImage);
     glBindTexture(GL_TEXTURE_2D, displayImage);
@@ -372,6 +390,7 @@ void deleteTexture(GLuint* tex){
  
 void shut_down(int return_code){
 	delete cam;
+	delete[] lights;
 	kernelCleanup();
 	cudaDeviceReset();
 	#ifdef __APPLE__

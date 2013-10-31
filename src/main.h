@@ -37,6 +37,8 @@
     #define compat_getMaxGflopsDeviceId() cutGetMaxGflopsDeviceId()
 #endif
 
+#define RGBONLY 1 // used for determining whether the CBO should be equal to the size of VBO or just 9
+
 using namespace std;
 using glm::vec2;
 using glm::vec3;
@@ -68,7 +70,8 @@ float* nbo;
 int nbosize;
 int* ibo;
 int ibosize;
-
+light* lights;
+int lightsize;
 camera* cam;
 
 //-------------------------------
@@ -108,6 +111,7 @@ void runCuda();
 
 void initPBO(GLuint* pbo);
 void initCamera();
+void initLights();
 void initCuda();
 void initTextures();
 void initVAO();
