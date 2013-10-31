@@ -16,6 +16,13 @@ struct triangle {
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
+  glm::vec3 n0;
+  glm::vec3 n1;
+  glm::vec3 n2;
+  glm::vec3 worldp0;
+  glm::vec3 worldp1;
+  glm::vec3 worldp2;
+  bool facing;
 };
 
 struct fragment{

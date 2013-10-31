@@ -25,6 +25,9 @@ int* device_ibo;
 float* device_nbo;
 triangle* primitives;
 
+bool diff1spec0 = 1;
+
+
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
   if( cudaSuccess != err) {
@@ -150,7 +153,7 @@ __global__ void vertexShadeKernel(float* vbo, float* screenvbo, int vbosize,  fl
       float yNDC = (projectedVertex.y + 1)/2.0f;
       screenvbo[index*3] = xNDC*resolution.x;
       screenvbo[index*3+1] = yNDC* resolution.y;
-      screenvbo[index*3+2] = projectedVertex.z;\
+      screenvbo[index*3+2] = projectedVertex.z;
 	
 	  vec4 worldSpaceVert = model * worldVertex;
 	  vec4 worldSpaceNorm = model * worldNormal;
@@ -226,11 +229,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 		getAABBForTriangle(primitives[index], minP, maxP);
 
-		if(minP.x < 0) minP.x == 0;
-		if(maxP.x > resolution.x) maxP.x = resolution.x;
-		if(minP.y < 0) minP.y == 0;
-		if(maxP.y > resolution.y) maxP.y = resolution.y;
-
 		vec3 colorP0 = primitives[index].c0;
 		vec3 colorP1 = primitives[index].c1;
 		vec3 colorP2 = primitives[index].c2;
@@ -250,14 +248,16 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					vec3 interpWorldPos = barycentricCoord.x* worldP0+barycentricCoord.y* worldP1+barycentricCoord.z* worldP2;
 
 					fragment f;
-					f.color = vec3(1.0f,1.0f,1.0f);
+					f.color = vec3(.8f, .8f, .8f);
 					f.normal = normalize(interpNormal);
 					f.position = bc;
 					f.worldPosition = interpWorldPos;
 					int dbindex = y*resolution.x+x;
 
 					if (f.position.z >= depthbuffer[dbindex].position.z)
-						depthbuffer[dbindex] = f;
+						if (dbindex >= 0 && dbindex < resolution.x*resolution.y)
+							depthbuffer[dbindex] = f;
+					
 				}
 			}
 		}
@@ -266,18 +266,30 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, vec3 lightPos){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, vec3 lightPos, vec3 eye, bool diff1spec0){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
 	  if (depthbuffer[index].worldPosition.x > -999999){
-		//depthbuffer[index].color = abs(lightPos-depthbuffer[index].worldPosition);
 		vec3 surfaceColor = depthbuffer[index].color;
 		vec3 lightToPos = lightPos-depthbuffer[index].worldPosition;
 		lightToPos = normalize(lightToPos);
-		vec3 diffuseColor = dot(depthbuffer[index].normal, lightToPos)*surfaceColor;
-		depthbuffer[index].color = diffuseColor;
+		vec3 color;
+		if (diff1spec0){//diffuse
+			//depthbuffer[index].color = abs(lightPos-depthbuffer[index].worldPosition);
+			color = dot(depthbuffer[index].normal, lightToPos)*surfaceColor;
+		}else{//specular
+			vec3 eyeToPos = normalize(depthbuffer[index].worldPosition-eye);
+			vec3 posNormal = normalize(depthbuffer[index].normal);
+			vec3 reflectedDir = eyeToPos - 2.0f*posNormal*(dot(eyeToPos,posNormal));
+			reflectedDir = normalize(reflectedDir);
+			float specExponent = 0.3;
+			float D = dot(reflectedDir, lightToPos);
+			if (D < 0) D = 0;
+			color = surfaceColor*pow(D, specExponent);
+		}
+		depthbuffer[index].color = color;
 	  }
   }
 }
@@ -315,7 +327,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
   fragment frag;
-  frag.color = glm::vec3(0,0,0);
+  frag.color = glm::vec3(.2,.2,.2);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
   frag.worldPosition = glm::vec3(-999999,-999999,-999999);
@@ -375,7 +387,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, lightPos);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, lightPos, eye, diff1spec0);
   checkCUDAError("Kernel failed at fragmentShadeKernel!");
 
   cudaDeviceSynchronize();

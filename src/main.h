@@ -92,7 +92,7 @@ glm::mat4 modelViewProjection;
 //----------CUDA STUFF-----------
 //-------------------------------
 
-int width=800; int height=800;
+int width=1280; int height=720;
 
 //-------------------------------
 //-------------MAIN--------------
