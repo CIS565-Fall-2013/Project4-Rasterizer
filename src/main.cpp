@@ -9,8 +9,10 @@ int oldX = 0, oldY = 0, dx = 0, dy = 0;
 bool leftMButtonDown = false;
 
 float camRadius = 2.5f;
+float scrollSpeed = 0.5f;
 
 cbuffer constantBuffer;
+glm::mat4	cameraTransform;
 
 //-------------------------------
 //-------------MAIN--------------
@@ -30,6 +32,14 @@ int main(int argc, char** argv){
       mesh->buildVBOs();
       delete loader;
       loadedScene = true;
+    }
+	else if (strcmp(header.c_str(), "radius")==0)
+	{
+      camRadius = strtod (data.c_str(), NULL);
+    }
+	else if (strcmp(header.c_str(), "scrollspeed")==0)
+	{
+      scrollSpeed = strtod (data.c_str(), NULL);
     }
   }
 
@@ -117,11 +127,16 @@ void runCuda(bool &isFirstTime){
   nbo = mesh->getNBO ();
   nbosize = mesh->getNBOsize ();
 
-  glm::mat4	cameraTransform = glm::translate (
-
+  float u = (float)dx / (float)(width/scrollSpeed);
+  float v = (float)dy / (float)(height/scrollSpeed);
+  cameraTransform = glm::translate (glm::mat4 (1.0f), 
+								    glm::vec3 (camRadius*sin (PI*u)*cos (2.0f*PI*v), 
+												camRadius*cos (PI*u), 
+												-camRadius*sin (PI*u)*sin (2.0f*PI*v)));
+  glm::vec4 camOrigin = cameraTransform*glm::vec4 (0);
   constantBuffer.projection = /*glm::mat4 (1.0f);*/glm::perspective (60.0f, (float)(width/height), 0.1f, 100.0f);
+//  constantBuffer.view = glm::lookAt (glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), glm::vec3 (0), glm::vec3 (0,1,0));
   constantBuffer.view = glm::lookAt (glm::vec3 (0), glm::vec3 (0,0,1), glm::vec3 (0,1,0));
-
   cudaGLMapBufferObject((void**)&dptr, pbo);
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, 
 					nbo, nbosize, isFirstTime, constantBuffer);
