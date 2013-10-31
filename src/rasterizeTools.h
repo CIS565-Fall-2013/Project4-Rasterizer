@@ -9,6 +9,11 @@
 #include "utilities.h"
 #include "cudaMat4.h"
 
+struct vertex {
+  glm::vec4 point;
+  glm::vec3 normal;
+};
+
 struct triangle {
   glm::vec3 p0;
   glm::vec3 p1;

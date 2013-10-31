@@ -20,7 +20,9 @@ glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
 float* device_cbo;
+float* device_nbo;
 int* device_ibo;
+vertex* vertices;
 triangle* primitives;
 triangle* host_primitives;
 
@@ -142,16 +144,24 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
    that map vertex coordinates to camera coordinates:
      Pclip = (Mmodel-view-projection)(Pmodel)
 */
-__global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize){
+__global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize, float* nbo, int nbosize, vertex* vertices ){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  glm::vec4 vertex;
-  glm::vec4 vertex_tformd;
+  glm::vec4 point;
+  glm::vec4 point_tformd;
+  glm::vec4 normal;
+  glm::vec4 normal_tformd;
   if(index<vbosize/3){
     // Assemble vec4 from vbo ... vertex assembly :)
-    vertex.x = vbo[3*index];
-    vertex.y = vbo[3*index+1];
-    vertex.z = vbo[3*index+2]; 
-    vertex.w = 1.0f;
+    point.x = vbo[3*index];
+    point.y = vbo[3*index+1];
+    point.z = vbo[3*index+2]; 
+    point.w = 1.0f;
+    
+    normal.x = nbo[3*index];
+    normal.y = nbo[3*index+1];
+    normal.z = nbo[3*index+2];
+    normal.w = 0.0f;
+     
 
     // Apply model-view-project matrix transform
     // ... at the moment just the identity 
@@ -168,27 +178,31 @@ __global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize){
 
     glm::mat4 model = quaternion::toMat4( rot );
     */
-
-
     
-    // Transform
     glm::mat4 projection = glm::perspective(60.0f, 1.0f, 0.1f, 100.0f);
-    vertex_tformd = projection*view*vertex;
+
+    // Transform vertex and normal
+    point_tformd = projection*view*point;
+    normal_tformd = projection*view*normal;
     //vertex_tformd = view*vertex;
     //vertex_tformd = (eye*projection)*vertex;
 
     // Convert to normalized device coordinates
     float div = 1.0f;
-    if ( abs(vertex_tformd.w) > 1e-8 )
-      div = 1.0f/vertex_tformd.w;
+    if ( abs(point_tformd.w) > 1e-8 )
+      div = 1.0f/point_tformd.w;
+    /*
     vbo[3*index] = vertex_tformd.x*div;
     vbo[3*index+1] = vertex_tformd.y*div;
     vbo[3*index+2] = vertex_tformd.z*div; 
-    /*
-    vbo[3*index] = vertex_tformd.x;
-    vbo[3*index+1] = vertex_tformd.y;
-    vbo[3*index+2] = vertex_tformd.z;
     */
+    vertices[index].point.x = point_tformd.x*div;
+    vertices[index].point.y=  point_tformd.y*div;
+    vertices[index].point.z = point_tformd.z*div; 
+    vertices[index].normal.x = normal_tformd.x;
+    vertices[index].normal.y = normal_tformd.y;
+    vertices[index].normal.z = normal_tformd.z;
+
   }
 }
 
@@ -293,9 +307,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  // Color a fragment just for debugging sake 
 	  //frag.color = glm::vec3( 1.0, 0.0, 0.0 );  
 	  frag.position = glm::vec3( x, y, frag_depth );
+
 	  // Interpolate color on triangle ... cause this will look pretty
 	  frag.color = bary_coord[0]*primitives[index].c0 \
-		     + bary_coord[1]*primitives[index].c1 \
 		     + bary_coord[2]*primitives[index].c2;
 	  // This is BAD and not atomic :/
 	  fragment cur_frag = getFromDepthbuffer( x, y, depthbuffer, resolution );
@@ -330,7 +344,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
 
   // set up crucial magic
   int tileSize = 8;
@@ -360,6 +374,9 @@ void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, floa
   primitives = NULL;
   cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
 
+  vertices = NULL;
+  cudaMalloc((void**)&vertices, (ibosize/3)*sizeof(vertex));
+
   host_primitives = NULL;
   host_primitives = (triangle*)malloc((ibosize/3)*sizeof(triangle));
 
@@ -372,9 +389,15 @@ void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, floa
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
+
   device_cbo = NULL;
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+
 
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
@@ -403,7 +426,7 @@ void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, floa
   }
 #endif
 
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(cam, device_vbo, vbosize);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(cam, device_vbo, vbosize, device_nbo, nbosize, vertices);
 
   // DEBUG
 #ifdef DEBUG 
