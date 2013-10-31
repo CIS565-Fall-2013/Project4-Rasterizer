@@ -75,7 +75,7 @@ glm::mat4* model;
 glm::mat4* view;
 glm::mat4* projection;
 glm::mat4* screen;
-cudaMat4* transformModel2Projection;
+cudaMat4*  transformModel2Projection;
 
 // Viewport in the model space
 glm::vec3 viewPort;
@@ -84,14 +84,15 @@ glm::vec3 viewPort;
 //------INTERACTION STUFF--------
 //-------------------------------
 // Mouse Interaction
-static int lastX = 0;
-static int lastY = 0;
+static int  lastX      = 0;
+static int  lastY      = 0;
 static bool buttonDown = false;
 
 //-------------------------------
-//--------ANTI ALIASING----------
+//--------FRAGMENT STUFF---------
 //-------------------------------
 bool antialiasing = false;
+bool depthFlag    = false;
 
 //-------------------------------
 //----------CUDA STUFF-----------

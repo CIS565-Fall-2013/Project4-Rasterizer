@@ -68,8 +68,8 @@ __host__ __device__ glm::vec2 screen2scale(float x, float y, glm::vec2 resolutio
 
 // Transform the scale image position to the integer pixel one in the image.
 __host__ __device__ void scale2screen(glm::vec3 point, int & xs, int & ys, glm::vec2 resolution) {
-  xs = (int)floor((point.x + 1) * resolution.x / 2);
-  ys = (int)floor((- point.y + 1) * resolution.y / 2);
+  xs = (int)glm::round((point.x + 1) * resolution.x / 2);
+  ys = (int)glm::round((- point.y + 1) * resolution.y / 2);
 }
 
 #endif

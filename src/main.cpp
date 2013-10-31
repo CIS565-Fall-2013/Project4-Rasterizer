@@ -129,8 +129,15 @@ void runCuda(){
   *transformModel2Projection = utilityCore::glmMat4ToCudaMat4(*projection * *view * *model);
   viewPort = utilityCore::multiplyMat(utilityCore::glmMat4ToCudaMat4(*projection * *view), glm::vec4(cam.view, 1.0f));
 
+  // Transformation Feedback
+  std::cout <<  "\n The model-view-projection transformation is:" << std::endl;
+  utilityCore::printMat4(*projection * *view * *model);
+
+  std::cout <<  "\n The view port in the clip space is:" << std::endl;
+  utilityCore::printVec3(viewPort);
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection, viewPort, antialiasing);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection, viewPort, antialiasing, depthFlag);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -215,19 +222,22 @@ bool pauseFlag = false;
        case(27):
          shut_down(1);    
          break;
-	   case(' '):
+       case(' '):
          pauseFlag = ! pauseFlag;
-		 break;
-	   case('a'):
+         break;
+       case('a'):
          antialiasing = ! antialiasing;
          break;
-       case('u'):
+       case('d'):
+         depthFlag = ! depthFlag;
+         break;
+       case('['):
          cam.position -= 0.1f * cam.up;
          cam.view     = glm::normalize(-cam.position);
          cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
          cam.up       = glm::normalize(glm::cross(cam.right, cam.view));
          break;
-	   case('d'):
+       case(']'):
          cam.position += 0.1f * cam.up;
          cam.view     = glm::normalize(-cam.position);
          cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
