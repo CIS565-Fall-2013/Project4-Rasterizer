@@ -9,8 +9,11 @@
 #include "utilities.h"
 #include "cudaMat4.h"
 
+// Drawing modes
+enum { DRAW_SOLID, DRAW_COLOR, DRAW_NORMAL, SHADE_SOLID, SHADE_COLOR };
+
 struct vertex {
-  glm::vec4 point;
+  glm::vec3 point;
   glm::vec3 normal;
 };
 
@@ -18,6 +21,9 @@ struct triangle {
   glm::vec3 p0;
   glm::vec3 p1;
   glm::vec3 p2;
+  glm::vec3 n0;
+  glm::vec3 n1;
+  glm::vec3 n2;
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;

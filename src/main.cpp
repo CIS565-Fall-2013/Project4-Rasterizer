@@ -109,7 +109,8 @@ void runCuda(){
   nbosize = mesh->getNBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize);
+  // Invert camera to convert to view matrix
+  cudaRasterizeCore(glm::inverse(cam), dptr, glm::vec2(width, height), frame, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

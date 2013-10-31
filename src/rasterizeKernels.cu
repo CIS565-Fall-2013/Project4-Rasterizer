@@ -210,7 +210,8 @@ __global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize, float
 /* Primative assembly takes vertices from the vbo and triangel indices from the ibo
    and assembles triangle primatives for the rasterizer to work with 
 */
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+//__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+__global__ void primitiveAssemblyKernel(vertex* vertices, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
 
@@ -224,9 +225,19 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
     i2 = ibo[3*index+2];
 
     // Copy over vertex points
+    /*
     primitives[index].p0 = glm::vec3( vbo[3*i0], vbo[3*i0+1], vbo[3*i0+2] );
     primitives[index].p1 = glm::vec3( vbo[3*i1], vbo[3*i1+1], vbo[3*i1+2] );
     primitives[index].p2 = glm::vec3( vbo[3*i2], vbo[3*i2+1], vbo[3*i2+2] );
+    */
+    primitives[index].p0 = vertices[i0].point;
+    primitives[index].p1 = vertices[i1].point;
+    primitives[index].p2 = vertices[i2].point;
+    
+    // Copy over normals
+    primitives[index].n0 = vertices[i0].normal;
+    primitives[index].n1 = vertices[i1].normal;
+    primitives[index].n2 = vertices[i2].normal;
 
     // Copy over vertex colors
     /*
@@ -284,7 +295,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
     // Normal does not point towards the camera
     if ( calculateSignedArea( tri ) <= 0.0f )
       return;
-
   
     getAABBForTriangle( tri, min_point, max_point );
 
@@ -307,10 +317,20 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  // Color a fragment just for debugging sake 
 	  //frag.color = glm::vec3( 1.0, 0.0, 0.0 );  
 	  frag.position = glm::vec3( x, y, frag_depth );
+	  frag.normal = bary_coord[0]*primitives[index].n0 \
+		      + bary_coord[1]*primitives[index].n1 \
+		      + bary_coord[2]*primitives[index].n2;
+
+	  // Solid color for every triangle
 
 	  // Interpolate color on triangle ... cause this will look pretty
 	  frag.color = bary_coord[0]*primitives[index].c0 \
+		     + bary_coord[1]*primitives[index].c1 \
 		     + bary_coord[2]*primitives[index].c2;
+	  
+	  // Color fragment based interpolated normal
+	  //frag.color = frag.normal;
+	  
 	  // This is BAD and not atomic :/
 	  fragment cur_frag = getFromDepthbuffer( x, y, depthbuffer, resolution );
 	  // If current value is gt than new value then update
@@ -323,11 +343,33 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, int draw_mode ){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
+  fragment frag;
   if(x<=resolution.x && y<=resolution.y){
+    frag = getFromDepthbuffer( x, y, depthbuffer, resolution );
+
+    // Interactive drawing modes
+    switch (draw_mode) {
+      case( DRAW_SOLID ):
+	frag.color = glm::vec3( 1.0, 1.0, 1.0 );
+	break;
+      case( DRAW_COLOR ):
+	// Keep color the same
+	break;
+      case( DRAW_NORMAL ):
+	frag.color = frag.normal;
+	break;
+      case( SHADE_SOLID ):
+	// phong shading solid color
+	break;
+      case( SHADE_COLOR ):
+	// phong shading interpolated color
+	break;
+    }
+    writeToDepthbuffer( x, y, frag, depthbuffer, resolution ); 
   }
 }
 
@@ -344,7 +386,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(glm::mat4 view, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
 
   // set up crucial magic
   int tileSize = 8;
@@ -375,7 +417,7 @@ void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, floa
   cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
 
   vertices = NULL;
-  cudaMalloc((void**)&vertices, (ibosize/3)*sizeof(vertex));
+  cudaMalloc((void**)&vertices, (ibosize)*sizeof(vertex));
 
   host_primitives = NULL;
   host_primitives = (triangle*)malloc((ibosize/3)*sizeof(triangle));
@@ -426,7 +468,7 @@ void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, floa
   }
 #endif
 
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(cam, device_vbo, vbosize, device_nbo, nbosize, vertices);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(view, device_vbo, vbosize, device_nbo, nbosize, vertices);
 
   // DEBUG
 #ifdef DEBUG 
@@ -453,7 +495,8 @@ void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, floa
 #endif
 
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  //primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(vertices, device_cbo, cbosize, device_ibo, ibosize, primitives);
 
   // Host copy of primitives so that I can't print this out and make sure it works
   cudaMemcpy( host_primitives, primitives, (ibosize/3)*sizeof(triangle), cudaMemcpyDeviceToHost );
@@ -510,7 +553,9 @@ void cudaRasterizeCore(glm::mat4 cam, uchar4* PBOpos, glm::vec2 resolution, floa
 
 void kernelCleanup(){
   cudaFree( primitives );
+  cudaFree( vertices );
   cudaFree( device_vbo );
+  cudaFree( device_nbo );
   cudaFree( device_cbo );
   cudaFree( device_ibo );
   cudaFree( framebuffer );
