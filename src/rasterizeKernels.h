@@ -26,7 +26,7 @@
 // Will only work on copmute 3.5+, so check with someone
 #define DYNAMICPARALLELISM 0
 #define PERFANALYZE 1
-#define BACKFACECULLING 1
+#define BACKFACECULLING 0
 #define BACKFACEIGNORING 1
 
 #define LIGHTPOS glm::vec3(5000,5000,20000)

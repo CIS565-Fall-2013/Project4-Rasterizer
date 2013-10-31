@@ -63,6 +63,10 @@ I tried implementing locking by using a mutex per fragment (storing it in the fr
 Performance Analysis
 ---
 
+![Perf](renders/perf.png)
+
+Note, that the total time is on the y axis of the left side.
+
 One curious thing we realize is that this problem lends itself to dynamic parallelism since we don't want to write a loop over the pixels in the bounding box but rather do that parallely as well.
 
 We notice that the per primitive rasterization stage is pixel bound. i.e., the limit depends on the screen-space size of the triangle being rasterized since we have one triangle per thread. We could potentially parallelize by thread per fragment in output fragment buffer but then we would be bound by the number of fragments in the scene instead.
@@ -74,5 +78,4 @@ Some small optimizations that I ended up doing were the following:
 
 None the less, because the above optimizations are divergent, the speedups do not linearly translate to lowering times.
 
-Another interesting artifact noticed was that the back face culling seems to be faster than back face ignoring. I think this can be explained by the re-mallocing internally by thrust's remove-if while in back face ignoring, we just ignore the entire raster step for that triangle but it still exists in the list. The speed up is about 1-2 fps for medium scale models O(10k).
-I think a better metric would be to compare the same by varying the screen space average size of the triangle.
+Back face culling seems to be just a tad bit faster than back face ignoring, but a combination of the two gives us the best result.
