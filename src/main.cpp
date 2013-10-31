@@ -73,6 +73,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+	glutMouseFunc(mouseButton);
+	glutMotionFunc(mouseMove);
 
     glutMainLoop();
   #endif
@@ -112,6 +114,9 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
+
+  updateCamera();
+
   cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, lights, lightsize);
   cudaGLUnmapBufferObject(pbo);
 
@@ -121,7 +126,6 @@ void runCuda(){
 
   frame++;
   fpstracker++;
-
 }
 
 #ifdef __APPLE__
@@ -159,44 +163,110 @@ void runCuda(){
 
 #else
 
-  void display(){
-    runCuda();
-	time_t seconds2 = time (NULL);
+	void display()
+	{
+		runCuda();
+		time_t seconds2 = time (NULL);
 
-    if(seconds2-seconds >= 1){
+		if(seconds2-seconds >= 1){
 
-      fps = fpstracker/(seconds2-seconds);
-      fpstracker = 0;
-      seconds = seconds2;
+			fps = fpstracker/(seconds2-seconds);
+			fpstracker = 0;
+			seconds = seconds2;
+		}
 
-    }
+		string title = "CIS565 Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS";
+		glutSetWindowTitle(title.c_str());
 
-    string title = "CIS565 Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS";
-    glutSetWindowTitle(title.c_str());
+		glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);
+		glBindTexture(GL_TEXTURE_2D, displayImage);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, 
+			GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
-    glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);
-    glBindTexture(GL_TEXTURE_2D, displayImage);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, 
-        GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glClear(GL_COLOR_BUFFER_BIT);   
 
-    glClear(GL_COLOR_BUFFER_BIT);   
+		// VAO, shader program, and texture already bound
+		glDrawElements(GL_TRIANGLES, 6,  GL_UNSIGNED_SHORT, 0);
 
-    // VAO, shader program, and texture already bound
-    glDrawElements(GL_TRIANGLES, 6,  GL_UNSIGNED_SHORT, 0);
+		glutPostRedisplay();
+		glutSwapBuffers();
+	}
 
-    glutPostRedisplay();
-    glutSwapBuffers();
-  }
+	void keyboard(unsigned char key, int x, int y)
+	{
+		switch (key) 
+		{
+			case(27):
+			shut_down(1);    
+			break;
+		}
+	}
 
-  void keyboard(unsigned char key, int x, int y)
-  {
-    switch (key) 
-    {
-       case(27):
-         shut_down(1);    
-         break;
-    }
-  }
+	void mouseButton(int button, int state, int x, int y)
+	{
+		// if both the left mouse button and ALT key is down
+		int specialKey = glutGetModifiers();
+		if (button == GLUT_LEFT_BUTTON && specialKey == GLUT_ACTIVE_ALT) 
+		{
+			lastMousePosition = vec2(x,y);
+			printf("(%d,%d)\n", lastMousePosition.x, lastMousePosition.y);
+			altLmbDown = true;
+		}
+		else
+		{
+			altLmbDown = false;
+		}
+	}
+
+	void mouseMove(int x, int y)
+	{
+		float speed = 0.5f;
+		vec2 position = vec2(x,y);
+		vec2 delta = (position - lastMousePosition) * speed;
+
+		if (altLmbDown)
+		{
+			alpha -= delta.x;
+			while (alpha < 0) 
+			{
+				alpha += 360;
+			}
+			while (alpha >= 360)
+			{
+				alpha -= 360;
+			}
+
+			beta -= delta.y;
+
+			if (beta < -90)
+				beta = -90;
+			if (beta > 90)
+				beta = 90;
+
+			// update lastMousePosition
+			lastMousePosition.x = x;
+			lastMousePosition.y = y;
+		}
+	}
+
+	void updateCamera()
+	{
+		mat4 cameraTransform(1);
+		cameraTransform = rotate(cameraTransform, alpha, vec3(0,1,0));
+		cameraTransform = rotate(cameraTransform, beta, vec3(1,0,0));
+
+		vec4 pos4 = (cameraTransform * vec4(cam->position, 1.0));
+		vec4 up4 = (cameraTransform * vec4(cam->up, 0.0));
+
+		cam->position = vec3(pos4.x, pos4.y, pos4.z);
+		cam->up = vec3(up4.x, up4.y, up4.z);
+		
+		mat4 view = glm::lookAt(cam->position, center, cam->up);
+		cam->view = view;
+
+		alpha = 0;
+		beta = 0;
+	}
 
 #endif
   
@@ -274,13 +344,8 @@ void initCuda(){
 void initCamera()
 {
 	cam = new camera();
-
-	float fovy = 60.0f;
-	float zNear = 0.10f;
-	float zFar = 5.0f;
 	vec3 up = vec3(0,1,0);
-	vec3 cameraPosition = vec3(0, 0, 1);
-	vec3 center = vec3(0);
+	vec3 cameraPosition = vec3(0, 0, zDistance);
 	mat4 projection = glm::perspective(-fovy, float(width)/float(height), zNear, zFar); // LOOK: Passed in -fovy to have the image rightside up
     mat4 view = glm::lookAt(cameraPosition, center, up);
 	cam->zFar = zFar;

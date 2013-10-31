@@ -191,3 +191,4 @@ REFERENCES
 [OpenGL Transformation](http://www.songho.ca/opengl/gl_transform.html)
 [OpenGL Projection Matrix](http://www.songho.ca/opengl/gl_projectionmatrix.html)
 [The Viewport Transformation](http://glasnost.itcarlow.ie/~powerk/GeneralGraphicsNotes/projection/viewport_transformation.html)
+[GLUT Camera Movement](http://www.lighthouse3d.com/tutorials/glut-tutorial/mouse-putting-it-all-together/)

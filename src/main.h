@@ -45,6 +45,7 @@ using glm::vec3;
 using glm::mat4;
 using glm::perspective;
 using glm::lookAt;
+using glm::rotate;
 
 //-------------------------------
 //------------GL STUFF-----------
@@ -74,6 +75,19 @@ light* lights;
 int lightsize;
 camera* cam;
 
+// camera parameters
+float fovy = 60.0f;
+float zNear = 0.10f;
+float zFar = 5.0f;
+vec3 center = vec3(0);
+
+// interactive camera via mouse movements
+float zDistance = 1;
+float alpha = 0.0f;
+float beta = 0.0f;
+bool altLmbDown = false;
+vec2 lastMousePosition = vec2(0,0);
+
 //-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------
@@ -97,6 +111,9 @@ void runCuda();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void mouseMove(int x, int y);
+	void mouseButton(int button, int state, int x, int y);
+	void updateCamera();
 #endif
 
 //-------------------------------
