@@ -72,6 +72,7 @@ public:
 	vector<glm::vec4>* getNormals();
 	vector<glm::vec4>* getTextureCoords();
     vector<float*>* getFaceBoxes();
+	float getMaxDist();
 };
 
 #endif

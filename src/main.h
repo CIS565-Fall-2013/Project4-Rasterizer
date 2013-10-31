@@ -41,7 +41,7 @@ using namespace std;
 //-------------------------------
 //------------GL STUFF-----------
 //-------------------------------
-int frame;
+int frame = 0;
 int fpstracker;
 double seconds;
 int fps = 0;
@@ -52,15 +52,17 @@ GLuint pbo = (GLuint)NULL;
 GLuint displayImage;
 uchar4 *dptr;
 
-obj* mesh;
+obj** mesh;
 
 float* vbo;
 float* nbo;
 int vbosize;
 float* cbo;
-int cbosize;
+
 int* ibo;
 int ibosize;
+
+int numberOfMeshes;
 
 cam mouseCam;
 float lastx = 0.0f;
@@ -70,12 +72,22 @@ bool LMB=false;
 bool MMB=false;
 bool RMB=false;
 
+int currentFrame = 0;
+
 
 //-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------
 
 int width=800; int height=800;
+extern bool POINTS;
+extern enum coloringScheme {DIFFUSE_WHITE, PERVERTEXCOLOR, PERTRIANGLECOLOR, NORMALCOLORS, DEPTH, COUNT};
+extern int colScheme;
+extern int light;
+extern int numBRDFS;
+
+int cbosize = 3* 10;
+float *newcbo;
 
 //-------------------------------
 //-------------MAIN--------------
@@ -87,7 +99,7 @@ int main(int argc, char** argv);
 //---------RUNTIME STUFF---------
 //-------------------------------
 
-void runCuda();
+void runCuda(int frame);
 
 #ifdef __APPLE__
 	void display();

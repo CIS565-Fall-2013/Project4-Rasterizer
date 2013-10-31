@@ -24,13 +24,9 @@
 #define DEPTHPRECHECK 0
 #define OPTIMIZE_RASTER 1
 // Will only work on copmute 3.5+, so check with someone
-#define DYNAMICPARALLELISM 0
-#define DIFFUSE_WHITE 1
-#define INTERPCOLOR 1
-#define LIGHTING 1
-#define POINTS 0
-#define NORMALOVERRIDE 0
-#define BACKFACECULLING 0
+#define DYNAMICPARALLELISM 1
+
+#define BACKFACECULLING 1
 #define BACKFACEIGNORING 1
 
 #define LIGHTPOS glm::vec3(5000,5000,20000)

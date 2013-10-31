@@ -10,15 +10,17 @@
 int main(int argc, char** argv){
 
   bool loadedScene = false;
+  numberOfMeshes = argc - 1;
+  mesh = new obj*[numberOfMeshes]();
   for(int i=1; i<argc; i++){
     string header; string data;
     istringstream liness(argv[i]);
     getline(liness, header, '='); getline(liness, data, '=');
     if(strcmp(header.c_str(), "mesh")==0){
       //renderScene = new scene(data);
-      mesh = new obj();
-      objLoader* loader = new objLoader(data, mesh);
-      mesh->buildVBOs();
+      mesh[i-1] = new obj();
+      objLoader* loader = new objLoader(data, mesh[i-1]);
+      mesh[i-1]->buildVBOs();
       delete loader;
       loadedScene = true;
     }
@@ -29,6 +31,7 @@ int main(int argc, char** argv){
 	getchar();
     return 0;
   }
+  mouseCam.rad = 5 * mesh[0]->getMaxDist(); 
 
   frame = 0;
   seconds = time (NULL);
@@ -85,23 +88,19 @@ int main(int argc, char** argv){
 //---------RUNTIME STUFF---------
 //-------------------------------
 
-void runCuda(){
+void runCuda(int frame){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
   dptr=NULL;
 
-  vbo = mesh->getVBO();
-  nbo = mesh->getNBO();
-  vbosize = mesh->getVBOsize();
+  vbo = mesh[frame]->getVBO();
+  nbo = mesh[frame]->getNBO();
+  vbosize = mesh[frame]->getVBOsize();
 
-  float newcbo[] = {0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
   cbo = newcbo;
-  cbosize = 9;
 
-  ibo = mesh->getIBO();
-  ibosize = mesh->getIBOsize();
+  ibo = mesh[frame]->getIBO();
+  ibosize = mesh[frame]->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, nbo, vbosize, cbo, cbosize, ibo, ibosize);
@@ -153,7 +152,11 @@ void runCuda(){
 #else
 
   void display(){
-    runCuda();
+	if(mouseCam.idle==true)
+		mouseCam.phi += mouseCam.delPhi;
+
+    runCuda(frame%numberOfMeshes);
+	frame++;
 	time_t seconds2 = time (NULL);
 
     if(seconds2-seconds >= 1){
@@ -163,8 +166,25 @@ void runCuda(){
       seconds = seconds2;
 
     }
+	string lighting;
+	switch(light)
+	{
+		case 0:	lighting = "Flat"; break;
+		case 1:	lighting = "Diffuse"; break;
+		case 2:	lighting = "Specular"; break;
+	};
 
-    string title = "CIS565 Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS";
+	string coloring;
+	switch(colScheme)
+	{
+		case DIFFUSE_WHITE: coloring = "White"; break;
+		case PERVERTEXCOLOR: coloring = "Color Per Vertex"; break;
+		case PERTRIANGLECOLOR: coloring = "Color Per Triangle"; break;
+		case NORMALCOLORS: coloring = "Eye space on Normals"; lighting = "Flat"; break;
+		case DEPTH:			coloring = "Depth"; lighting = "Flat"; break;
+	};
+
+    string title = "CIS565 Rasterizer | "+ coloring + " | " + lighting + " | " + utilityCore::convertIntToString((int)fps) + "FPS";
     glutSetWindowTitle(title.c_str());
 
     glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);
@@ -188,6 +208,26 @@ void runCuda(){
        case(27):
          shut_down(1);    
          break;
+	   case 'm':
+		   mouseCam.idle = !mouseCam.idle;
+		   break;
+		case 'p':
+		   POINTS = !POINTS;
+		   break;
+		case 'c':
+			colScheme = (colScheme+1) % COUNT;
+			break;
+		case 'C':
+			colScheme = (colScheme-1) % COUNT;
+			break;
+		case 'l':
+			light++;
+			light = light%numBRDFS;
+			break;
+		case 'L':
+			light--;
+			light = light%numBRDFS;
+			break;
     }
   }
   void mouseMovement(int x, int y) {
@@ -288,6 +328,18 @@ void initPBO(GLuint* pbo){
   }
 }
 
+void initCBO()
+{
+	srand (time(NULL));
+	newcbo = (float*)malloc(cbosize* sizeof(float));
+	float r;
+	for(int i=0;i<cbosize;i++)
+	{
+		r = ((double) rand() / (RAND_MAX));
+		newcbo[i] = r;
+	}
+}
+
 void initCuda(){
   // Use device with highest Gflops/s
   cudaGLSetGLDevice( compat_getMaxGflopsDeviceId() );
@@ -297,7 +349,9 @@ void initCuda(){
   // Clean up on program exit
   atexit(cleanupCuda);
 
-  runCuda();
+  initCBO();
+
+  runCuda(0);
 }
 
 void initTextures(){

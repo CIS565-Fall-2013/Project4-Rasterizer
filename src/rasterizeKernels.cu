@@ -14,10 +14,16 @@
     #include <cutil_math.h>
 #endif
 
+bool POINTS=false;
+enum coloringScheme {DIFFUSE_WHITE, PERVERTEXCOLOR, PERTRIANGLECOLOR, NORMALCOLORS, DEPTH};
+int colScheme = DIFFUSE_WHITE;
+int light=1;
+int numBRDFS = 2;
+
 int w=800; int h=800;
 float fovy = 45;
 float near = 1.0f;
-float far = 10000.0f;
+#define far 10000.0f
 
 glm::mat4 model = glm::mat4(glm::vec4( 1.0f, 0.0f, 0.0f, 0.0f),
 							glm::vec4( 0.0f, 1.0f, 0.0f, 0.0f),
@@ -239,7 +245,7 @@ __global__ void vertexShadeKernel(float* vbo, float *nbo, int vbosize, glm::mat4
 }
 
 //TODO: Implement primative assembly
-__global__ void primitiveAssemblyKernel(float* vbo, float * nbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+__global__ void primitiveAssemblyKernel(float* vbo, float * nbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives, int cScheme){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
@@ -262,24 +268,27 @@ __global__ void primitiveAssemblyKernel(float* vbo, float * nbo, int vbosize, fl
 	  glm::vec3 n0 = glm::vec3(nbo[vertexStride* i0+0], nbo[vertexStride * i0+1], nbo[vertexStride * i0+2]);
 	  glm::vec3 n1 = glm::vec3(nbo[vertexStride* i1+0], nbo[vertexStride * i1+1], nbo[vertexStride * i1+2]);
 	  glm::vec3 n2 = glm::vec3(nbo[vertexStride* i2+0], nbo[vertexStride * i2+1], nbo[vertexStride * i2+2]);
-
+	  
+	  glm::vec3 c0, c1, c2;
+	  if(cScheme == PERTRIANGLECOLOR || cScheme == PERVERTEXCOLOR)
+	  {
 	  // Get colors :: implementation: colors are given based on index of triangle, alternating between red, blue and green
-	  int nextColor = index%cbosize;
-	  glm::vec3 c0 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
-	  nextColor=(nextColor + 1) %3;
-	  glm::vec3 c1 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
-	  nextColor=(nextColor + 1) %3;
-	  glm::vec3 c2 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
-	  nextColor=(nextColor + 1) %3;
+	  int numCols = cbosize/colorStride;
+	  int nextColor = index%numCols;
+	  c0 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
+	  nextColor=(nextColor + 1) %numCols;
+	  c1 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
+	  nextColor=(nextColor + 1) %numCols;
+	  c2 = glm::vec3(cbo[colorStride * nextColor+0], cbo[colorStride * nextColor+1], cbo[colorStride * nextColor+2]);
+	  }
+	if(cScheme == DIFFUSE_WHITE)
+	{
+		  c0 = glm::vec3(1,1,1);
+		  c2=c1=c0;
+	}
+	if(cScheme == PERTRIANGLECOLOR)
+		  c2 = c1 = c0;
 
-#if DIFFUSE_WHITE
-	  c0 = glm::vec3(1,1,1);
-	  c2=c1=c0;
-#endif
-
-#if INTERPCOLOR == 0
-	  c2 = c1 = c0;
-#endif
 
 	  // Assemble primitive
 	  thisTriangle.c0 = c0;	thisTriangle.c1 = c1;	thisTriangle.c2 = c2;
@@ -321,65 +330,64 @@ __global__ void dynamicParallelRaster(triangle thisTriangle, glm::vec3 normal, f
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
-
-	// Check if within resolution
-	if( (x > 0 && x < resolution.x) && (y > 0 && y < resolution.y) )
-	{
-		glm::vec3 bary = calculateBarycentricCoordinate(thisTriangle,glm::vec2(x,y));
+	glm::vec3 bary = calculateBarycentricCoordinate(thisTriangle,glm::vec2(x,y));
 	// Check if within projected triangle
-		if( isBarycentricCoordInBounds(bary))
-		{
-	// Interpolate Data
-			float depth = getZAtCoordinate(bary, thisTriangle);
-			int bufferIndex = x + y * resolution.x;
+	if( isBarycentricCoordInBounds(bary))
+	{
+		// Interpolate Data
+		float depth = getZAtCoordinate(bary, thisTriangle);
+		int bufferIndex = x + y * resolution.x;
 #if DEPTHPRECHECK
+		// Check if z is lower than already existing z
+		// Use Atomics!
+		// Check whether depth is +ve or -ve!
+		lock(&depthbuffer[bufferIndex].locked);
 
-	// Check if z is lower than already existing z
-	// Use Atomics!
-	// Check whether depth is +ve or -ve!
-
-			lock(&depthbuffer[bufferIndex].locked);
-
-			if(depth < depthbuffer[bufferIndex].position.z)
-			{
-	// ONLY then write to buffer
-				fragment f;
-	// Get interpolated color
-				f.color.x = getValueAtCoordinate(bary,thisTriangle.c0.x,thisTriangle.c1.x,thisTriangle.c2.x);
-				f.color.y = getValueAtCoordinate(bary,thisTriangle.c0.y,thisTriangle.c1.y,thisTriangle.c2.y);
-				f.color.z = getValueAtCoordinate(bary,thisTriangle.c0.z,thisTriangle.c1.z,thisTriangle.c2.z);
-
-				f.position.x = getValueAtCoordinate(bary,thisTriangle.p0.x,thisTriangle.p1.x,thisTriangle.p2.x);
-				f.position.y = getValueAtCoordinate(bary,thisTriangle.p0.y,thisTriangle.p1.y,thisTriangle.p2.y);
-				f.position.z = getValueAtCoordinate(bary,thisTriangle.p0.z,thisTriangle.p1.z,thisTriangle.p2.z);
-	// redundant to calculate x y z? No, because we need clip space coordinates for these lighting calculations
-
-				f.normal = normal;
-
-				depthbuffer[bufferIndex] = f;
-			}
-
-			unlock(&depthbuffer[bufferIndex].locked);
-#else
+		if(depth > depthbuffer[bufferIndex].position.z)
+		{
+			// ONLY then write to buffer
 			fragment f;
-	// Get interpolated color
+			// Get interpolated color
 			f.color.x = getValueAtCoordinate(bary,thisTriangle.c0.x,thisTriangle.c1.x,thisTriangle.c2.x);
 			f.color.y = getValueAtCoordinate(bary,thisTriangle.c0.y,thisTriangle.c1.y,thisTriangle.c2.y);
 			f.color.z = getValueAtCoordinate(bary,thisTriangle.c0.z,thisTriangle.c1.z,thisTriangle.c2.z);
 
+			//@DO : REMOVE : TESTING
+			f.color = glm::vec3(1,0,0);
+
 			f.position.x = getValueAtCoordinate(bary,thisTriangle.p0.x,thisTriangle.p1.x,thisTriangle.p2.x);
 			f.position.y = getValueAtCoordinate(bary,thisTriangle.p0.y,thisTriangle.p1.y,thisTriangle.p2.y);
 			f.position.z = getValueAtCoordinate(bary,thisTriangle.p0.z,thisTriangle.p1.z,thisTriangle.p2.z);
-	// redundant to calculate x y z? No, because we need clip space coordinates for these lighting calculations
+			// redundant to calculate x y z? No, because we need clip space coordinates for these lighting calculations
 
 			f.normal = normal;
 
-			lock(&depthbuffer[bufferIndex].locked);
 			depthbuffer[bufferIndex] = f;
-			unlock(&depthbuffer[bufferIndex].locked);
+		}
+
+		unlock(&depthbuffer[bufferIndex].locked);
+#else
+		fragment f;
+		// Get interpolated color
+		f.color.x = getValueAtCoordinate(bary,thisTriangle.c0.x,thisTriangle.c1.x,thisTriangle.c2.x);
+		f.color.y = getValueAtCoordinate(bary,thisTriangle.c0.y,thisTriangle.c1.y,thisTriangle.c2.y);
+		f.color.z = getValueAtCoordinate(bary,thisTriangle.c0.z,thisTriangle.c1.z,thisTriangle.c2.z);
+
+		f.position.x = getValueAtCoordinate(bary,thisTriangle.p0.x,thisTriangle.p1.x,thisTriangle.p2.x);
+		f.position.y = getValueAtCoordinate(bary,thisTriangle.p0.y,thisTriangle.p1.y,thisTriangle.p2.y);
+		f.position.z = depth;//getValueAtCoordinate(bary,thisTriangle.p0.z,thisTriangle.p1.z,thisTriangle.p2.z);
+		// redundant to calculate x y z? No, because we need clip space coordinates for these lighting calculations
+
+		f.normal = thisTriangle.n;
+
+		f.locked = 1;
+
+		//lock(&depthbuffer[bufferIndex].locked);
+		if(depth > depthbuffer[bufferIndex].position.z && f.position.z <= 1 )
+			depthbuffer[bufferIndex] = f;
+		//unlock(&depthbuffer[bufferIndex].locked);
 #endif
 
-		}
 	}
 }
 
@@ -566,7 +574,7 @@ __global__ void pointRasterKernel(float* vbo, int vbosize, fragment* depthbuffer
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, int cScheme, int lighting){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
@@ -574,24 +582,27 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 
 	// Read from buffer
 	fragment thisFrag = depthbuffer[index];
+	glm::vec3 lightPos;
 
-#if LIGHTING
-	// diffuse lighting
-	glm::vec3 lightPos = LIGHTPOS;
-	glm::vec3 lightToPos = glm::normalize(lightPos - thisFrag.position);
-	float diffuseTerm = glm::clamp(glm::dot(lightToPos,thisFrag.normal),0.0f,1.0f);
+	if(lighting==1)
+	{
+		// diffuse lighting
+		lightPos = LIGHTPOS;
+		glm::vec3 lightToPos = glm::normalize(lightPos - thisFrag.position);
+		float diffuseTerm = glm::clamp(glm::dot(lightToPos,thisFrag.normal),0.0f,1.0f);
 
-	thisFrag.color = diffuseTerm * thisFrag.color;
-#endif
+		thisFrag.color = diffuseTerm * thisFrag.color;
+	}
 
 	/*
 	thisFrag.color.x = x * 1.0f/resolution.x;
 	thisFrag.color.y = y * 1.0f/resolution.y;
 	thisFrag.color.z = 1.0f;
 	*/
-#if NORMALOVERRIDE
-	thisFrag.color = glm::clamp(thisFrag.normal,0.0f,1.0f);
-#endif
+	if(cScheme == NORMALCOLORS)
+		thisFrag.color = glm::clamp(thisFrag.normal,0.0f,1.0f);
+	else if(cScheme == DEPTH && thisFrag.position.z > -10000)
+		thisFrag.color = glm::vec3(fabs(thisFrag.position.z)/(far));
 	/*
 	thisFrag.color.x = fabs(thisFrag.normal.x);
 	thisFrag.color.y = fabs(thisFrag.normal.y);
@@ -679,45 +690,46 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   perspectiveViewportTransform<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, resolution, glm::vec2(near,far));
 
   cudaDeviceSynchronize();
-#if POINTS == 0
-  //------------------------------
-  //primitive assembly
-  //------------------------------
-  int numTriangles = ibosize/3;
-  primitiveBlocks = ceil(((float)numTriangles)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_nbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  if(!POINTS)
+  {
+	  //------------------------------
+	  //primitive assembly
+	  //------------------------------
+	  int numTriangles = ibosize/3;
+	  primitiveBlocks = ceil(((float)numTriangles)/((float)tileSize));
+	  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_nbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, colScheme);
 
-  cudaDeviceSynchronize();
+	  cudaDeviceSynchronize();
 
 #if BACKFACECULLING
-  //------------------------------
-  // Stream Compact Back Face
-  //------------------------------
+	  //------------------------------
+	  // Stream Compact Back Face
+	  //------------------------------
 
-  thrust::device_ptr<triangle> thrust_primitives = thrust::device_pointer_cast(primitives);
-  triangle *  thrust_new_prims = thrust::remove_if(thrust_primitives, thrust_primitives+numTriangles, checkNormal()).get();
-  numTriangles = thrust_new_prims - primitives;
-  primitiveBlocks = ceil(((float)numTriangles)/((float)tileSize));
+	  thrust::device_ptr<triangle> thrust_primitives = thrust::device_pointer_cast(primitives);
+	  triangle *  thrust_new_prims = thrust::remove_if(thrust_primitives, thrust_primitives+numTriangles, checkNormal()).get();
+	  numTriangles = thrust_new_prims - primitives;
+	  primitiveBlocks = ceil(((float)numTriangles)/((float)tileSize));
 
 #if DEBUG
-  std::cout<<"thrust compaction: new number of triangles: "<<numTriangles<<std::endl;
+	  std::cout<<"thrust compaction: new number of triangles: "<<numTriangles<<std::endl;
 #endif
 
 #endif
 
-  //------------------------------
-  //rasterization
-  //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+	  //------------------------------
+	  //rasterization
+	  //------------------------------
+	  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  }
+  else
+	pointRasterKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, depthbuffer, resolution);
 
-#else
-  pointRasterKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, depthbuffer, resolution);
-#endif
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, colScheme, light);
 
   cudaDeviceSynchronize();
   //------------------------------

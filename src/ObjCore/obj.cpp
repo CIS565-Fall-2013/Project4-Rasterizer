@@ -41,7 +41,7 @@ void obj::buildVBOs(){
 	vector<float> NBOvec;
 	vector<int> IBOvec;
 	int index = 0;
-	bool genNormals = false;
+	bool genNormals = true;
 	if(faces.size()!=facenormals.size()){
 		genNormals = true;
 	}
@@ -213,6 +213,10 @@ float* obj::getBoundingBox(){
 
 float obj::getTop(){
 	return top;
+}
+
+float obj::getMaxDist(){
+	return max(max(max(max(max(fabs(xmin),fabs(xmax)),fabs(ymin)),fabs(ymax)),fabs(zmin)),fabs(zmax));
 }
 
 void obj::recenter(){
