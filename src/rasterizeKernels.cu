@@ -141,7 +141,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
   }
 }
 
-//TODO: Implement a vertex shader
+//DONE: Implement a vertex shader
 /* The vertex shader takes in vertices and applies the transformations
    that map vertex coordinates to camera coordinates:
      Pclip = (Mmodel-view-projection)(Pmodel)
@@ -162,7 +162,8 @@ __global__ void vertexShadeKernel(glm::mat4 view, glm::mat4 projection, glm::vec
     normal.y = nbo[3*index+1];
     normal.z = nbo[3*index+2];
 
-    glm::mat4 eye = glm::mat4( 1.0f );
+    // Model identity matrix
+    glm::mat4 model = glm::mat4( 1.0f );
 
     // Before transforming compute light direction for each vertex
     vertices[index].lightdir = glm::normalize(light - glm::vec3( point.x, point.y, point.z ));
@@ -170,19 +171,33 @@ __global__ void vertexShadeKernel(glm::mat4 view, glm::mat4 projection, glm::vec
     vertices[index].normal = normal;
 
     // Transform vertex and normal
-    point_tformd = projection*view*point;
+    point_tformd = projection*view*model*point;
 
     // Convert to normalized device coordinates
     float div = 1.0f;
     if ( abs(point_tformd.w) > 0.0f )
       div = 1.0f/point_tformd.w;
+    /*
     vertices[index].point.x = point_tformd.x*div;
     vertices[index].point.y=  point_tformd.y*div;
     vertices[index].point.z = point_tformd.z*div; 
+    */
+     
+    point.x = point_tformd.x*div;
+    point.y=  point_tformd.y*div;
+    point.z = point_tformd.z*div; 
+
+    // Do clipping on vertex
+    vertices[index].draw_flag = true;
+    if ( abs(point.x) >= 1.0 || abs(point.y) >= 1.0 || abs(point.z) >= 1.0 )
+      vertices[index].draw_flag = false;
+    vertices[index].point.x = point.x;
+    vertices[index].point.y = point.y;
+    vertices[index].point.z = point.z;
   }
 }
 
-//TODO: Implement primative assembly
+//DONE: Implement primative assembly
 /* Primative assembly takes vertices from the vbo and triangel indices from the ibo
    and assembles triangle primatives for the rasterizer to work with 
 */
@@ -199,6 +214,11 @@ __global__ void primitiveAssemblyKernel(vertex* vertices, float* cbo, int cbosiz
     i0 = ibo[3*index];
     i1 = ibo[3*index+1];
     i2 = ibo[3*index+2];
+
+    // If any vertices should be drawn then draw the whole triangle
+    primitives[index].draw_flag = false;
+    if ( (vertices[i0].draw_flag + vertices[i1].draw_flag + vertices[i2].draw_flag) != 0 )
+      primitives[index].draw_flag = true;
 
     // Copy over vertex points
     primitives[index].p0 = vertices[i0].point;
@@ -222,7 +242,7 @@ __global__ void primitiveAssemblyKernel(vertex* vertices, float* cbo, int cbosiz
   }
 }
 
-//TODO: Implement a rasterization method, such as scanline.
+//DONE: Implement a rasterization method, such as scanline.
 /* 
    Given triangle coordinates, converted to screen coordinates, find fragments inside of triangle using AABB and brute force barycentric coords checks
 */
@@ -246,6 +266,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   float offs_x;
   float offs_y;
   if ( index<primitivesCount ) {
+
+    // Check if we should even bother with this triangle
+    if ( !primitives[index].draw_flag )
+      return;
 
     // Map primitives from world to window coordinates using the viewport transform
     scale_x = resolution.x/2;
@@ -309,7 +333,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   }
 }
 
-//TODO: Implement a fragment shader
+//DONE: Implement a fragment shader
 __global__ void fragmentShadeKernel( fragment* depthbuffer, glm::vec2 resolution, int draw_mode ){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;

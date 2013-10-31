@@ -13,6 +13,7 @@ struct vertex {
   glm::vec3 point;
   glm::vec3 normal;
   glm::vec3 lightdir;
+  bool draw_flag;
 };
 
 struct triangle {
@@ -32,6 +33,7 @@ struct triangle {
   glm::vec3 l0;
   glm::vec3 l1;
   glm::vec3 l2;
+  bool draw_flag;
 };
 
 struct fragment{
