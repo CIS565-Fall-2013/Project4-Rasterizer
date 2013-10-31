@@ -144,7 +144,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosi
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index < vbosize/3){
     glm::vec3 newVertex = multiplyMV(transform, glm::vec4(vbo[3 * index], vbo[3 * index + 1], vbo[3 * index + 2], 1.0f));
-	glm::vec3 normal    = glm::normalize(multiplyMV(transform, glm::vec4(nbo[3 * index], nbo[3 * index + 1], nbo[3 * index + 2], 1.0f)));
+	glm::vec3 normal    = glm::normalize(multiplyMV(transform, glm::vec4(nbo[3 * index], nbo[3 * index + 1], nbo[3 * index + 2], 0.0f)));
     vbo[3 * index]      = newVertex.x;
     vbo[3 * index + 1]  = newVertex.y;
     vbo[3 * index + 2]  = newVertex.z;
@@ -270,25 +270,25 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	} else if (flatcolorFlag) {
       switch(color) {
         case(0):
-          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * light[i].color;
+          depthbuffer[index].color += (0.5f * diffuse + 0.5f * specular) * light[i].color;
           break;
         case(1):
-          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.63f, 0.06f, 0.04f) * light[i].color;
+          depthbuffer[index].color += (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.63f, 0.06f, 0.04f) * light[i].color;
           break;
         case(2):
-          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.15f, 0.48f, 0.09f) * light[i].color;
+          depthbuffer[index].color += (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.15f, 0.48f, 0.09f) * light[i].color;
           break;  
         case(3):
-          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.13f, 0.16f, 0.84f) * light[i].color;
+          depthbuffer[index].color += (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.13f, 0.16f, 0.84f) * light[i].color;
           break;
         case(4):
-          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.43f, 0.16f, 0.54f) * light[i].color;
+          depthbuffer[index].color += (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.43f, 0.16f, 0.54f) * light[i].color;
           break;        
       }
 	} else
-    depthbuffer[index].color += frag * 2.0f * (0.5f * diffuse + 0.5f * specular) * light[i].color;
+    depthbuffer[index].color += frag * (0.5f * diffuse + 0.5f * specular) * light[i].color;
   }
-  depthbuffer[index].color /= multicolorFlag ? (float)lightNum * 0.3f : (float)lightNum;
+  depthbuffer[index].color /= multicolorFlag ? (float)lightNum * 0.3f : (float)lightNum * 0.5f;
 }
 
 //Writes fragment colors to the framebuffer
