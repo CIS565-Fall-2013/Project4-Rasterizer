@@ -83,6 +83,8 @@ void runCuda(bool &isFirstTime);
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void onButtonPress (int button, int state, int x, int y);
+	void onMouseMove (int x, int y);
 #endif
 
 //-------------------------------

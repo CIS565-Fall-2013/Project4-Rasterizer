@@ -4,7 +4,8 @@
 #include "main.h"
 
 bool first = true;
-
+int oldX = 0, oldY = 0, dx = 0, dy = 0;	
+bool leftMButtonDown = false;
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -74,6 +75,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+	glutMouseFunc (onButtonPress);
+	glutMotionFunc (onMouseMove);
 
     glutMainLoop();
   #endif
@@ -102,8 +105,13 @@ void runCuda(bool &isFirstTime){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+  cbuffer constantBuffer;
+  constantBuffer.model = glm::mat4 (1.0);
+  constantBuffer.projection = glm::mat4 (1.0);
+  constantBuffer.view = glm::mat4 (1.0);
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, isFirstTime);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, isFirstTime, constantBuffer);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -189,6 +197,30 @@ void runCuda(bool &isFirstTime){
     }
   }
 
+  void onButtonPress (int button, int state, int x, int y)
+  {
+	  if ((button == GLUT_LEFT_BUTTON) && (state == GLUT_DOWN))
+	  {
+		  oldX = x;	oldY = y;
+		  leftMButtonDown = true;
+	  }
+	  else
+		  leftMButtonDown = false;
+  }
+
+  void onMouseMove (int x, int y)
+  {
+	  if (leftMButtonDown)
+	  {
+		  dx = x - oldX;
+		  dy = y - oldY;
+	  }
+	  else
+	  {
+		  dx = 0;
+		  dy = 0;
+	  }
+  }
 #endif
   
 //-------------------------------

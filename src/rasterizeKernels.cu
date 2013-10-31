@@ -20,6 +20,7 @@
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
+float* device_nbo;
 float* device_cbo;
 int* device_ibo;
 triangle* primitives;
@@ -149,22 +150,22 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize)
+__global__ void vertexShadeKernel(float* vbo, int vbosize, cbuffer constantBuffer)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  __shared__ glm::mat4 model;
-  __shared__ glm::mat4 view;
-  __shared__ glm::mat4 projection;
+//  __shared__ glm::mat4 model;
+//  __shared__ glm::mat4 view;
+//  __shared__ glm::mat4 projection;
   __shared__ glm::mat4	ModelViewProjection;
   __shared__ int	step;
 
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
-	  model = glm::mat4 (1.0f);
-	  view = glm::mat4 (1.0f);
-	  projection = glm::mat4 (1.0f);
+//	  model = glm::mat4 (1.0f);
+//	  view = glm::mat4 (1.0f);
+//	  projection = glm::mat4 (1.0f);
 
-	  ModelViewProjection = projection * view * model;
+	  ModelViewProjection = constantBuffer.projection * constantBuffer.view * constantBuffer.model;
 	  step = vbosize/4;
   }
 
@@ -463,7 +464,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, bool &isFirstTime)
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, 
+						int* ibo, int ibosize, float * nbo, int nbosize, bool &isFirstTime, const cbuffer &constantBuffer)
 {
 	int nPrims = ibosize / 3;
   // set up crucial magic
@@ -502,9 +504,13 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
-  device_cbo = NULL;
+  device_nbo = NULL;
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/4)/((float)tileSize));
@@ -512,7 +518,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, constantBuffer);
   checkCUDAError("Vertex shader failed!");
   cudaDeviceSynchronize();
   //------------------------------

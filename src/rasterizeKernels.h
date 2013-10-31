@@ -16,7 +16,18 @@
     #include <cutil_math.h>
 #endif
 
+//-------------------------------
+//--------DATA STRUCTURES--------
+//-------------------------------
+struct	cbuffer
+{
+	glm::mat4	model;
+	glm::mat4	view;
+	glm::mat4	projection;
+};
+
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, bool &isFirstTime);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
+						bool &isFirstTime, const cbuffer &constantBuffer);
 
 #endif //RASTERIZEKERNEL_H
