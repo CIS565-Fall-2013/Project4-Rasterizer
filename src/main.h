@@ -46,6 +46,7 @@ using glm::mat4;
 using glm::perspective;
 using glm::lookAt;
 using glm::rotate;
+using glm::translate;
 
 //-------------------------------
 //------------GL STUFF-----------
@@ -82,10 +83,11 @@ float zFar = 5.0f;
 vec3 center = vec3(0);
 
 // interactive camera via mouse movements
-float zDistance = 1;
+float zTranslateDistance = 0;
 float alpha = 0.0f;
 float beta = 0.0f;
 bool altLmbDown = false;
+bool altRmbDown = false;
 vec2 lastMousePosition = vec2(0,0);
 
 //-------------------------------

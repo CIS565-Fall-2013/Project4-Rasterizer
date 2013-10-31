@@ -211,21 +211,29 @@ void runCuda(){
 			lastMousePosition = vec2(x,y);
 			printf("(%d,%d)\n", lastMousePosition.x, lastMousePosition.y);
 			altLmbDown = true;
+			altRmbDown = false;
+		}
+		else if (button == GLUT_RIGHT_BUTTON && specialKey == GLUT_ACTIVE_ALT)
+		{
+			lastMousePosition = vec2(x,y);
+			altRmbDown = true;
+			altLmbDown = false;
 		}
 		else
 		{
+			altRmbDown = false;
 			altLmbDown = false;
 		}
 	}
 
 	void mouseMove(int x, int y)
 	{
-		float speed = 0.5f;
-		vec2 position = vec2(x,y);
-		vec2 delta = (position - lastMousePosition) * speed;
-
 		if (altLmbDown)
 		{
+			float speed = 0.5f;
+			vec2 position = vec2(x,y);
+			vec2 delta = (position - lastMousePosition) * speed;
+
 			alpha -= delta.x;
 			while (alpha < 0) 
 			{
@@ -244,16 +252,41 @@ void runCuda(){
 				beta = 90;
 
 			// update lastMousePosition
-			lastMousePosition.x = x;
-			lastMousePosition.y = y;
+			lastMousePosition = position;
+		}
+
+		if (altRmbDown)
+		{
+			float speed = 0.01f;
+			vec2 position = vec2(x,y);
+			vec2 delta = (position - lastMousePosition) * speed;
+
+			if (delta.x > 0)
+				cam->position.z += 0.1f;
+			else if (delta.x < 0)
+				cam->position.z -= 0.1f;
+
+			if (cam->position.z < 0.01f)
+				cam->position.z = 0.01f;
+
+			lastMousePosition = position;
 		}
 	}
 
 	void updateCamera()
 	{
+		// update position
+		//cam->position = vec3(cam->position.x, cam->position.y, zDistance);
+
+		// update orientation
 		mat4 cameraTransform(1);
 		cameraTransform = rotate(cameraTransform, alpha, vec3(0,1,0));
 		cameraTransform = rotate(cameraTransform, beta, vec3(1,0,0));
+
+		//vec4 translateAxis = cameraTransform * vec4(0,0,zTranslateDistance,0);
+		//cameraTransform = translate(cameraTransform, vec3(translateAxis.x, translateAxis.y, translateAxis.z));
+
+		//cameraTransform = translate(cameraTransform, vec3(0,0,zTranslateDistance));
 
 		vec4 pos4 = (cameraTransform * vec4(cam->position, 1.0));
 		vec4 up4 = (cameraTransform * vec4(cam->up, 0.0));
@@ -264,8 +297,17 @@ void runCuda(){
 		mat4 view = glm::lookAt(cam->position, center, cam->up);
 		cam->view = view;
 
+		if (alpha != 0)
+			printf("alpha = %f\n", alpha);
+
+		if (beta != 0)
+			printf("beta = %f\n", beta);
+
 		alpha = 0;
 		beta = 0;
+		
+
+		zTranslateDistance = 0;
 	}
 
 #endif
@@ -345,7 +387,7 @@ void initCamera()
 {
 	cam = new camera();
 	vec3 up = vec3(0,1,0);
-	vec3 cameraPosition = vec3(0, 0, zDistance);
+	vec3 cameraPosition = vec3(0, 0, 1);
 	mat4 projection = glm::perspective(-fovy, float(width)/float(height), zNear, zFar); // LOOK: Passed in -fovy to have the image rightside up
     mat4 view = glm::lookAt(cameraPosition, center, up);
 	cam->zFar = zFar;
