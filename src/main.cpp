@@ -105,13 +105,17 @@ void runCuda(bool &isFirstTime){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+  nbo = mesh->getNBO ();
+  nbosize = mesh->getNBOsize ();
+
   cbuffer constantBuffer;
   constantBuffer.model = glm::mat4 (1.0);
   constantBuffer.projection = glm::mat4 (1.0);
   constantBuffer.view = glm::mat4 (1.0);
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, isFirstTime, constantBuffer);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, 
+					nbo, nbosize, isFirstTime, constantBuffer);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

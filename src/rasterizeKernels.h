@@ -27,7 +27,7 @@ struct	cbuffer
 };
 
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
-						bool &isFirstTime, const cbuffer &constantBuffer);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, 
+						int* ibo, int ibosize, float* nbo, int nbosize, bool &isFirstTime, const cbuffer &constantBuffer);
 
 #endif //RASTERIZEKERNEL_H
