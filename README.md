@@ -71,7 +71,7 @@ Now let us factor in the time required for vertex shading, primitive assembly an
 
 ![Perf](renders/perf2.png)
 
-We notice that though the rasterization stage is faster with back-face-culling than back-face-ignoring or none, there is a large overhead  of streamcompaction which leads the back-face-ignoring to be the right balance between the two. We also should note that the fragment shader is constant across all these since it is bound by the number of fragments which is kept constant across this experiement (800x800).
+We notice that for models larger than 100k triangles, though the rasterization stage is faster with back-face-culling than back-face-ignoring or none, there is a large overhead  of streamcompaction which leads the back-face-ignoring to be the right balance between the two. We also should note that the fragment shader is constant across all these since it is bound by the number of fragments which is kept constant across this experiement (800x800).
 
 One curious thing we realize is that this problem lends itself to dynamic parallelism since we don't want to write a loop over the pixels in the bounding box but rather do that parallely as well.
 
