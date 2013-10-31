@@ -171,7 +171,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  primitives[index].pv1 = glm::vec3(svbo[3*(ibo[3*index+1])],svbo[(3*ibo[3*index+1])+1],svbo[(3*ibo[3*index+1])+2]);
 	  primitives[index].pv2 = glm::vec3(svbo[3*(ibo[3*index+2])],svbo[(3*ibo[3*index+2])+1],svbo[(3*ibo[3*index+2])+2]);
 
-	  glm::vec3 c = glm::cross((primitives[index].pv1 - primitives[index].pv0),(primitives[index].pv2 - primitives[index].pv0));
+	  glm::vec3 c = glm::cross((primitives[index].pv2 - primitives[index].pv0),(primitives[index].pv1 - primitives[index].pv0));
 	  float a = glm::dot(c,glm::vec3(0,0,-1));
 	  if( a > 0)
 		  primitives[index].bFace = false;
@@ -246,7 +246,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 						{
 						depthbuffer[p].color    = primitives[index].c0 * bCoord.x + primitives[index].c1 * bCoord.y + primitives[index].c2 * bCoord.z;
 						depthbuffer[p].position = primitives[index].pv0* bCoord.x + primitives[index].pv1 * bCoord.y + primitives[index].pv2 * bCoord.z;
-						depthbuffer[p].normal   = glm::abs(glm::cross((primitives[index].pv1 - primitives[index].pv0),(primitives[index].pv2 - primitives[index].pv0))) * 25.0f;
+						depthbuffer[p].normal   = (glm::cross((primitives[index].pv2 - primitives[index].pv0),(primitives[index].pv1 - primitives[index].pv0))) ;
 						depthbuffer[p].depth = currentZ ;
 						}
 						done = true;
@@ -266,8 +266,10 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
-	  glm::vec4 lig = glm::vec4(0,5,-10,1) * MV ;
-	  depthbuffer[index].color = glm::vec3(1,1,1) * glm::dot(depthbuffer[index].normal,glm::normalize(glm::vec3(lig.x,lig.y,lig.z) - depthbuffer[index].position));
+	 glm::vec4 lig = glm::vec4(0,-20,10,1.0f) * MV ;
+	  //glm::vec3 lig = glm::vec3(0,10,5);
+	  depthbuffer[index].color =  glm::vec3(1,1,1) *glm::dot(glm::normalize(depthbuffer[index].normal),glm::normalize(glm::vec3(lig.x,lig.y,lig.z) - depthbuffer[index].position));
+	  // glm::normalize(depthbuffer[index].position);//
   }
 }
 

@@ -18,12 +18,13 @@ typedef int BOOL;
   int mouse_old_y ;
   float spherex =0.0f,spherey = 0.0f,sphereRadius=10.0f ;
   glm::vec3 sphereCenter = glm::vec3(0,0,0) ;
+  float r_head= 0.0 , r_pitch = 0.0;
 
 
 glm::mat4 Projection;
 glm::vec3 eye = glm::vec3(0,0,10) ;
 //glm::vec3 viewDir = glm::vec3(0,-1,0); 
-glm::vec3 viewDir = glm::vec3(0,-1,0); 
+glm::vec3 up = glm::vec3(0,1,0); 
 glm::mat4 View ;
 glm::mat4 Model ;
 glm::mat4 MVP ;
@@ -134,10 +135,10 @@ Projection = glm::perspective(45.0f, 1.0f, 0.1f, 100.0f);
 View       = glm::lookAt(
     eye, // Camera is at (4,3,3), in World Space3,1,10
     sphereCenter, // and looks at the origin
-    viewDir  // Head is up (set to 0,-1,0 to look upside-down)
+    up  // Head is up (set to 0,-1,0 to look upside-down)
 );
 // Model matrix : an identity matrix (model will be at the origin)
-Model      = glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0,1,0), glm::vec3(0,180,0), glm::vec3(5,-5,5)));//glm::mat4(1.0f);  // Changes for each model !
+Model      = glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0,0,0), glm::vec3(0,180,0), glm::vec3(5,5,5)));//glm::mat4(1.0f);  // Changes for each model !
 //Model      = glm::mat4((1.0));//utilityCore::buildTransformationMatrix(glm::vec3(0,0,0), glm::vec3(0,0,0), glm::vec3(1,1,1)));
   //glm::mat4 buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale);
 // Our ModelViewProjection : multiplication of our 3 matrices
@@ -269,7 +270,7 @@ Model      = glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0,1,0), 
 		float dx, dy;
 		dx = (float)(x - mouse_old_x);
 		dy = (float)(y - mouse_old_y);
-		float r_head = 0.0f , r_pitch = 0.0f ;
+		//r_head = 0.0f ; r_pitch = 0.0f ;
 		if( g_bButton1Down || g_bButton2Down || g_bButton3Down)
 		{
 		
@@ -299,7 +300,7 @@ Model      = glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0,1,0), 
 		{
 			
 			glm::vec3 vdir(sphereCenter -  eye);
-			glm::vec3 u(glm::normalize(glm::cross(glm::normalize(vdir), glm::vec3(0,0,1))));
+			glm::vec3 u(glm::normalize(glm::cross(glm::normalize(vdir), up)));
 			glm::vec3 v(glm::normalize(glm::cross(u, glm::normalize(vdir))));
 
 			sphereCenter += 0.01f * (dy * v - dx * u);
@@ -316,7 +317,7 @@ Model      = glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0,1,0), 
 		eye.y = (sphereCenter.y + sphereRadius  * glm::sin(r_head) * glm::sin(r_pitch));
 		eye.z = (sphereCenter.z + sphereRadius * glm::cos(r_head) );
 
-		viewDir = 	glm::normalize(glm::vec3(sphereCenter - eye));
+		//glm::vec3 viewDir = 	glm::normalize(glm::vec3(sphereCenter - eye));
 			
 
 			//cam_pos.x = lookat.x + eye_distance * glm::cos(r_head) * glm::cos(r_pitch);
