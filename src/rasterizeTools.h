@@ -27,6 +27,10 @@ struct triangle {
   glm::vec3 n1;
   glm::vec3 n2;
 
+  glm::vec2 uv0;
+  glm::vec2 uv1;
+  glm::vec2 uv2;
+
   bool isCulled;
 
 };

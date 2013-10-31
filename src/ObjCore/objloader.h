@@ -9,9 +9,12 @@
 
 using namespace std;
 
+
+
 class objLoader{
 private:
 	obj* geomesh;
+	bool hasTexture;
 public:
 	objLoader(string, obj*);
 	~objLoader();
@@ -21,6 +24,7 @@ public:
     //------------------------
     
 	obj* getMesh();
+	bool hasTextureFun(){return hasTexture;};
 };
 
 #endif

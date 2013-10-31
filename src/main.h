@@ -26,6 +26,10 @@
 #include "utilities.h"
 #include "ObjCore/objloader.h"
 #include "image.h"
+#include "EasyBMP.h"
+#include "EasyBMP_BMP.h"
+#include "EasyBMP_DataStructures.h"
+#include "EasyBMP_VariousBMPutilities.h"
 
 #if CUDA_VERSION >= 5000
     #include <helper_cuda.h>
@@ -63,6 +67,9 @@ int* ibo;
 int ibosize;
 float* nbo;
 int nbosize;
+//correspond to vt in obj file
+glm::vec4* vtbo; // texture get from textureCoords in obj.cpp
+int vtbosize;
 
 //Camera Stuff 
 float fovy = 60.0f;
@@ -76,9 +83,17 @@ glm::mat4 modelM(1.0);
 glm::mat4 projectionM;
 glm::mat4 viewM;
 
-//image
+//image buffer for outputing
 glm::vec3* images;
 
+//texture 
+bool hasTexture = false;
+glm::vec3* textureimg;
+int t_width = 800;
+int t_height = 800;
+
+
+void getCheckerBox();
 //-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------

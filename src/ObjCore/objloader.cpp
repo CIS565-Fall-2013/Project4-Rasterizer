@@ -13,6 +13,7 @@ using namespace std;
 
 objLoader::objLoader(string filename, obj* newMesh){
 
+	hasTexture = false;
 	geomesh = newMesh;
 	cout << "Loading OBJ File: " << filename << endl;
 	ifstream fp_in;
@@ -100,6 +101,7 @@ objLoader::objLoader(string filename, obj* newMesh){
 					geomesh->addFace(pointList);
 					geomesh->addFaceNormal(normalList);
 					geomesh->addFaceTexture(texturecoordList);
+					hasTexture = true;
 				}else{
 					string v;
 					vector<int> pointList;
@@ -111,7 +113,8 @@ objLoader::objLoader(string filename, obj* newMesh){
 				}
 			}
 		}
-		cout << "Loaded " << geomesh->getFaces()->size() << " faces, " << geomesh->getPoints()->size() << " vertices from " << filename << endl;
+		cout << "Loaded " << geomesh->getFaces()->size() << " faces, " << geomesh->getPoints()->size() << " vertices "
+			<<geomesh->getTextureCoords()->size()<<"texture Coord info from  "<<filename << endl;
 	}else{
         cout << "ERROR: " << filename << " could not be found" << endl;
     }

@@ -22,14 +22,20 @@
 #define MAXINFINITE 10000000000000000
 #define PHONE 1
 #define DEPTH 0
-#define BACKFACECULL 1 // 18FPS WITHOUT //24 WITH
-#define ANTIA 1
+#define BACKFACECULL 1 // 18FPS WITHOUT //26 WITH
+#define ANTIA 1 //24 with ANTIA, 26 WITHOUT
+#define TEXTURE 1
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize,
 	float* nbo, int nbosize
 	,glm::mat4 modelM, glm::mat4 viewM, glm::mat4 projectionM
 	,glm::vec3* images
-	,glm::vec3 cameraPos);
+	,glm::vec3 cameraPos
+	,bool hasTexture
+	,glm::vec4* vtbo
+	,int vtbosize
+	,glm::vec3* texture
+	,glm::vec2 textReso);
 	
 
 #endif //RASTERIZEKERNEL_H

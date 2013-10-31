@@ -12,6 +12,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\cudaMat4.h" />
+    <ClInclude Include="..\..\src\EasyBMP.h" />
+    <ClInclude Include="..\..\src\EasyBMP_BMP.h" />
+    <ClInclude Include="..\..\src\EasyBMP_DataStructures.h" />
+    <ClInclude Include="..\..\src\EasyBMP_VariousBMPutilities.h" />
     <ClInclude Include="..\..\src\glslUtility.h" />
     <ClInclude Include="..\..\src\image.h" />
     <ClInclude Include="..\..\src\main.h" />
@@ -24,6 +28,7 @@
     <ClInclude Include="..\..\src\utilities.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\EasyBMP.cpp" />
     <ClCompile Include="..\..\src\glslUtility.cpp" />
     <ClCompile Include="..\..\src\image.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />

@@ -20,6 +20,8 @@ int main(int argc, char** argv){
       //renderScene = new scene(data);
       mesh = new obj();
       objLoader* loader = new objLoader(data, mesh);
+	  hasTexture = loader->hasTextureFun();
+	  std::cout<<"hasTexture: "<<hasTexture<<std::endl;
       mesh->buildVBOs();
       delete loader;
       loadedScene = true;
@@ -30,6 +32,29 @@ int main(int argc, char** argv){
     cout << "Usage: mesh=[obj file]" << endl;
     return 0;
   }
+
+  if(hasTexture)
+  {
+	  BMP img;
+	  char* filename = "../../src/cow.bmp";
+	  img.ReadFromFile(filename);
+	  t_width = img.TellWidth();
+	  t_height = img.TellHeight();
+	  textureimg = new glm::vec3[t_width * t_height];
+	  for(int i = 0;i<t_width;i++)
+	  {
+
+		  for(int j = 0;j<t_height;j++)
+		  {
+			  float r = img(i,j)->Red/255.0f;
+			  float g = img(i,j)->Green/255.0f;
+			  float b = img(i,j)->Blue/255.0f;
+			  textureimg[i+j*t_height] = glm::vec3(r,g,b);
+		  }
+	  }
+  }
+  else
+	  getCheckerBox();
 
   frame = 0;
   seconds = time (NULL);
@@ -114,10 +139,26 @@ void runCuda(){
   cbosize = 9;
 
   ibo = mesh->getIBO();
-  ibosize = mesh->getIBOsize();
 
+  ibosize = mesh->getIBOsize();
+ 
   nbo = mesh->getNBO();
   nbosize = mesh->getNBOsize();
+
+  //
+  vector<vector<int>>* faceTexture = mesh->getFaceTextures();
+  vector<glm::vec4>* textCoord = mesh->getTextureCoords();
+  vtbosize = faceTexture->size()*3;
+  vtbo = new glm::vec4[vtbosize];
+  //std::cout<<faceTexture->size()<<std::endl;
+  for(int i = 0; i < faceTexture->size();i++)
+  {	  
+	  vector<int> facetext = faceTexture->at(i);
+	  vtbo[i*3] = textCoord->at(facetext[0]);
+	  vtbo[i*3+1] = textCoord->at(facetext[1]);
+	  vtbo[i*3+2] = textCoord->at(facetext[2]);
+	  //std::cout<<facetext[0]<<" ";
+  }
 
   modelM = glm::mat4(1.0);
   //modelM = glm::rotate(modelM,29.0f,glm::vec3(0,1,0));
@@ -131,7 +172,8 @@ void runCuda(){
 	  modelM,viewM,projectionM
 	  ,images
 	  ,cameraPostion
-	  );
+	  ,hasTexture
+	  ,vtbo,vtbosize,textureimg,glm::vec2(t_width,t_height));
 
   cudaGLUnmapBufferObject(pbo);
 
@@ -139,8 +181,9 @@ void runCuda(){
   cbo = NULL;
   ibo = NULL;
   nbo = NULL;
+  vtbo = NULL;
 
-  if(output)
+  if(output == true)
   {
 
 	  image outputImage(width, height);
@@ -420,4 +463,24 @@ void shut_down(int return_code){
   glfwTerminate();
   #endif
   exit(return_code);
+}
+
+
+void getCheckerBox()
+{
+	textureimg = new glm::vec3[t_width * t_height];
+	for(int i = 0;i<t_width;i++)
+	{
+		for(int j = 0;j<t_height;j++)
+		{			
+			/*if(j%40 <= 20 && i%40 <=20)
+			textureimg[i+j*t_width] = glm::vec3(1,0,0);			
+			else
+			textureimg[i+j*t_width] = glm::vec3(1,1,0);*/
+			if(i%40 <=20)
+				textureimg[i+j*t_width] = glm::vec3(1,1,1);			
+			else
+				textureimg[i+j*t_width] = glm::vec3(0,0,0);
+		}
+	}
 }

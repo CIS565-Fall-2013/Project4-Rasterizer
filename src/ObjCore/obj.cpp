@@ -45,6 +45,9 @@ void obj::buildVBOs(){
 	if(faces.size()!=facenormals.size()){
 		genNormals = true;
 	}
+
+	genNormals = true;
+
 	for(int k = 0; k<faces.size(); k++){
 
 		if(isConvex(faces[k])==true){
@@ -59,19 +62,11 @@ void obj::buildVBOs(){
 				VBOvec.push_back(p0[0]) ; VBOvec.push_back(p0[1]); VBOvec.push_back(p0[2]); //VBOvec.push_back(1.0f);				
 				VBOvec.push_back(p1[0]); VBOvec.push_back(p1[1]); VBOvec.push_back(p1[2]); //VBOvec.push_back(1.0f);				
 				VBOvec.push_back(p2[0]); VBOvec.push_back(p2[1]); VBOvec.push_back(p2[2]); //VBOvec.push_back(1.0f);
-#if OUTPUT == 1
-				std::cout<<p1[0]<<" "<<p1[1]<<" "<<p1[2]<<std::endl;
-				std::cout<<p0[0]<<" "<<p0[1]<<" "<<p0[2]<<std::endl;
-				std::cout<<p2[0]<<" "<<p2[1]<<" "<<p2[2]<<std::endl;
-#endif
 				if(genNormals==false){
 					vector<int> facenormal = facenormals[k];
 					NBOvec.push_back(normals[facenormal[0]][0]); NBOvec.push_back(normals[facenormal[0]][1]); NBOvec.push_back(normals[facenormal[0]][2]); //NBOvec.push_back(0.0f);
 					NBOvec.push_back(normals[facenormal[i-1]][0]); NBOvec.push_back(normals[facenormal[i-1]][1]); NBOvec.push_back(normals[facenormal[i-1]][2]); //NBOvec.push_back(0.0f);
-					NBOvec.push_back(normals[facenormal[i]][0]); NBOvec.push_back(normals[facenormal[i]][1]); NBOvec.push_back(normals[facenormal[i]][2]); //NBOvec.push_back(0.0f);
-
-
-					
+					NBOvec.push_back(normals[facenormal[i]][0]); NBOvec.push_back(normals[facenormal[i]][1]); NBOvec.push_back(normals[facenormal[i]][2]); //NBOvec.push_back(0.0f);	
 				}else{
                     
 					glm::vec3 a = glm::vec3(p1[0], p1[1], p1[2]) - glm::vec3(p0[0], p0[1], p0[2]);

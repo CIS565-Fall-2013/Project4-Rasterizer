@@ -21,6 +21,8 @@ float* copy_vbo;
 float* device_cbo;
 float* device_nbo;
 int* device_ibo;
+glm::vec4* device_vtbo;
+glm::vec3* device_texture;
 triangle* primitives;
 
 
@@ -176,7 +178,8 @@ __global__ void primitiveAssemblyKernel(float* vbo,int vbosize, float* cbo, int 
 	float* copyvbo, glm::mat4 modelM,
 	glm::vec3 camPos,
 	light lit,
-	triangle* primitives)
+	triangle* primitives,
+	glm::vec4* vtbo,int vtbosize,bool hasTexture)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
@@ -218,7 +221,21 @@ __global__ void primitiveAssemblyKernel(float* vbo,int vbosize, float* cbo, int 
 	  primitives[index].n0 = glm::vec3(nbo[ibo[index*3]*3],nbo[ibo[index*3]*3+1],nbo[ibo[index*3]*3+2]);
 	  primitives[index].n1 = glm::vec3(nbo[ibo[index*3+1]*3],nbo[ibo[index*3+1]*3+1],nbo[ibo[index*3+1]*3+2]);
 	  primitives[index].n2 = glm::vec3(nbo[ibo[index*3+2]*3],nbo[ibo[index*3+2]*3+1],nbo[ibo[index*3+2]*3+2]);
+
+	  //if(ibo[index*3] >= vtbosize || ibo[index*3+1] >= vtbosize || ibo[index*3] +2 >= vtbosize)
+		 // printf("error... %d | ",ibo[index*3]);
+	  if(hasTexture)
+	  {
+			primitives[index].uv0 = glm::vec2(vtbo[ibo[index*3]].x,vtbo[ibo[index*3]].y);
+			primitives[index].uv1 = glm::vec2(vtbo[ibo[index*3+1]].x,vtbo[ibo[index*3+1]].y);
+			primitives[index].uv2 = glm::vec2(vtbo[ibo[index*3+2]].x,vtbo[ibo[index*3+2]].y);
+	  }
 	  
+
+	/*  printf("uv0: %f, %f ",primitives[index].uv0.x,primitives[index].uv0.y);
+	  printf("uv1: %f, %f ",primitives[index].uv1.x,primitives[index].uv1.y);
+	  printf("uv2: %f, %f ",primitives[index].uv2.x,primitives[index].uv2.y);
+	  */
 #if BACKFACECULL == 1	 
 	  //back face culling
 	  if(glm::dot(camPos - primitives[index].wp0,primitives[index].n0)<0 
@@ -238,7 +255,8 @@ __global__ void primitiveAssemblyKernel(float* vbo,int vbosize, float* cbo, int 
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution,material mat,light lit){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution,
+	material mat,light lit,glm::vec3* textureimg,glm::vec2 textReso,bool hasTexture){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 
@@ -297,8 +315,20 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  //color interpolation
 			  //tmpFrag.color = barycCoord.x * primitives[index].c0 + barycCoord.y * primitives[index].c1 + barycCoord.z * primitives[index].c2;			  			
 			  tmpFrag.color = mat.diffuseColor;
+
+#if TEXTURE == 1
+			  if(hasTexture)
+			  {
+					glm::vec2 uv = barycCoord.x * primitives[index].uv0 + barycCoord.y * primitives[index].uv1 + barycCoord.z * primitives[index].uv2;
+					int u = round(uv.x * (textReso.x-1));
+					int v = round(uv.y * (textReso.y-1));
+					tmpFrag.color = textureimg[u + v * (int)textReso.y];
+			  }  
+#endif
+
 			  tmpFrag.normal = (primitives[index].n0 + primitives[index].n1 + primitives[index].n2)/(float)3.0;
-			  tmpFrag.hasMatColor = 1; // has material color
+			  tmpFrag.hasMatColor = 1; // has material color			 			
+
 			  bool wait = true;
 			  while(wait)
 			  {
@@ -338,6 +368,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	  //phone 
 	  glm::vec3 point = depthbuffer[index].position;
 	  glm::vec3 normal = depthbuffer[index].normal;
+	  normal = glm::normalize(normal);
 	  glm::vec3 Lvector = point - lit.pos;
 	  Lvector = glm::normalize(Lvector);
 	  float diffuse = glm::dot(normal,Lvector);
@@ -346,11 +377,11 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 
 	  
 	  glm::vec3 reVector = Lvector - 2.0f * glm::dot(Lvector,normal);
-	  glm::vec3 eyeToPoint = cameraPos - point;
-	  eyeToPoint = glm::normalize(eyeToPoint);
-	  float specular = pow(glm::dot(eyeToPoint,reVector),10.0f);
+	  glm::vec3 eyeToPoint = glm::normalize( cameraPos - point);
+	  float specular = pow(glm::dot(eyeToPoint,reVector),mat.specularCon);
 	  specular = max(specular,0.0f);
 	  glm::vec3 specularColor = mat.specularColor * specular;
+
 	  depthbuffer[index].color = lit.emitPower * lit.color * (mat.kd * diffuseColor + mat.ks * specularColor) + mat.ka * lit.ambientLColor;
 #elif DEPTH == 1
 	//depth buffer rendering
@@ -401,6 +432,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	,glm::mat4 modelM, glm::mat4 viewM, glm::mat4 projectionM
 	,glm::vec3* images
 	,glm::vec3 cameraPos
+	,bool hasTexture
+	,glm::vec4* vtbo
+	,int vtbosize
+	,glm::vec3* textureimg
+	,glm::vec2 textReso
 	)
 {
 
@@ -457,24 +493,31 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
   cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
 
+  device_vtbo = NULL;
+  cudaMalloc((void**)&device_vtbo,vtbosize*sizeof(glm::vec4));
+  cudaMemcpy(device_vtbo,vtbo,vtbosize*sizeof(glm::vec4), cudaMemcpyHostToDevice);
+
+  device_texture = NULL;
+  cudaMalloc((void**)&device_texture,(int)textReso.x * (int)textReso.y*sizeof(glm::vec3));
+  cudaMemcpy(device_texture,textureimg,(int)textReso.x * (int)textReso.y*sizeof(glm::vec3), cudaMemcpyHostToDevice);
 
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
   light lit;
   lit.color = glm::vec3(0.8,0.8,0.9);
-  lit.pos = glm::vec3(10,-120.0f,-40.0f);
-  lit.emitPower = 2.0f; 
-  lit.ambientLColor = glm::vec3(1.0,1.0,1.0);
+  lit.pos = glm::vec3(10,-120.0f,-50.0f);
+  lit.emitPower = 1.0f; 
+  lit.ambientLColor = glm::vec3(1.0,1.0,0.2);
   lit.bgColor = glm::vec3(0,0,0);
 
   material mat;
   mat.diffuseColor = glm::vec3(1.0,1.0,0.0);
-  mat.specularColor = glm::vec3(1.0,1.0,0.0);
-  mat.specularCon = 2.0f;
-  mat.kd = 0.6;
-  mat.ks = 0.2;
-  mat.ka = 0.2;
+  mat.specularColor = glm::vec3(1.0,1.0,1.0);
+  mat.specularCon = 5.0f;
+  mat.kd = 0.9; //0.6
+  mat.ks = 0.0;//0.1;// 0.2;
+  mat.ka = 0.1;//0.2;
 
   //------------------------------
   //vertex shader
@@ -490,13 +533,15 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	  copy_vbo,modelM,
 	  cameraPos,
 	  lit,
-	  primitives);
+	  primitives
+	  ,device_vtbo,vtbosize,hasTexture);
 
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution,mat,lit);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution,mat,lit,device_texture,
+	  textReso,hasTexture);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -528,6 +573,8 @@ void kernelCleanup(){
   cudaFree( device_vbo );
   cudaFree( device_cbo );
   cudaFree( device_ibo );
+  cudaFree( device_vtbo);
+  cudaFree( device_texture);
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
   cudaFree( copy_vbo);
