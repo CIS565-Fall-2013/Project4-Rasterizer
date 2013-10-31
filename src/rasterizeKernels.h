@@ -22,6 +22,7 @@
 #define ANTIALIASING 0
 
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform, glm::vec3 viewPort, bool antialiasing, bool depthFlag);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, 
+	                   const cudaMat4* transform, glm::vec3 viewPort, bool antialiasing, bool depthFlag, bool flatcolorFlag, int color, bool multicolorFlag);
 
 #endif //RASTERIZEKERNEL_H

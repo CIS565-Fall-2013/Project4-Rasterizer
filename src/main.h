@@ -61,6 +61,8 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+float* nbo;
+int nbosize;
 
 //-------------------------------
 //--------CAMERA STUFF-----------
@@ -91,8 +93,11 @@ static bool buttonDown = false;
 //-------------------------------
 //--------FRAGMENT STUFF---------
 //-------------------------------
-bool antialiasing = false;
-bool depthFlag    = false;
+bool antialiasing   = false;
+bool depthFlag      = false;
+bool flatcolorFlag  = false;
+int  color          = 0;
+bool multicolorFlag = false;
 
 //-------------------------------
 //----------CUDA STUFF-----------

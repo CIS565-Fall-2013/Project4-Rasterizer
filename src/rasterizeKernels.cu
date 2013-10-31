@@ -17,10 +17,13 @@
 glm::vec3* framebuffer;
 fragment*  depthbuffer;
 int*       lock;
+ray*       light;
+int        lightNum = 4;
 cudaMat4*  transform;
 float*     device_vbo;
 float*     device_cbo;
 int*       device_ibo;
+float*     device_nbo;
 triangle*  primitives;
 
 void checkCUDAError(const char *msg) {
@@ -137,18 +140,22 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, const cudaMat4 transform){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, int nbosize, const cudaMat4 transform){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index < vbosize/3){
     glm::vec3 newVertex = multiplyMV(transform, glm::vec4(vbo[3 * index], vbo[3 * index + 1], vbo[3 * index + 2], 1.0f));
-    vbo[3 * index]     = newVertex.x;
-    vbo[3 * index + 1] = newVertex.y;
-    vbo[3 * index + 2] = newVertex.z;
+	glm::vec3 normal    = glm::normalize(multiplyMV(transform, glm::vec4(nbo[3 * index], nbo[3 * index + 1], nbo[3 * index + 2], 1.0f)));
+    vbo[3 * index]      = newVertex.x;
+    vbo[3 * index + 1]  = newVertex.y;
+    vbo[3 * index + 2]  = newVertex.z;
+	nbo[3 * index]      = normal.x;
+    nbo[3 * index + 1]  = normal.y;
+    nbo[3 * index + 2]  = normal.z;
   }
 }
 
 //TODO: Implement primitive assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index < primitivesCount){
@@ -157,6 +164,11 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
     primitives[index].p0 = glm::vec3(vbo[3 * vertexIndex[0]], vbo[3 * vertexIndex[0] +1], vbo[3 * vertexIndex[0] + 2]);
     primitives[index].p1 = glm::vec3(vbo[3 * vertexIndex[1]], vbo[3 * vertexIndex[1] +1], vbo[3 * vertexIndex[1] + 2]);
     primitives[index].p2 = glm::vec3(vbo[3 * vertexIndex[2]], vbo[3 * vertexIndex[2] +1], vbo[3 * vertexIndex[2] + 2]);
+
+    // Load normals of vertices.
+    primitives[index].n0 = glm::vec3(nbo[3 * vertexIndex[0]], nbo[3 * vertexIndex[0] +1], nbo[3 * vertexIndex[0] + 2]);
+    primitives[index].n1 = glm::vec3(nbo[3 * vertexIndex[1]], nbo[3 * vertexIndex[1] +1], nbo[3 * vertexIndex[1] + 2]);
+    primitives[index].n2 = glm::vec3(nbo[3 * vertexIndex[2]], nbo[3 * vertexIndex[2] +1], nbo[3 * vertexIndex[2] + 2]);
 
     // The size of cbo is nine, only needs to give the nine RGB values to the color in the triangle variable's color vector.
     primitives[index].c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
@@ -171,9 +183,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   if(index < primitivesCount){
     // Initialize triangle and back face culling if the normal of z is point to the back
     triangle currentTriangle = primitives[index];
-    glm::vec3 normal = glm::normalize(glm::cross(currentTriangle.p1 - currentTriangle.p0, currentTriangle.p2 - currentTriangle.p0));
-    if (glm::dot(normal, view) < 0.0f )
+    //glm::vec3 normal = glm::normalize(glm::cross(currentTriangle.p1 - currentTriangle.p0, currentTriangle.p2 - currentTriangle.p0));
+    if (glm::dot(currentTriangle.n0, view) > 0.0f || glm::dot(currentTriangle.n1, view) > 0.0f || glm::dot(currentTriangle.n2, view) > 0.0f )
       return;
+    glm::vec3 normal = glm::normalize((currentTriangle.n0 + currentTriangle.n1 +currentTriangle.n2) / 3.0f);
 	
     // Add min max vectors and integers for the bounds and project the min back to the screen coordinate
     glm::vec3 minPoint, maxPoint;
@@ -203,8 +216,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
         if (!isBarycentricCoordInBounds(barycentricCoordinates))
           continue;
         depth = getZAtCoordinate(barycentricCoordinates, currentTriangle);
-        if (depth < - 1.0f || depth > 1.0f) 
-          return;
         bool loopFlag = true;
         do {
           if (atomicCAS(&lock[idx], 0, 1) == 0) {
@@ -227,28 +238,57 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, light light, bool depthFlag){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, ray* light, int lightNum, bool depthFlag, bool flatcolorFlag, int color, bool multicolorFlag){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
-  if(x<=resolution.x && y<=resolution.y){
+  if (x > resolution.x && y > resolution.y)
+    return;
+  
+  // Initialize the buffer and iteration time for lights
+  glm::vec3 frag     = depthbuffer[index].color;  
+  depthbuffer[index].color = glm::vec3(0.0f);
+  lightNum = multicolorFlag ? lightNum : 1;
+
+  // Shading lights on the cow.
+  for (int i = 0; i < lightNum; ++ i) {
     // Compute the vectors of light, view and H in Blinn-Phong lighting model, referring to http://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_shading_model
     glm::vec3 position = depthbuffer[index].position;
     glm::vec3 normal   = depthbuffer[index].normal;
-	glm::vec3 L        = glm::normalize(light.position - position);
+    glm::vec3 L        = glm::normalize(light[i].position - position);
     glm::vec3 V        = glm::normalize(- position);
     glm::vec3 H        = glm::normalize(L + V);
 
     // Compute the diffusion and Blinn-Phong lighting
     float diffuse  = glm::max(glm::dot(L, normal), 0.0f);
-	float specular = glm::max(glm::pow(glm::dot(H, normal), 10.0f), 0.0f);
+	float specular = glm::max(glm::pow(glm::dot(H, normal), 1000.0f), 0.0f);
 
     // Compute final color
-    if (depthFlag)
-      depthbuffer[index].color = depthbuffer[index].position.z * light.color;
-	else
-    depthbuffer[index].color *= 2.0f * (0.5f * diffuse + 0.5f * specular) * light.color;
+    if (depthFlag) {
+      depthbuffer[index].color = depthbuffer[index].position.z * glm::vec3(1.0f);
+      return;
+	} else if (flatcolorFlag) {
+      switch(color) {
+        case(0):
+          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * light[i].color;
+          break;
+        case(1):
+          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.63f, 0.06f, 0.04f) * light[i].color;
+          break;
+        case(2):
+          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.15f, 0.48f, 0.09f) * light[i].color;
+          break;  
+        case(3):
+          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.13f, 0.16f, 0.84f) * light[i].color;
+          break;
+        case(4):
+          depthbuffer[index].color += 2.0f * (0.5f * diffuse + 0.5f * specular) * glm::vec3(0.43f, 0.16f, 0.54f) * light[i].color;
+          break;        
+      }
+	} else
+    depthbuffer[index].color += frag * 2.0f * (0.5f * diffuse + 0.5f * specular) * light[i].color;
   }
+  depthbuffer[index].color /= multicolorFlag ? (float)lightNum * 0.3f : (float)lightNum;
 }
 
 //Writes fragment colors to the framebuffer
@@ -279,7 +319,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 
 	  // Four corners
 	  sampleNum += (sampleNum == 5) ? 4 : 0;
-      sampling += (sampleNum == 9) ? (depthbuffer[index - (int)resolution.x - 1].color + depthbuffer[index - (int)resolution.x + 1].color + depthbuffer[index + (int)resolution.x - 1].color + depthbuffer[index + (int)resolution.x + 1].color) : glm::vec3(0.0f);
+      sampling += (sampleNum == 9) ? (depthbuffer[index - (int)resolution.x - 1].color + depthbuffer[index - (int)resolution.x + 1].color 
+		                              + depthbuffer[index + (int)resolution.x - 1].color + depthbuffer[index + (int)resolution.x + 1].color) : glm::vec3(0.0f);
 	  if (sampleNum == 9) {
         framebuffer[index] =  sampling / 9.0f; 
         return;
@@ -315,7 +356,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, const cudaMat4* transform, glm::vec3 viewPort, bool antialiasing, bool depthFlag){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, const cudaMat4* transform, glm::vec3 viewPort, bool antialiasing, bool depthFlag, bool flatcolorFlag, int color, bool multicolorFlag){
   
   // set up crucial magic
   int tileSize = 8;
@@ -333,6 +374,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   // set up lock
   lock = NULL;
   cudaMalloc((void**)&lock, (int)resolution.x * (int)resolution.y * sizeof(int));
+
+  // set up light
+  light = NULL;
+  cudaMalloc((void**)&light, lightNum * sizeof(ray));
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
@@ -364,20 +409,25 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
 
+  // Normal Buffer Object
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
+
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, *transform);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, *transform);
 
   cudaDeviceSynchronize();
   //------------------------------
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -389,10 +439,20 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //fragment shader
   //------------------------------
-  light light;
-  light.position = glm::vec3(0.0f);
-  light.color = glm::vec3(1.0f);
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, light, depthFlag);
+  // Multiple lighting
+  ray* lights = new ray[lightNum];
+  lights[0].position = glm::vec3(1.0f, 1.0f, 0.0f);
+  lights[0].color = glm::vec3(1.0f);
+  lights[1].position = glm::vec3(1.0f, 1.0f, 1.0f);
+  lights[1].color = glm::vec3(0.15f, 0.48f, 0.09f);
+  lights[2].position = glm::vec3(1.0f, 1.0f, 1.0f);
+  lights[2].color =glm::vec3(0.13f, 0.16f, 0.84f);
+  lights[3].position = glm::vec3(0.0f, 1.0f, 1.0f);
+  lights[3].color = glm::vec3(0.43f, 0.16f, 0.54f);
+  cudaMemcpy(light, lights, lightNum * sizeof(ray), cudaMemcpyHostToDevice);
+  delete [] lights;
+
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, light, lightNum, depthFlag, flatcolorFlag, color, multicolorFlag);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -413,9 +473,11 @@ void kernelCleanup(){
   cudaFree( device_vbo );
   cudaFree( device_cbo );
   cudaFree( device_ibo );
+  cudaFree( device_nbo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
   cudaFree( lock );
+  cudaFree( light );
   cudaFree( transform );
 }
 

@@ -31,7 +31,7 @@ int main(int argc, char** argv){
   }
 
   // Initialization of camera parameters
-  cam.position = glm::vec3(1.0f, 1.0f, 1.0f);
+  cam.position = glm::vec3(0.0f, 1.0f, 1.0f);
   cam.up       = glm::vec3(0.0f, 1.0f, 0.0f);
   cam.view     = glm::normalize(-cam.position);
   cam.right    = glm::normalize(glm::cross(cam.view, cam.up));
@@ -124,6 +124,9 @@ void runCuda(){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+
   // Update view and model to projection transform matrices in each step when interacting with keyboard or mouse
   *view = glm::lookAt(cam.position, glm::vec3(0.0f), cam.up);
   *transformModel2Projection = utilityCore::glmMat4ToCudaMat4(*projection * *view * *model);
@@ -137,12 +140,13 @@ void runCuda(){
   utilityCore::printVec3(viewPort);
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, transformModel2Projection, viewPort, antialiasing, depthFlag);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, transformModel2Projection, viewPort, antialiasing, depthFlag, flatcolorFlag, color, multicolorFlag);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
   cbo = NULL;
   ibo = NULL;
+  nbo = NULL;
 
   frame++;
   fpstracker++;
@@ -231,6 +235,27 @@ bool pauseFlag = false;
        case('d'):
          depthFlag = ! depthFlag;
          break;
+	   case('f'):
+         flatcolorFlag = ! flatcolorFlag;
+         break;
+	   case('m'):
+         multicolorFlag = ! multicolorFlag;
+         break;
+       case('`'):
+         color = 0;
+         break;
+	   case('1'):
+         color = 1;
+         break;
+	   case('2'):
+         color = 2;
+         break;
+       case('3'):
+         color = 3;
+         break;
+	   case('4'):
+         color = 4;
+         break;
        case('['):
          cam.position -= 0.1f * cam.up;
          cam.view     = glm::normalize(-cam.position);
@@ -292,14 +317,14 @@ bool pauseFlag = false;
       // Rotate around up axis
 	  cam.right = glm::normalize(glm::cross(cam.view, cam.up));
 	  cam.up    = glm::normalize(glm::cross(cam.right, cam.view));
-      pos = glm::rotate(glm::mat4(1.0f), roll, cam.up) * glm::vec4(cam.position, 0.0f);
-      cam.position = glm::vec3(pos.x, pos.y, pos.z);
+      pos = glm::rotate(glm::mat4(1.0f), roll, cam.up) * glm::vec4(cam.position, 1.0f);
+      cam.position = glm::vec3(pos.x, pos.y, pos.z) / pos.w;
 	  cam.view     = glm::normalize(-cam.position);
       // Rotate around right axis
 	  cam.right = glm::normalize(glm::cross(cam.view, cam.up));
 	  cam.up    = glm::normalize(glm::cross(cam.right, cam.view));
-      pos = glm::rotate(glm::mat4(1.0f), pitch, cam.right) * glm::vec4(cam.position, 0.0f);
-      cam.position = glm::vec3(pos.x, pos.y, pos.z);
+      pos = glm::rotate(glm::mat4(1.0f), pitch, cam.right) * glm::vec4(cam.position, 1.0f);
+      cam.position = glm::vec3(pos.x, pos.y, pos.z) / pos.w;
 	  cam.view     = glm::normalize(-cam.position);
 	}
     lastX = x;
