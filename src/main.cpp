@@ -266,9 +266,6 @@ void runCuda(){
 			else if (delta.x < 0)
 				cam->position.z -= 0.1f;
 
-			if (cam->position.z < 0.01f)
-				cam->position.z = 0.01f;
-
 			lastMousePosition = position;
 		}
 	}
@@ -283,18 +280,17 @@ void runCuda(){
 		cameraTransform = rotate(cameraTransform, alpha, vec3(0,1,0));
 		cameraTransform = rotate(cameraTransform, beta, vec3(1,0,0));
 
-		//vec4 translateAxis = cameraTransform * vec4(0,0,zTranslateDistance,0);
-		//cameraTransform = translate(cameraTransform, vec3(translateAxis.x, translateAxis.y, translateAxis.z));
-
-		//cameraTransform = translate(cameraTransform, vec3(0,0,zTranslateDistance));
-
 		vec4 pos4 = (cameraTransform * vec4(cam->position, 1.0));
 		vec4 up4 = (cameraTransform * vec4(cam->up, 0.0));
+		vec4 viewDir4 = (cameraTransform * vec4(0,0,-1, 0.0));
+
 
 		cam->position = vec3(pos4.x, pos4.y, pos4.z);
 		cam->up = vec3(up4.x, up4.y, up4.z);
 		
-		mat4 view = glm::lookAt(cam->position, center, cam->up);
+		viewDir = vec3(viewDir4.x, viewDir4.y, viewDir4.z);
+		mat4 view = glm::lookAt(cam->position, cam->position + viewDir, cam->up); // LOOK: Center is now position + view direction
+		//mat4 view = glm::lookAt(cam->position, cam->position + viewDir, cam->up); // LOOK: Center is now position + view direction
 		cam->view = view;
 
 		if (alpha != 0)

@@ -81,6 +81,7 @@ float fovy = 60.0f;
 float zNear = 0.10f;
 float zFar = 5.0f;
 vec3 center = vec3(0);
+vec3 viewDir = vec3(0,0,-1);
 
 // interactive camera via mouse movements
 float zTranslateDistance = 0;
