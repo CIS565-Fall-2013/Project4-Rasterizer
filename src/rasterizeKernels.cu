@@ -18,7 +18,7 @@
 #endif
 
 //#define backfaceCulling
-#define antialiasing 1
+#define antialiasing 2
 
 glm::vec3 *sFramebuffer;
 glm::vec3* framebuffer;
@@ -376,15 +376,15 @@ __global__ void downSamplingKernel(glm::vec2 resolution, glm::vec3* sFramebuffer
 	  int baseIndex = antialiasing*antialiasing*index - antialiasing*(index%((int)resolution.x))*(antialiasing-1);
 	  float weight = 1 / (float)(antialiasing*antialiasing);
 	  glm::vec2 sResolution = (float)antialiasing*resolution;
-	  framebuffer[index] = sFramebuffer[baseIndex];
-	  /*for(int j = 0; j < antialiasing; ++j)
+	 // framebuffer[index] = sFramebuffer[baseIndex];
+	  for(int j = 0; j < antialiasing; ++j)
 	  {
 		  for(int i = 0; i < antialiasing; ++i)
 		  {
 			  superSampledIndex = baseIndex + j*sResolution.x + i;
 			  framebuffer[index] += weight*sFramebuffer[superSampledIndex];
 		  }
-	  }*/
+	  }
 
   }
 
@@ -457,11 +457,12 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0)); // launch kernel for every pixel
+  
   fullBlocksPerGrid = dim3((int)ceil(float(sResolution.x)/float(tileSize)), (int)ceil(float(sResolution.y)/float(tileSize)));
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(sResolution, sFramebuffer, glm::vec3(0,0,0)); // launch kernel for every pixel
   checkCUDAErrorWithLine("Kernel failed!");
 
-  fullBlocksPerGrid = dim3((int)ceil(float(sResolution.x)/float(tileSize)), (int)ceil(float(sResolution.y)/float(tileSize)));
+  //fullBlocksPerGrid = dim3((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
   varying frag;
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(1,0,0);
@@ -532,14 +533,15 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
   //------------------------------
   glm::vec4 lightEyeSpace = view * glm::vec4(lightPosition, 1.0f);
   lightPosition = glm::vec3(lightEyeSpace.x, lightEyeSpace.y, lightEyeSpace.z);
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(interpVariables, sResolution, lightPosition, framebuffer); // launch for every pixel
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(interpVariables, sResolution, lightPosition, sFramebuffer); // launch for every pixel
   checkCUDAErrorWithLine("Kernel failed!");
   cudaDeviceSynchronize();
   //------------------------------
   //write fragments to framebuffer after downsampling
   //------------------------------
+  tileSize = 8;
   fullBlocksPerGrid = dim3((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
-  //downSamplingKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, sFramebuffer, framebuffer); // launch for every pixel
+  downSamplingKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, sFramebuffer, framebuffer); // launch for every pixel
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer); // launch for every pixel
 
   cudaDeviceSynchronize();
