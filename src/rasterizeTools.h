@@ -9,6 +9,7 @@
 #include "utilities.h"
 #include "cudaMat4.h"
 #define TRI_TEST_EPSILON 0.0001
+#define KBUFFER_SIZE 8
 
 struct triangle {
  
@@ -39,6 +40,12 @@ struct fragment{
   glm::vec3 position;
   glm::vec3 modelPosition; //position in modelspace
   int triIdx;
+};
+
+struct fragmentArray{
+	fragment fragArray[KBUFFER_SIZE];
+	int depth[KBUFFER_SIZE];
+	int numFragments;
 };
 
 //Multiplies a cudaMat4 matrix and a vec4
