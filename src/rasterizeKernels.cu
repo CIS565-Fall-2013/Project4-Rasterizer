@@ -170,6 +170,23 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
+__device__ void writeColorPoint(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution, glm::vec3 color){
+	fragment currFrag;
+	currFrag.triIdx = triIdx;
+	currFrag.color = color; //assume the tri is all one color for now.
+	glm::vec3 currBaryCoords = calculateBarycentricCoordinate(currTri, xyCoords);
+	float fragZ = getZAtCoordinate(currBaryCoords, currTri) + 0.001f;
+	currFrag.position = glm::vec3(xyCoords.x, xyCoords.y, fragZ);
+	currFrag.modelPosition = interpVec3(currBaryCoords, currTri.modelspace_p0, currTri.modelspace_p1, currTri.modelspace_p2);
+	currFrag.modelNormal = interpVec3(currBaryCoords, currTri.modelspace_n0, currTri.modelspace_n1, currTri.modelspace_n2);
+	int pixX = roundf(xyCoords.x);
+	int pixY = roundf(xyCoords.y);
+	//TODO: incorporate the normal in here **somewhere**
+	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution);
+}
+
+
+//"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
 __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution){
 	fragment currFrag;
 	currFrag.triIdx = triIdx;
@@ -216,9 +233,11 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 	int sgnXinc = Xinc > 0 ? 1 : -1;
 	int sgnYinc = Yinc > 0 ? 1 : -1;
 	int pixelsDrawn = 0;
+
+	glm::vec3 LINE_COLOR(0, 0, 0);
 	//if both zero, then we just draw a point.
 	if( (abs(Xinc) < NATHANS_EPSILON) && (abs(Yinc) < NATHANS_EPSILON) ){
-		writePointInTriangle(currTri, triIdx, glm::vec2(start.x, start.y), depthBuffer, resolution);
+		writeColorPoint(currTri, triIdx, glm::vec2(start.x, start.y), depthBuffer, resolution, LINE_COLOR);
 		pixelsDrawn++;
 	} else { //this is a line segment
 		//LENGTH is the greater of Xinc, Yinc
@@ -234,7 +253,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 		X = start.x;
 		Y = start.y;
 		for(int i = 0; i <= roundf(LENGTH); i++){ //do this at least once
-			writePointInTriangle(currTri, triIdx, glm::vec2(X, Y), depthBuffer, resolution);
+			writeColorPoint(currTri, triIdx, glm::vec2(X, Y), depthBuffer, resolution, LINE_COLOR);
 			pixelsDrawn++;
 			X += Xinc;
 			Y += Yinc;
@@ -364,9 +383,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  
-	  //int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index);
-	  //numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index);
-	  //numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index);
+	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index);
+	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index);
+	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index);
+
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
 
