@@ -16,7 +16,7 @@ int main(int argc, char** argv){
     //getline(liness, header, '='); getline(liness, data, '=');
     //if(strcmp(header.c_str(), "mesh")==0){
       //renderScene = new scene(data);
-	  data = "../../objs/cow.obj";
+	  data = "../../objs/bunny.obj";
       mesh = new obj();
       objLoader* loader = new objLoader(data, mesh);
       mesh->buildVBOs();
@@ -100,7 +100,7 @@ void runCuda(){
   nbosize = mesh->getNBOsize();
  
 
-  float newcbo[] = {1.0, 1.0, 0.0, 
+  float newcbo[] = {1.0, 1.0, 1.0, 
                     0.0, 1.0, 1.0, 
                     1.0, 0.0, 1.0,
   
@@ -130,8 +130,18 @@ void runCuda(){
   firstObj = 0;
   secondObj = 2;
 
+
+  rRotx += (0.5f/180.f) * PI;
+  rRoty = (50.f/180.f) * PI;
+
+  cameraPosition.x = lookat.x + eyeDis * glm::cos(rRoty) * glm::cos(rRotx);
+  cameraPosition.y = lookat.y + eyeDis * glm::sin(rRoty);
+  cameraPosition.z = lookat.z + eyeDis * glm::cos(rRoty) * glm::sin(rRotx);
+
+  modelView = glm::lookAt(cameraPosition, lookat, up);
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, projection*modelView, viewPort, lightPos, cameraPosition, lookat, isStencil, firstObj, secondObj);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, projection*modelView, viewPort, lightPos, cameraPosition, lookat, isStencil, firstObj, secondObj, keyValue);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -146,7 +156,7 @@ void runCuda(){
   float seconds = 0.0f;
   cudaEventElapsedTime( &seconds, start, stop);
   
-  printf("time %f \n", seconds);
+ // printf("time %f \n", seconds);
 
   frame++;
   fpstracker++;
@@ -218,12 +228,21 @@ void runCuda(){
   }
 
   void keyboard(unsigned char key, int x, int y)
-  {
+  {	  
     switch (key) 
     {
        case(27):
          shut_down(1);    
          break;
+	   case(113):		  
+		   keyValue = 'q';
+		   break;
+	   case(119):
+		   keyValue = 'w';
+		   break;
+	   case(101):
+		   keyValue = 'e';
+		   break;
     }
   }
 
@@ -295,7 +314,7 @@ void initCuda(){
   initPBO(&pbo);
 
   modelView = glm::lookAt(cameraPosition, lookat, up);
-  projection = glm::perspective(fovy, float(width) / float(height), 0.1f, 10.f);  
+  projection = glm::perspective(fovy, float(width) / float(height), zNear, zFar);  
   viewPort[0] = glm::vec4(-float(width)/2,0,0,0.0f);
   viewPort[1] = glm::vec4(0,-(float)height/2,0,0.0f);
   viewPort[2] = glm::vec4(0,0,1.f/2.0f,0.0f);

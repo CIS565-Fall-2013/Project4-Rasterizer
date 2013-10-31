@@ -84,6 +84,7 @@
     <CudaCompile>
       <CompileOut>$(ProjectDir)$(Platform)/$(Configuration)/%(Filename)%(Extension).obj</CompileOut>
       <Include>$(CudaToolkitIncludeDir);$(NVCUDASAMPLES_ROOT)\common\inc;../shared/glew/includes;../shared/freeglut/includes</Include>
+      <CodeGeneration>compute_20,sm_20</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -109,6 +110,7 @@
     <CudaCompile>
       <CompileOut>$(ProjectDir)$(Platform)/$(Configuration)/%(Filename)%(Extension).obj</CompileOut>
       <Include>$(CudaToolkitIncludeDir);$(NVCUDASAMPLES_ROOT)\common\inc;../shared/glew/includes;../shared/freeglut/includes</Include>
+      <CodeGeneration>compute_20,sm_20</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

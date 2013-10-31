@@ -65,11 +65,18 @@ int nbosize;
 glm::mat4 modelView;
 glm::mat4 projection;
 glm::mat4 viewPort;
-glm::vec3 cameraPosition(1.0f,0.7f,1.0f);
+glm::vec3 cameraPosition(1.3f,0.7f,1.2f);
 glm::vec3 lookat(0.0f, 0.0f, 0.0f);
 glm::vec3 up(0.0f,1.0f,0.0f);
 glm::vec4 lightPos(5.0f, 5.0f, 3.0f, 1.0f);
 float fovy = 60;
+float eyeDis = 4.f;
+float rRotx = 0;
+float rRoty = 0;
+float zNear = 0.1f;
+float zFar = 100.f;
+
+char keyValue = 'q';
 
 bool isStencil;
 int firstObj;
@@ -79,7 +86,7 @@ int secondObj;
 //----------CUDA STUFF-----------
 //-------------------------------
 
-int width=800; int height=800;
+int width=1024; int height=768;
 
 //-------------------------------
 //-------------MAIN--------------
