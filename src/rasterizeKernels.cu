@@ -418,7 +418,30 @@ __global__ void supersampledRender(glm::vec2 resolution, fragment* depthbuffer, 
 
 	if(x<=resolution.x && y<=resolution.y)
 	{
-		framebuffer[index] = depthbuffer[index].color;
+		int offset = 1;
+		int count = 0;
+		vec3 totalColor = vec3(0,0,0);
+
+		for (int i = -offset ; i <= offset ; ++i)
+		{
+			for (int j = -offset ; j <= offset ; ++j)
+			{
+				int samplex = x + i;
+				int sampley = y + j;
+
+				if (samplex < 0 || sampley < 0 || samplex > resolution.x || sampley > resolution.y)
+					continue;
+				else
+				{
+					int sampleIndex = samplex + sampley * resolution.x;
+					totalColor = totalColor + depthbuffer[sampleIndex].color;
+					count++;
+				}
+			}
+		}
+
+		framebuffer[index] = totalColor * (1.f / count);
+		//framebuffer[index] = depthbuffer[index].color;
 	}
 }
 
@@ -522,16 +545,23 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
 	cudaDeviceSynchronize();
 	//checkCUDAErrorWithLine("rasterization kernel failed");
+
 	//------------------------------
 	//fragment shader
 	//------------------------------
 	fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, device_lights, lightsize);
 	cudaDeviceSynchronize();
 	//checkCUDAErrorWithLine("fragment shader kernel failed");
+
 	//------------------------------
 	//write fragments to framebuffer
 	//------------------------------
+#if ANTIALIASING == 0
 	render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer);
+#else
+	supersampledRender<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer);
+#endif
+
 	//checkCUDAErrorWithLine("render kernel failed");
 	sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
 	//checkCUDAErrorWithLine("send image to pbo kernel failed");
