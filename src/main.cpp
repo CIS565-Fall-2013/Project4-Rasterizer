@@ -6,6 +6,9 @@
 bool first = true;
 int oldX = 0, oldY = 0, dx = 0, dy = 0;	
 bool leftMButtonDown = false;
+
+cbuffer constantBuffer;
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -36,6 +39,9 @@ int main(int argc, char** argv){
   frame = 0;
   seconds = time (NULL);
   fpstracker = 0;
+
+  constantBuffer.model = glm::mat4 (1.0);
+  constantBuffer.modelIT = glm::transpose (glm::inverse (constantBuffer.model));
 
   // Launch CUDA/GL
   #ifdef __APPLE__
@@ -108,8 +114,6 @@ void runCuda(bool &isFirstTime){
   nbo = mesh->getNBO ();
   nbosize = mesh->getNBOsize ();
 
-  cbuffer constantBuffer;
-  constantBuffer.model = glm::mat4 (1.0);
   constantBuffer.projection = glm::mat4 (1.0);
   constantBuffer.view = glm::mat4 (1.0);
 

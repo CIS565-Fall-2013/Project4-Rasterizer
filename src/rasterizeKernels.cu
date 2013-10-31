@@ -150,7 +150,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, cbuffer constantBuffer)
+__global__ void vertexShadeKernel(float* vbo, int vbosize, float *nbo, int nbosize, cbuffer constantBuffer)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 //  __shared__ glm::mat4 model;
@@ -158,6 +158,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cbuffer constantBuffe
 //  __shared__ glm::mat4 projection;
   __shared__ glm::mat4	ModelViewProjection;
   __shared__ int	step;
+  __shared__ int	normStep;
 
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
@@ -167,6 +168,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cbuffer constantBuffe
 
 	  ModelViewProjection = constantBuffer.projection * constantBuffer.view * constantBuffer.model;
 	  step = vbosize/4;
+	  normStep = nbosize / 4;
   }
 
   __syncthreads ();
@@ -175,24 +177,42 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cbuffer constantBuffe
   {
 	  glm::vec4 currentVertex (vbo [index], vbo [index+step], vbo [index+(2*step)], vbo [index+(3*step)]);
 	  cudaMat4 stupidMat;
+
+	  // Transform vertex to clip space.
 	  stupidMat.x = ModelViewProjection [0];	stupidMat.y = ModelViewProjection [1];	stupidMat.z = ModelViewProjection [2];	stupidMat.w = ModelViewProjection [3];
 	  currentVertex = multiplyMV (stupidMat, currentVertex);
+	  
 	  vbo [index] = currentVertex.x;	vbo [index+step] = currentVertex.y;	vbo [index+(2*step)] = currentVertex.z;	vbo [index+(3*step)] = currentVertex.w;
+  }
+
+  if (index < normStep)
+  {
+	  glm::vec4 currentNormal (nbo [index], nbo [index+normStep], nbo [index+(2*normStep)], nbo [index+(3*normStep)]);
+	  cudaMat4 stupidMat;
+
+	  // Transform normal to world space.
+	  stupidMat.x = constantBuffer.modelIT [0];	stupidMat.y = constantBuffer.modelIT [1];	stupidMat.z = constantBuffer.modelIT [2];	stupidMat.w = constantBuffer.modelIT [3];
+	  currentNormal = glm::normalize (multiplyMV (stupidMat, currentNormal));
+
+	  nbo [index] = currentNormal.x;	nbo [index+normStep] = currentNormal.y;	nbo [index+(2*normStep)] = currentNormal.z;	nbo [index+(3*normStep)] = currentNormal.w;
   }
 }
 
 //TODO: Implement primitive assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives)
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
+										float* nbo, int nbosize, triangle* primitives)
 {
   __shared__ int colourStep;
   __shared__ int indexStep;		// = primitivesCount.
   __shared__ int vertStep;
+  __shared__ int normStep;
   
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
 	  colourStep = cbosize / 3;
 	  vertStep = vbosize/4;
 	  indexStep = ibosize / 3;
+	  normStep = nbosize / 4;
   }
 
   __syncthreads ();
@@ -207,14 +227,17 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  int curIndex = ibo [index];
 	  thisTriangle.c0.x = cbo [0];	thisTriangle.c0.y = cbo [1];	thisTriangle.c0.z = cbo [2];
 	  thisTriangle.p0.x = vbo [curIndex];	thisTriangle.p0.y = vbo [curIndex + vertStep];		thisTriangle.p0.z = vbo [curIndex + (2*vertStep)];		thisTriangle.p0.w = vbo [curIndex + (3*vertStep)];
+	  thisTriangle.n0.x = nbo [curIndex];	thisTriangle.n0.y = nbo [curIndex + normStep];		thisTriangle.n0.z = nbo [curIndex + (2*normStep)];		thisTriangle.n0.w = nbo [curIndex + (3*normStep)];
 
 	  curIndex = ibo [index+indexStep];
 	  thisTriangle.c1.x = cbo [3];	thisTriangle.c1.y = cbo [4];	thisTriangle.c1.z = cbo [5];
 	  thisTriangle.p1.x = vbo [curIndex];	thisTriangle.p1.y = vbo [curIndex + vertStep];		thisTriangle.p1.z = vbo [curIndex + (2*vertStep)];		thisTriangle.p1.w = vbo [curIndex + (3*vertStep)];
+	  thisTriangle.n1.x = nbo [curIndex];	thisTriangle.n1.y = nbo [curIndex + normStep];		thisTriangle.n1.z = nbo [curIndex + (2*normStep)];		thisTriangle.n1.w = nbo [curIndex + (3*normStep)];
 
 	  curIndex = ibo [index+(2*indexStep)];
 	  thisTriangle.c2.x = cbo [6];	thisTriangle.c2.y = cbo [7];	thisTriangle.c2.z = cbo [8];
 	  thisTriangle.p2.x = vbo [curIndex];	thisTriangle.p2.y = vbo [curIndex + vertStep];		thisTriangle.p2.z =	vbo [curIndex + (2*vertStep)];		thisTriangle.p2.w = vbo [curIndex + (3*vertStep)];
+	  thisTriangle.n2.x = nbo [curIndex];	thisTriangle.n2.y = nbo [curIndex + normStep];		thisTriangle.n2.z =	nbo [curIndex + (2*normStep)];		thisTriangle.n2.w = nbo [curIndex + (3*normStep)];
 	  
 	  primitives [index] = thisTriangle;
   }
@@ -368,7 +391,7 @@ __global__ void rasterizationKernel (triangle* primitive, int elementNo, fragmen
 					  curFragment.position.x =	x;
 					  curFragment.position.y =	y;
 
-					  // Perspective correct interpolation for Z
+					  // TODO: Perspective correct interpolation for Z
 					  curFragment.position.z =	baryCoord.x * currentPrim.p0.z + 
 												baryCoord.y * currentPrim.p1.z + 
 												baryCoord.z * currentPrim.p2.z;
@@ -415,14 +438,24 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 												baryCoord.y * currentPrim.c1 + 
 												baryCoord.z * currentPrim.c2;
 
-	//					  curFragment.normal =	baryCoord.r * currentPrim.c0 + 
-	//											baryCoord.b * currentPrim.c1 + 
-	//											baryCoord.g * currentPrim.c2;
+							// We can interpolate the normals using barycentric coordinates because
+							// they are in world space and have not gone through the perspective warping.
+							curFragment.normal.x =	baryCoord.r * currentPrim.n0.x + 
+												baryCoord.b * currentPrim.n1.x + 
+												baryCoord.g * currentPrim.n2.x;
 					  
+							curFragment.normal.y =	baryCoord.r * currentPrim.n0.y + 
+												baryCoord.b * currentPrim.n1.y + 
+												baryCoord.g * currentPrim.n2.y;
+
+							curFragment.normal.z =	baryCoord.r * currentPrim.n0.z + 
+												baryCoord.b * currentPrim.n1.z + 
+												baryCoord.g * currentPrim.n2.z;
+
 							curFragment.position.x = i;
 							curFragment.position.y = j;
 
-							// TODO: Perspective correct interpolation for Z
+							// Perspective correct interpolation for Z
 							curFragment.position.z =	baryCoord.x * (1/currentPrim.p0.z) + 
 													baryCoord.y * (1/currentPrim.p1.z) + 
 													baryCoord.z * (1/currentPrim.p2.z);
