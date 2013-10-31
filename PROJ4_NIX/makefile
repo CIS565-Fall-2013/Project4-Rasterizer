@@ -1,6 +1,6 @@
 #All cuda paths are for v5.0+
 
-NVCC     = nvcc -m64
+NVCC     = nvcc -m64 -arch=sm_13
 CC       = gcc -m64
 CPPC     = g++ -m64
 

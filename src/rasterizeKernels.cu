@@ -18,6 +18,7 @@
 
 glm::vec3* framebuffer;
 fragment* depthbuffer;
+unsigned int* depthlock;
 float* device_vbo;
 float* device_cbo;
 float* device_nbo;
@@ -93,7 +94,7 @@ __global__ void clearImage(glm::vec2 resolution, glm::vec3* image, glm::vec3 col
 }
 
 //Kernel that clears a given fragment buffer with a given fragment
-__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag){
+__global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragment frag, unsigned int* lock){
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
     int index = x + (y * resolution.x);
@@ -102,6 +103,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       f.position.x = x;
       f.position.y = y;
       buffer[index] = f;
+      lock[index] = 0;
     }
 }
 
@@ -144,7 +146,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
    that map vertex coordinates to camera coordinates:
      Pclip = (Mmodel-view-projection)(Pmodel)
 */
-__global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize, float* nbo, int nbosize, vertex* vertices ){
+__global__ void vertexShadeKernel(glm::mat4 view, glm::mat4 projection, float* vbo, int vbosize, float* nbo, int nbosize, vertex* vertices ){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   glm::vec4 point;
   glm::vec4 point_tformd;
@@ -161,7 +163,6 @@ __global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize, float
     normal.y = nbo[3*index+1];
     normal.z = nbo[3*index+2];
     normal.w = 0.0f;
-     
 
     // Apply model-view-project matrix transform
     // ... at the moment just the identity 
@@ -179,7 +180,7 @@ __global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize, float
     glm::mat4 model = quaternion::toMat4( rot );
     */
     
-    glm::mat4 projection = glm::perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    //glm::mat4 projection = glm::perspective(60.0f, 1.0f, 0.1f, 100.0f);
 
     // Transform vertex and normal
     point_tformd = projection*view*point;
@@ -189,7 +190,7 @@ __global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize, float
 
     // Convert to normalized device coordinates
     float div = 1.0f;
-    if ( abs(point_tformd.w) > 1e-8 )
+    if ( abs(point_tformd.w) > 0.0f )
       div = 1.0f/point_tformd.w;
     /*
     vbo[3*index] = vertex_tformd.x*div;
@@ -199,9 +200,13 @@ __global__ void vertexShadeKernel(glm::mat4 view, float* vbo, int vbosize, float
     vertices[index].point.x = point_tformd.x*div;
     vertices[index].point.y=  point_tformd.y*div;
     vertices[index].point.z = point_tformd.z*div; 
-    vertices[index].normal.x = normal_tformd.x;
-    vertices[index].normal.y = normal_tformd.y;
-    vertices[index].normal.z = normal_tformd.z;
+
+    div = 1.0f;
+    if ( abs(normal_tformd.w) > 0.0f )
+      div = 1.0f/normal_tformd.w;
+    vertices[index].normal.x = normal_tformd.x*div;
+    vertices[index].normal.y = normal_tformd.y*div;
+    vertices[index].normal.z = normal_tformd.z*div;
 
   }
 }
@@ -225,11 +230,6 @@ __global__ void primitiveAssemblyKernel(vertex* vertices, float* cbo, int cbosiz
     i2 = ibo[3*index+2];
 
     // Copy over vertex points
-    /*
-    primitives[index].p0 = glm::vec3( vbo[3*i0], vbo[3*i0+1], vbo[3*i0+2] );
-    primitives[index].p1 = glm::vec3( vbo[3*i1], vbo[3*i1+1], vbo[3*i1+2] );
-    primitives[index].p2 = glm::vec3( vbo[3*i2], vbo[3*i2+1], vbo[3*i2+2] );
-    */
     primitives[index].p0 = vertices[i0].point;
     primitives[index].p1 = vertices[i1].point;
     primitives[index].p2 = vertices[i2].point;
@@ -240,11 +240,6 @@ __global__ void primitiveAssemblyKernel(vertex* vertices, float* cbo, int cbosiz
     primitives[index].n2 = vertices[i2].normal;
 
     // Copy over vertex colors
-    /*
-    primitives[index].c0 = glm::vec3( cbo[3*i0], cbo[3*i0+1], cbo[3*i0+2] );
-    primitives[index].c1 = glm::vec3( cbo[3*i1], cbo[3*i1+1], cbo[3*i1+2] );
-    primitives[index].c2 = glm::vec3( cbo[3*i2], cbo[3*i2+1], cbo[3*i2+2] );
-    */
     primitives[index].c0 = glm::vec3( cbo[0], cbo[1], cbo[2] );
     primitives[index].c1 = glm::vec3( cbo[3], cbo[4], cbo[5] );
     primitives[index].c2 = glm::vec3( cbo[6], cbo[7], cbo[8] );
@@ -256,7 +251,7 @@ __global__ void primitiveAssemblyKernel(vertex* vertices, float* cbo, int cbosiz
 /* 
    Given triangle coordinates, converted to screen coordinates, find fragments inside of triangle using AABB and brute force barycentric coords checks
 */
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer,  glm::vec2 resolution) {
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, unsigned int* depthlock, glm::vec2 resolution) {
 
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -270,7 +265,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   glm::vec3 bary_coord;
 
   fragment frag; 
-  float frag_depth;
 
   float scale_x;
   float scale_y;
@@ -307,37 +301,29 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
     // For each pixel in the bounding box check if its in the triangle 
     for ( int x=glm::floor(min_point.x); x<glm::ceil(max_point.x); ++x ) {
       for ( int y=glm::floor(min_point.y); y<glm::ceil(max_point.y); ++y ) {
-	//int frag_index = x + (y * resolution.x);
+	int frag_index = x + (y * resolution.x);
 	bary_coord = calculateBarycentricCoordinate( tri, glm::vec2( x,y ) );
 	if ( isBarycentricCoordInBounds( bary_coord ) ) {
-	  //frag_depth = getZAtCoordinate( bary_coord, primitives[index] );
-
-	  
-	  // If frag_depth is less than the current depth in the depth buffer then update
 
 	  // Color a fragment just for debugging sake 
-	  //frag.color = glm::vec3( 1.0, 0.0, 0.0 );  
-	  //frag.position = glm::vec3( x, y, frag_depth );
 	  frag.position = getXYZAtCoordinate( bary_coord, primitives[index] );
 	  frag.normal = bary_coord[0]*primitives[index].n0 \
 		      + bary_coord[1]*primitives[index].n1 \
 		      + bary_coord[2]*primitives[index].n2;
-
-	  // Solid color for every triangle
 
 	  // Interpolate color on triangle ... cause this will look pretty
 	  frag.color = bary_coord[0]*primitives[index].c0 \
 		     + bary_coord[1]*primitives[index].c1 \
 		     + bary_coord[2]*primitives[index].c2;
 	  
-	  // Color fragment based interpolated normal
-	  //frag.color = frag.normal;
-	  
-	  // This is BAD and not atomic :/
+	  // Block until its our turn to do a compare
+	  while ( !atomicCAS( &depthlock[frag_index], 0, 1 ) );
 	  fragment cur_frag = getFromDepthbuffer( x, y, depthbuffer, resolution );
 	  // If current value is gt than new value then update
-	  if ( frag_depth > cur_frag.position.z ) 
+	  if ( frag.position.z > cur_frag.position.z ) 
 	    writeToDepthbuffer( x, y, frag, depthbuffer, resolution );
+	  // Release lock
+	  depthlock[frag_index] = 0;
 	}
       }
     }
@@ -345,16 +331,13 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, int draw_mode ){
+__global__ void fragmentShadeKernel(glm::vec3 light, fragment* depthbuffer, glm::vec2 resolution, int draw_mode ){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
-  fragment frag;
 
-  // Fixed light point
-  glm::vec3 light( 1.0, 1.0, 1.0 );
+  fragment frag;
   glm::vec3 lightdir;
-  
 
   if(x<=resolution.x && y<=resolution.y){
     frag = getFromDepthbuffer( x, y, depthbuffer, resolution );
@@ -401,7 +384,18 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(glm::mat4 view, int draw_mode, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(glm::mat4 view, glm::mat4 projection, glm::vec3 light, int draw_mode, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+
+  // Transform light 
+  glm::vec4 light4( light.x, light.y, light.z, 1.0f );
+  light4 = projection*view*light4;
+  float div = 1.0f;
+  // Convert light to normalized device coordinates
+  if ( abs(light4.w) > 1e-8 ) 
+    div = 1.0f/light4.w;
+  light.x = light4.x*div;
+  light.y = light4.y*div;
+  light.z = light4.z*div;
 
   // set up crucial magic
   int tileSize = 8;
@@ -416,6 +410,9 @@ void cudaRasterizeCore(glm::mat4 view, int draw_mode, uchar4* PBOpos, glm::vec2 
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
 
+  depthlock = NULL;
+  cudaMalloc((void**)&depthlock, (int)resolution.x*(int)resolution.y*sizeof(unsigned int));
+
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
@@ -423,7 +420,7 @@ void cudaRasterizeCore(glm::mat4 view, int draw_mode, uchar4* PBOpos, glm::vec2 
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
-  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
+  clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, frag, depthlock);
 
   //------------------------------
   //memory stuff
@@ -483,7 +480,7 @@ void cudaRasterizeCore(glm::mat4 view, int draw_mode, uchar4* PBOpos, glm::vec2 
   }
 #endif
 
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(view, device_vbo, vbosize, device_nbo, nbosize, vertices);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(view, projection, device_vbo, vbosize, device_nbo, nbosize, vertices);
 
   // DEBUG
 #ifdef DEBUG 
@@ -530,7 +527,7 @@ void cudaRasterizeCore(glm::mat4 view, int draw_mode, uchar4* PBOpos, glm::vec2 
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, depthlock, resolution);
 
 #ifdef DEBUG
   // Host copy of primitives so that I can't print this out and make sure it works
@@ -550,7 +547,7 @@ void cudaRasterizeCore(glm::mat4 view, int draw_mode, uchar4* PBOpos, glm::vec2 
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, draw_mode);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(light, depthbuffer, resolution, draw_mode);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -575,5 +572,6 @@ void kernelCleanup(){
   cudaFree( device_ibo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
+  cudaFree( depthlock );
 }
 

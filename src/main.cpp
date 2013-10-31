@@ -9,7 +9,13 @@
 
 // Camera 
 glm::mat4 cam = glm::mat4( 1.0 ); // eye
+// Projection matrix
+glm::mat4 projection = glm::perspective(60.0f, 1.0f, 0.1f, 100.0f);
+// Light 
+glm::vec3 light( 1.0, 1.0, 1.0 );
+// Drawing mode
 int draw_mode = DRAW_COLOR;
+
 
 int main(int argc, char** argv){
 
@@ -111,7 +117,7 @@ void runCuda(){
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
   // Invert camera to convert to view matrix
-  cudaRasterizeCore(glm::inverse(cam), draw_mode, dptr, glm::vec2(width, height), frame, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(glm::inverse(cam), projection, light, draw_mode, dptr, glm::vec2(width, height), frame, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

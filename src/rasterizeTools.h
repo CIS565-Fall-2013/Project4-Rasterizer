@@ -83,7 +83,7 @@ __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle 
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
 }
 
-//LOOK: for a given barycentric coordinate, return the corresponding z position on the triangle
+//LOOK: for a given barycentric coordinate, return the corresponding xyz positions on the triangle
 __host__ __device__ glm::vec3 getXYZAtCoordinate(glm::vec3 barycentricCoord, triangle tri){
   glm::vec3 xs( tri.p0.x, tri.p1.x, tri.p2.x );
   glm::vec3 ys( tri.p0.y, tri.p1.y, tri.p2.y );
