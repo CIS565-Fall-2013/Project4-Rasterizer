@@ -425,7 +425,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //rasterization
   //------------------------------
   thrust::device_ptr<triangle> thrustPrimitivesArray = thrust::device_pointer_cast(primitives);
-  unsigned int numberOfPrimitives = ceil(ibosize/3);
+  unsigned int numberOfPrimitives = ceil((float)ibosize/3);
   int numberOfFrontPrimitives = thrust::remove_if(thrustPrimitivesArray,thrustPrimitivesArray+numberOfPrimitives,is_backfacing()) - thrustPrimitivesArray ;
   int rasterizationBlocks = ceil(((float)numberOfFrontPrimitives)/((float)tileSize));
   
