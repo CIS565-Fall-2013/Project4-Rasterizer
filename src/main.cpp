@@ -25,6 +25,7 @@ int main(int argc, char** argv){
       mesh = new obj();
       objLoader* loader = new objLoader(data, mesh);
       mesh->buildVBOs();
+	  
       delete loader;
       loadedScene = true;
     }
@@ -130,10 +131,14 @@ void getmousePos(int x, int y)
 	if(mouseStatus==1)
 	{
 		glm::vec3 right=glm::normalize(glm::cross(cameraDir,cameraUp));
-		
+		glm::vec3 realup=glm::normalize(glm::cross(cameraDir,right));
 		//if(x-mousex<-5) cameraPosition-=right*0.1f;
 		//else if(x-mousex>5) cameraPosition+=right*0.1f;
 		int dx=x-mousex;
+		int dy=y-mousey;
+		
+		cameraPosition+=right*(dx*0.02f)+realup*(dy*0.02f);
+
 	}
 
 	if(mouseStatus==2)
@@ -177,6 +182,8 @@ void runCuda(){
 
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
+  nbo=mesh->getNBO();
+  nbosize=mesh->getNBOsize();
 
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
@@ -188,7 +195,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,projection,camInfo, modelTransform);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize,nbo, nbosize, ibo, ibosize,projection,camInfo, modelTransform);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

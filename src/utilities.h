@@ -23,6 +23,7 @@ const float ZERO_ABSORPTION_EPSILON     =0.00001;
 const float RAY_BIAS_AMOUNT             =0.0002;
 
 #define ANTIALIAS
+//#define BACKCULLING
 struct cameraInfo
 {
 	float fovy;

@@ -17,6 +17,7 @@
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
+float* device_nbo;
 float* device_original_vbo;
 float* device_cbo;
 int* device_ibo;
@@ -177,7 +178,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize,glm::mat4 projection, 
 }
 
 //TODO: Implement primative assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives, float* origin_vbo, glm::mat4 projection){
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize, triangle* primitives, float* origin_vbo, glm::mat4 projection){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
@@ -195,9 +196,9 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  glm::vec3 p2=glm::vec3(vbo[3*iboidx2],vbo[3*iboidx2+1],vbo[3*iboidx2+2]);
 
 	  glm::vec3 N=glm::normalize(glm::cross(p1-p0,p2-p1));
-	  primitives[index].n0=N;
-	  primitives[index].n1=N;
-	  primitives[index].n2=N;
+	  primitives[index].n0=glm::vec3(nbo[3*iboidx0],nbo[3*iboidx0+1],nbo[3*iboidx0+2]);
+	  primitives[index].n1=glm::vec3(nbo[3*iboidx1],nbo[3*iboidx1+1],nbo[3*iboidx1+2]);
+	  primitives[index].n2=glm::vec3(nbo[3*iboidx2],nbo[3*iboidx2+1],nbo[3*iboidx2+2]);;
 
 	  glm::vec3 camDir(projection[0][2],projection[1][2],projection[2][2]);
 	  float dt=glm::dot(camDir,N);
@@ -460,20 +461,23 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
   if(x<=resolution.x && y<=resolution.y){
 	  
 	  ///////NORMAL TEST
-	  depthbuffer[index].color=(depthbuffer[index].position.z>1000.0f)?glm::vec3(1,1,1):((depthbuffer[index].normal+glm::vec3(1.0f))*0.5f); 
+	  //depthbuffer[index].color=(depthbuffer[index].position.z>1000.0f)?glm::vec3(1,1,1):((depthbuffer[index].normal+glm::vec3(1.0f))*0.5f); 
 
-	  /////DEPTH TEST
-	  depthbuffer[index].color=(depthbuffer[index].position.z>998.0f)?glm::vec3(0,0,0):glm::vec3(1.0f)*(maxz-depthbuffer[index].position.z)/(maxz-minz);
+	  ///////DEPTH TEST
+	  //depthbuffer[index].color=(depthbuffer[index].position.z>998.0f)?glm::vec3(0,0,0):glm::vec3(1.0f)*(maxz-depthbuffer[index].position.z)/(maxz-minz);
 
-	  ////ILLUMINATION
-	  depthbuffer[index].color=(depthbuffer[index].position.z>998.0f)?glm::vec3(0,0,0):glm::vec3(238,201,25)*(1/255.0f)*(
+	  //////ILLUMINATION
+	  float yratio=y/resolution.y;
+	  depthbuffer[index].color=(depthbuffer[index].position.z>998.0f)?glm::vec3(0.5f*yratio,0.3f*(1-yratio),0.8f):glm::vec3(238,201,25)*(1/255.0f)*(0.1f+//Ambient Light
 		  glm::clamp(glm::dot(glm::vec3(0,-1,0),depthbuffer[index].normal),0.0f,1.0f)+
 		  glm::clamp(glm::dot(glm::vec3(0,1,0),depthbuffer[index].normal),0.0f,1.0f));
+	  //depthbuffer[index].color=(depthbuffer[index].position.z>998.0f)?glm::vec3(0,0,0):depthbuffer[index].color*(0.1f+//Ambient Light
+		 // glm::clamp(glm::dot(glm::vec3(0,-1,0),depthbuffer[index].normal),0.0f,1.0f)+
+		 // glm::clamp(glm::dot(glm::vec3(0,1,0),depthbuffer[index].normal),0.0f,1.0f));
+	  //depthbuffer[index].color=(depthbuffer[index].position.z>998.0f)?glm::vec3(0,0,0):glm::vec3(238,201,25)*(1/255.0f)*(
+		 // glm::clamp(glm::dot(glm::vec3(0,-1,0),depthbuffer[index].normal),0.0f,1.0f));
 
-	  depthbuffer[index].color=(depthbuffer[index].position.z>998.0f)?glm::vec3(0,0,0):glm::vec3(238,201,25)*(1/255.0f)*(
-		  glm::clamp(glm::dot(glm::vec3(0,-1,0),depthbuffer[index].normal),0.0f,1.0f));
 
-	  //depthbuffer[index].color=glm::vec3(1.0f);
   }
 }
 
@@ -490,7 +494,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize,glm::mat4 projection, cameraInfo camInfo,glm::mat4 modelTransform){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize,int* ibo, int ibosize,glm::mat4 projection, cameraInfo camInfo,glm::mat4 modelTransform){
 
   // set up crucial magic
   int tileSize = 16;
@@ -527,6 +531,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   device_vbo = NULL;
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   device_original_vbo = NULL;
   cudaMalloc((void**)&device_original_vbo, vbosize*sizeof(float));
@@ -566,7 +574,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, device_original_vbo,projection);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_nbo,nbosize, device_ibo, ibosize, primitives, device_original_vbo,projection);
 
   cudaDeviceSynchronize();
   checkCUDAError("Kernel failed 2!");
@@ -600,13 +608,14 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //}
 
   ///////BACK CULLING////////////
-  int primitivenum=ibosize/3;
 
+  int primitivenum=ibosize/3;
+#ifdef BACKCULLING
   thrust::device_ptr<triangle> iteratorStart(primitives);
   thrust::device_ptr<triangle> iteratorEnd = iteratorStart + primitivenum;
   iteratorEnd = thrust::remove_if(iteratorStart, iteratorEnd, terminated());
   primitivenum = (int)(iteratorEnd - iteratorStart);
-
+#endif
   //////BACKCULLING END/////////////
 #ifdef ANTIALIAS
   fragment* anti_alias_depthbuffer = NULL;
