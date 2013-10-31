@@ -49,6 +49,14 @@ __host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, g
         max(max(tri.p0.z, tri.p1.z),tri.p2.z));
 }
 
+// calculates tight box for triangle and performs non-geometric clipping
+__host__ __device__ void getTightBoxForTriangle(triangle tri, glm::vec2& minpoint, glm::vec2& maxpoint, glm::vec2 resolution){
+	minpoint = glm::vec2(max(0.0f,min(min(tri.p0.x, tri.p1.x),tri.p2.x)), 
+        max(0.0f,min(min(tri.p0.y, tri.p1.y),tri.p2.y)));
+	maxpoint = glm::vec2(min(resolution.x - 1,max(max(tri.p0.x, tri.p1.x),tri.p2.x)),
+		min(resolution.y - 1,max(max(tri.p0.y, tri.p1.y),tri.p2.y)));
+}
+
 //LOOK: calculates the signed area of a given triangle
 __host__ __device__ float calculateSignedArea(triangle tri){
   return 0.5*((tri.p2.x - tri.p0.x)*(tri.p1.y - tri.p0.y) - (tri.p1.x - tri.p0.x)*(tri.p2.y - tri.p0.y));

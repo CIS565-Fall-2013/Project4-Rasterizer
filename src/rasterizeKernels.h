@@ -16,9 +16,10 @@
     #include <cutil_math.h>
 #endif
 
-#define POINT_MODE 1
+#define POINT_MODE 0
 #define SHADING 0
-#define RASTERIZE_MODE 2
+#define RASTERIZE_MODE 0
+#define SCANLINE 0
 #define THREE 0
 
 void kernelCleanup();

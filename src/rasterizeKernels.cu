@@ -14,6 +14,18 @@
     #include <cutil_math.h>
 #endif
 
+#if RASTERIZE_MODE == 0
+	#define NUM_BLOCKS(ibosize, resolution, tileSize) ceil(((float)ibosize/3)/((float)tileSize))
+#if SCANLINE == 0
+	#define RASTERIZE(x,y,z,w) rasterizeByPrimitive(x,y,z,w)
+#else
+	#define RASTERIZE(x,y,z,w) rasterizeByPrimitiveByScanLine(x,y,z,w)
+#endif
+#elif RASTERIZE_MODE == 1	
+	#define NUM_BLOCKS(iboSize, resolution, tileSize) ceil(((float)resolution.x * resolution.y) / ((float)tileSize))
+	#define RASTERIZE(x,y,z,w) rasterizeByFragment(x,y,z,w)
+#endif
+
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
@@ -175,7 +187,8 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 MVP, glm::v
   }
 }
 
-//TODO: Implement primative assembly
+// Primative assembly
+#if POINT_MODE == 0
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
@@ -217,19 +230,22 @@ __global__ void viewportTransformKernel(triangle* primitives, int primitivesCoun
 		glm::vec4 p2_ndc = t.p2 / t.p2.w;
 
 		// Transform to Screen Coords
-		t.p0.x = 1.0f / 2 * resolution.x * p0_ndc.x + (1.0f * 2 * resolution.x);
-		t.p0.y = 1.0f / 2 * resolution.y * p0_ndc.y + (1.0f * 2 * resolution.y);
+		t.p0.x = 1.0f / 2 * resolution.x * p0_ndc.x + (1.0f / 2 * resolution.x);
+		t.p0.y = 1.0f / 2 * resolution.y * p0_ndc.y + (1.0f / 2 * resolution.y);
 		t.p0.z = p0_ndc.z;
 
-		t.p1.x = 1.0f / 2 * resolution.x * p1_ndc.x + (1.0f * 2 * resolution.x);
-		t.p1.y = 1.0f / 2 * resolution.y * p1_ndc.y + (1.0f * 2 * resolution.y);
-		t.p1.z = p0_ndc.z;
+		t.p1.x = 1.0f / 2 * resolution.x * p1_ndc.x + (1.0f / 2 * resolution.x);
+		t.p1.y = 1.0f / 2 * resolution.y * p1_ndc.y + (1.0f / 2 * resolution.y);
+		t.p1.z = p1_ndc.z;
 
-		t.p2.x = 1.0f / 2 * resolution.x * p2_ndc.x + (1.0f * 2 * resolution.x);
-		t.p2.y = 1.0f / 2 * resolution.y * p2_ndc.y + (1.0f * 2 * resolution.y);
-		t.p2.z = p0_ndc.z;
+		t.p2.x = 1.0f / 2 * resolution.x * p2_ndc.x + (1.0f / 2 * resolution.x);
+		t.p2.y = 1.0f / 2 * resolution.y * p2_ndc.y + (1.0f / 2 * resolution.y);
+		t.p2.z = p2_ndc.z;
+		
+		primitives[index] = t;
 	}
 }
+#endif
 
 __global__ void rasterizePoints(float* vbo, float vbosize, fragment* depthbuffer, glm::vec2 resolution)
 {
@@ -268,12 +284,84 @@ __global__ void rasterizePoints(float* vbo, float vbosize, fragment* depthbuffer
   }
 }
 
+#if POINT_MODE == 0
+
+#if RASTERIZE_MODE == 0
+#if SCANLINE == 0
+// Rasterize by Primitive
+// Barycentric with non-geometric clipping
+__device__ void rasterizeByPrimitive(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if(index < primitivesCount){
+		triangle t  = primitives[index];
+		glm::vec2 minpoint, maxpoint;
+		getTightBoxForTriangle(t, minpoint, maxpoint, resolution);
+		glm::vec3 bary_center;
+		float z;
+		fragment f;
+		int count, idx;
+		for(int i = minpoint.y; i <= maxpoint.y; i++){
+			count = 0; // reset line hit counter
+			for(int j = minpoint.x; j <= maxpoint.x && count < 2; j++){
+				bary_center = calculateBarycentricCoordinate(t, glm::vec2(j,i));
+				if(isBarycentricCoordInBounds(bary_center)){
+					if(count == 0) ++count;
+					z = getZAtCoordinate(bary_center, t);		
+					idx = i * (int)resolution.x + j;
+
+					// Critical Section
+					//lock(&depthbuffer[idx].lock);
+					if(z > depthbuffer[idx].position.z){
+						/*depthbuffer[idx].color.x = t.c0.x * bary_center.x + t.c1.x * bary_center.y + t.c2.x * bary_center.z;
+						depthbuffer[idx].color.y = t.c0.y * bary_center.x + t.c1.y * bary_center.y + t.c2.y * bary_center.z;
+						depthbuffer[idx].color.z = t.c0.z * bary_center.x + t.c1.z * bary_center.y + t.c2.z * bary_center.z;*/
+						depthbuffer[idx].color = glm::vec3(1.0f);
+						depthbuffer[idx].position = glm::vec3(j,i,z);
+					}
+					//unlock(&depthbuffer[idx].lock);
+				}else{
+					if(count == 1) ++count;
+				}
+			}
+		}
+	}
+}
+#endif
+#else
+// Rasterization by pixel / fragment (one pixel per thread)
+__device__ void rasterizeByFragment(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if(index < resolution.x * resolution.y){
+		int y = (index / resolution.x);
+		int x = (index - resolution.x * y);
+		glm::vec2 px_center = glm::vec2(x,y);
+		triangle t;
+		glm::vec3 bary_center;
+		float z;
+
+		for(int i = 0; i < primitivesCount; i++){
+			t = primitives[i];
+			bary_center = calculateBarycentricCoordinate(t, px_center);
+			if(isBarycentricCoordInBounds(bary_center)){
+				z = getZAtCoordinate(bary_center, t);
+				if(z > depthbuffer[index].position.z){
+					/*depthbuffer[index].color.x = t.c0.x * bary_center.x + t.c1.x * bary_center.y + t.c2.x * bary_center.z;
+					depthbuffer[index].color.y = t.c0.y * bary_center.x + t.c1.y * bary_center.y + t.c2.y * bary_center.z;
+					depthbuffer[index].color.z = t.c0.z * bary_center.x + t.c1.z * bary_center.y + t.c2.z * bary_center.z;*/
+					//depthbuffer[index].normal = normal(t);
+					depthbuffer[index].color = glm::vec3(1.0f);
+					depthbuffer[index].position = glm::vec3(px_center, z);
+				}
+			}
+		}
+	}
+}
+
+#endif
+
 // Rasterizer
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
-  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<primitivesCount){
-	  //RASTERIZE(primitives, primitivesCount, depthbuffer, resolution);
-  }
+  RASTERIZE(primitives, primitivesCount, depthbuffer, resolution);
 }
 
 // Fragment Shader
@@ -282,6 +370,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
+	  fragment f = depthbuffer[index];
 #if SHADING == 0
 	  // FLAT SHADING
 	  // no change to color
@@ -294,8 +383,10 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 	  glm::vec3 specular = glm::dot(reflect(LIGHT - f.position, f.normal), -1.0f * f.position) * glm::vec3(1.0f);
 	  f.color = .5f * diffuse + .5f * specular;
 #endif
+	  depthbuffer[index] = f;
   }
 }
+#endif
 
 //Writes fragment colors to the framebuffer
 __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* framebuffer){
@@ -378,7 +469,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //rasterization
   //------------------------------
 
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<NUM_BLOCKS(ibosize, resolution, tileSize), tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
 #else
   primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
   rasterizePoints<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, depthbuffer, resolution);
