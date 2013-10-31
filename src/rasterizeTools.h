@@ -21,13 +21,21 @@ struct triangle {
   glm::vec3 n0;
   glm::vec3 n1;
   glm::vec3 n2;
+
+  //ws normalized vector from ws coord to light
+  glm::vec3 L0;
+  glm::vec3 L1;
+  glm::vec3 L2;
+
+  //for clipping and culling
+  bool draw;
 };
 
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
-  bool set;
+  glm::vec3 lightDir;
 };
 
 //Multiplies a cudaMat4 matrix and a vec4

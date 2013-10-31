@@ -24,6 +24,7 @@
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
+#include "glm/gtc/matrix_transform.hpp"
 
 #if CUDA_VERSION >= 5000
     #include <helper_cuda.h>
@@ -64,6 +65,14 @@ int nbosize;
 
 //camera stuff
 camera cam;
+glm::vec2 oldMousePos;
+bool startZoom;
+bool startRotate;
+void rotateX(float x);
+void rotateY(float y);
+
+//light
+glm::vec3 light;
 
 //-------------------------------
 //----------CUDA STUFF-----------
@@ -88,6 +97,8 @@ void runCuda();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+    void mouseMove(int x, int y);
+    void mouseClick(int button, int state, int x, int y);
 #endif
 
 //-------------------------------

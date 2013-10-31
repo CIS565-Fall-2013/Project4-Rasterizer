@@ -30,12 +30,20 @@ int main(int argc, char** argv){
   }
 
   //set up camera
-  cam.eye = glm::vec3(0,0,3);
+  cam.eye = glm::vec3(0,0,4);
   cam.up = glm::vec3(0,1,0);
   cam.center = glm::vec3(0,0,0);
   cam.fov = 45;
   cam.zNear = 0.1f;
   cam.zFar = 1000;
+
+  oldMousePos = glm::vec2(0,0);
+  
+  startZoom = false;
+  startRotate = false;
+
+  //light pos in ws
+  light = glm::vec3(5, 7, 1);
 
   frame = 0;
   seconds = time (NULL);
@@ -79,6 +87,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+	glutMouseFunc(mouseClick);
+    glutMotionFunc(mouseMove);
 
     glutMainLoop();
   #endif
@@ -111,7 +121,7 @@ void runCuda(){
   nbosize = mesh->getNBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, cam);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, cam, light);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -122,6 +132,31 @@ void runCuda(){
   frame++;
   fpstracker++;
 
+}
+
+void rotateX(float x){
+        //compute rotation matrix
+		glm::vec3 pos = cam.eye;
+		glm::vec3 up = cam.up;
+        glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), x, up);
+
+        //find new camera position
+        glm::vec4 tempPos (pos.x, pos.y, pos.z, 0.0f);
+        tempPos= rotation*tempPos;
+		cam.eye = glm::vec3(tempPos.x, tempPos.y, tempPos.z);
+}
+
+void rotateY(float y){
+        //compute rotation matrix
+        glm::vec3 pos = cam.eye;
+        glm::vec3 up = cam.up;
+        glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), y, glm::cross(up, pos));
+
+        //find new camera position
+        glm::vec4 tempPos (pos.x, pos.y, pos.z, 0.0f);
+        tempPos= rotation*tempPos;
+        cam.eye = glm::vec3(tempPos.x, tempPos.y, tempPos.z);
+        
 }
 
 #ifdef __APPLE__
@@ -197,6 +232,55 @@ void runCuda(){
          break;
     }
   }
+  
+	void mouseClick(int button, int state, int x, int y){
+		switch (state){
+			case(GLUT_UP):
+				startZoom = false;
+                startRotate=false;
+                break;
+
+                case(GLUT_DOWN):
+                    oldMousePos.x = x;
+                    oldMousePos.y = y;
+                    break;
+            }
+		
+		switch (button){
+            case(GLUT_LEFT_BUTTON):
+				startRotate = true;
+                break;
+
+            case(GLUT_RIGHT_BUTTON):
+                startZoom = true;
+                break;
+            }
+	}
+	
+	void mouseMove(int x, int y){
+		if(startZoom){
+			if(oldMousePos.x > x || oldMousePos.y > y)
+				cam.eye += 0.2f*(cam.eye - cam.center);
+			else if(oldMousePos.x < x || oldMousePos.y < y)
+				cam.eye -= 0.2f*(cam.eye - cam.center);
+		}
+        else if(startRotate){
+			if(oldMousePos.x > x)
+				rotateX(2.0f);
+            else if(oldMousePos.x < x)
+                rotateX(-2.0f);
+                        
+            if(oldMousePos.y > y)
+                rotateY(2.0f);
+            else if(oldMousePos.y < y)
+                rotateY(-2.0f);
+            }
+
+            oldMousePos.x = x;
+            oldMousePos.y = y;
+        }
+
+   
 
 #endif
   
