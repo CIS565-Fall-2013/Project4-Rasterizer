@@ -164,20 +164,18 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float* nbo, cudaMat4 
 	  vbo[vInd+1]=point.y;
 	  vbo[vInd+2]=point.z;
 
-	  //transform normals
-	  //glm::vec4 normal(nbo[vInd], nbo[vInd+1], nbo[vInd+2], 0.0f);
-	  //normal=multiplyMV_4(MVP, normal);
+	  //transform normals to world space
 	  glm::vec3 normal(nbo[vInd], nbo[vInd+1], nbo[vInd+2]);
+	  normal=glm::normalize(multiplyMV(MV, glm::vec4(normal, 0.0f)));
 	  nbo[vInd] = normal.x;
 	  nbo[vInd+1] = normal.y;
 	  nbo[vInd+2] = normal.z;
-	  normal;
 
   }
 }
 
 //TODO: Implement primative assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* nbo, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
@@ -190,21 +188,21 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  int vInd = ibo[iInd]*3;
 
 	  tri.p0 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
+	  tri.n0 = glm::vec3(nbo[vInd], nbo[vInd+1], nbo[vInd+2]);
 	  tri.c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
 
 	  //get 2nd vertex
 	  iInd++;
 	  vInd = ibo[iInd]*3;
 	  tri.p1 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
+	  tri.n1 = glm::vec3(nbo[vInd], nbo[vInd+1], nbo[vInd+2]);
 	  tri.c1 = glm::vec3(cbo[3], cbo[4], cbo[5]);
 
 	  iInd++;
 	  vInd = ibo[iInd]*3;
 	  tri.p2 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
+	  tri.n2 = glm::vec3(nbo[vInd], nbo[vInd+1], nbo[vInd+2]);
 	  tri.c2 = glm::vec3(cbo[6], cbo[7], cbo[8]);
-
-	  //find normals
-	  glm::vec3 normal = glm::normalize(glm::cross((tri.p0 - tri.p1), (tri.p0 - tri.p2)));
 
 	  //write to memory
 	  primitives[index]=tri;
@@ -212,7 +210,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, float* nbo){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   //need atomics to work....
 	
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -221,21 +219,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  //rasterize with barycentric method
 	  triangle tri = primitives[index];
 
-	  int nboInd = index*3;
-	  glm::vec3 n0 (nbo[nboInd], nbo[nboInd+1], nbo[nboInd+2]);
-	  nboInd+=3;
-	  glm::vec3 n1 (nbo[nboInd], nbo[nboInd+1], nbo[nboInd+2]);
-	  nboInd+=3;
-	  glm::vec3 n2 (nbo[nboInd], nbo[nboInd+1], nbo[nboInd+2]);
-
 	  //find bounding box around triangle
 	  glm::vec3 low, high;
 	  getAABBForTriangle(tri, low, high);
-
-	  n0;
-	  n1;
-	  n2;
-	  //for each pixel in BB range, test if pixel is inside triangle
 
 	  for (int i = clamp(low.x, 0.0f, resolution.x-1); i<=ceil(high.x) && i<resolution.x; ++i){
 		  for(int j = clamp(low.y, 0.0f, resolution.y-1); j<=ceil(high.y) && j<resolution.y; ++j){
@@ -252,10 +238,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 				  
 				  //test depth
 				  if(z > frag.position.z){
-					  
 					  frag.position = glm::vec3(i,j,z);
-					  //frag.normal = n0;
-					  frag.normal = glm::normalize(baryCoord.x*n0 + baryCoord.y*n1 + baryCoord.z*n2);
+					  frag.normal = glm::normalize(baryCoord.x*tri.n0 + baryCoord.y*tri.n1 + baryCoord.z*tri.n2);
 					  float tx = abs(frag.normal.x);
 					  float ty = abs(frag.normal.y);
 					  float tz = abs(frag.normal.z);
@@ -409,14 +393,14 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, device_cbo, cbosize, device_ibo, ibosize, primitives);
   checkCUDAErrorWithLine("primitive assembly failed!");
 
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, device_nbo);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
   //rasterizationKernelFrag<<<fullBlocksPerGrid, threadsPerBlock>>>(primitives, ibosize/3, depthbuffer, resolution);
   checkCUDAErrorWithLine("rasterize kernel failed!");
 

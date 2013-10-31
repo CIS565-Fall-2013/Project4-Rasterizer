@@ -30,7 +30,7 @@ int main(int argc, char** argv){
   }
 
   //set up camera
-  cam.eye = glm::vec3(1,1,5);
+  cam.eye = glm::vec3(0,0,3);
   cam.up = glm::vec3(0,1,0);
   cam.center = glm::vec3(0,0,0);
   cam.fov = 45;
