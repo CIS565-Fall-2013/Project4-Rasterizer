@@ -215,16 +215,16 @@ void runCuda(){
 	 break;
       // Translate camera
       case('w'):
-	 cam = glm::translate( cam, glm::vec3( 0.1, 0.0, 0.0 ) ); 
+	 cam = glm::translate( cam, glm::vec3( 0.0, 0.0, -0.1 ) ); 
 	 break;
       case('s'):
-	 cam = glm::translate( cam, glm::vec3( -0.1, 0.0, 0.0) ); 
+	 cam = glm::translate( cam, glm::vec3( 0.0, 0.0, 0.1) ); 
 	 break;
       case('a'):
-	 cam = glm::translate( cam, glm::vec3( 0.0, 0.1, 0.0 ) ); 
+	 cam = glm::translate( cam, glm::vec3( 0.1, 0.0, 0.0 ) ); 
 	 break;
       case('d'):
-	 cam = glm::translate( cam, glm::vec3( 0.0, -0.1, 0.0 ) ); 
+	 cam = glm::translate( cam, glm::vec3( -0.1, 0.0, 0.0 ) ); 
 	 break;
       case('1'):
 	 draw_mode = DRAW_SOLID;

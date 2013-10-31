@@ -310,13 +310,15 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	//int frag_index = x + (y * resolution.x);
 	bary_coord = calculateBarycentricCoordinate( tri, glm::vec2( x,y ) );
 	if ( isBarycentricCoordInBounds( bary_coord ) ) {
-	  frag_depth = getZAtCoordinate( bary_coord, primitives[index] );
+	  //frag_depth = getZAtCoordinate( bary_coord, primitives[index] );
+
 	  
 	  // If frag_depth is less than the current depth in the depth buffer then update
 
 	  // Color a fragment just for debugging sake 
 	  //frag.color = glm::vec3( 1.0, 0.0, 0.0 );  
-	  frag.position = glm::vec3( x, y, frag_depth );
+	  //frag.position = glm::vec3( x, y, frag_depth );
+	  frag.position = getXYZAtCoordinate( bary_coord, primitives[index] );
 	  frag.normal = bary_coord[0]*primitives[index].n0 \
 		      + bary_coord[1]*primitives[index].n1 \
 		      + bary_coord[2]*primitives[index].n2;
@@ -348,6 +350,12 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   fragment frag;
+
+  // Fixed light point
+  glm::vec3 light( 1.0, 1.0, 1.0 );
+  glm::vec3 lightdir;
+  
+
   if(x<=resolution.x && y<=resolution.y){
     frag = getFromDepthbuffer( x, y, depthbuffer, resolution );
 
@@ -364,10 +372,16 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	frag.color = frag.normal;
 	break;
       case( SHADE_SOLID ):
-	// phong shading solid color
+	// Lambertian shading
+	if ( glm::length( frag.color ) > 1e-10 )
+	  frag.color = glm::vec3( 1.0, 1.0, 1.0 );
+	lightdir = glm::normalize( light - frag.position );
+	frag.color = glm::dot( lightdir, frag.normal )*frag.color;
 	break;
       case( SHADE_COLOR ):
 	// phong shading interpolated color
+	lightdir = glm::normalize( light - frag.position );
+	frag.color = glm::dot( lightdir, frag.normal )*frag.color;
 	break;
     }
     writeToDepthbuffer( x, y, frag, depthbuffer, resolution ); 
