@@ -146,17 +146,12 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP, glm::ve
 	  
 	  //apply mvp transform to go to clip space and write back to VBO
 	  glm::vec4 point(vbo[vInd],vbo[vInd+1], vbo[vInd+2], 1.0f);
-	  
-	  point;
-
 	  point=multiplyMV_4(MVP, point);
 	  
 	  //perspective division to NDC and write to memory
 	  point.x /= point.w;
 	  point.y /= point.w;
 	  point.z /= point.w;
-
-	  point.z;
 
 	  //transfrom to screen coord
 	  point.x = (point.x+1)*(resolution.x/2.0f);
@@ -172,6 +167,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, cudaMat4 MVP, glm::ve
 
 //TODO: Implement primative assembly
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+  
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
@@ -183,18 +179,18 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  int vInd = ibo[iInd]*3;
 
 	  tri.p0 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
-	  tri.c0 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
+	  tri.c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
 
 	  //get 2nd vertex
 	  iInd++;
 	  vInd = ibo[iInd]*3;
 	  tri.p1 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
-	  tri.c1 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
+	  tri.c1 = glm::vec3(cbo[3], cbo[4], cbo[5]);
 
 	  iInd++;
 	  vInd = ibo[iInd]*3;
 	  tri.p2 = glm::vec3(vbo[vInd], vbo[vInd+1], vbo[vInd+2]);
-	  tri.c2 = glm::vec3(cbo[vInd], cbo[vInd+1], cbo[vInd+2]);
+	  tri.c2 = glm::vec3(cbo[6], cbo[7], cbo[8]);
 
 	  tri;
 
@@ -227,19 +223,26 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  
 			  //convert pixel to barycentric coord
 			  glm::vec3 baryCoord = calculateBarycentricCoordinate(tri, glm::vec2(i, j));
-
-			//  //check if within the triangle
+			  
+			  //check if within the triangle
 			  if(isBarycentricCoordInBounds(baryCoord)){
 				  float z = getZAtCoordinate(baryCoord, tri);
 				  
-				  //if(z > frag.position.z){
+				  //test depth
+				  if(z > frag.position.z){
+					  
+					  glm::vec3 absCoord (abs(baryCoord.x), abs(baryCoord.y), abs(baryCoord.z));
+
 					  frag.position = glm::vec3(i,j,z);
 					  frag.normal = glm::normalize(glm::cross((tri.p0-tri.p1), (tri.p0-tri.p2)));
-					  //glm::vec3 col(1.0f);
-					  frag.color = baryCoord*(tri.c0 + tri.c1 + tri.c2);
+					  float tx = abs(frag.normal.x);
+					  float ty = abs(frag.normal.y);
+					  float tz = abs(frag.normal.z);
+					  frag.color = glm::vec3(tx, ty, tz);
+					  //frag.color = absCoord.x*tri.c0 + absCoord.y*tri.c1 + absCoord.z*tri.c2;
 					  //frag.set = true;
 					  depthbuffer[fragIndex] = frag;
-				  //}
+				  }
 			  }
 		  }
 	  }
@@ -337,7 +340,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   fragment frag;
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
-  frag.position = glm::vec3(0,0,-10000);
+  frag.position = glm::vec3(0,0,-100000);
   frag.set = false;
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
