@@ -21,6 +21,7 @@
 #include <time.h>
 #include "glslUtility.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
@@ -59,6 +60,21 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+
+//-------------------------------
+//---------CAMERA STUFF----------
+//-------------------------------
+
+glm::vec3 eye = glm::vec3(0,0,2);
+glm::vec3 up = glm::vec3(0,1,0);
+glm::vec3 center = glm::vec3(0,0,0);
+
+float fov = 45.0f;
+float zNear = 0.1f;
+float zFar = 100.0f;
+
+glm::mat4 model = glm::mat4(glm::vec4(-1,0,0,0), glm::vec4(0,-1,0,0), glm::vec4(0,0,1,0), glm::vec4(0,0,0,1));
+glm::mat4 MVP = glm::mat4(1.0f);
 
 //-------------------------------
 //----------CUDA STUFF-----------

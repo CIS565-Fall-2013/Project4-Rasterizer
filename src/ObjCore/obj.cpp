@@ -36,7 +36,7 @@ obj::~obj(){
 }
 
 void obj::buildVBOs(){
-	recenter();
+	//recenter();
 	vector<float> VBOvec;
 	vector<float> NBOvec;
 	vector<int> IBOvec;
@@ -56,9 +56,9 @@ void obj::buildVBOs(){
 			for(int i=2; i<face.size(); i++){
 				glm::vec4 p1 = points[face[i-1]];
 				glm::vec4 p2 = points[face[i]];
-				VBOvec.push_back(p0[0]) ; VBOvec.push_back(p0[1]); VBOvec.push_back(p0[2]); //VBOvec.push_back(1.0f);
-				VBOvec.push_back(p1[0]); VBOvec.push_back(p1[1]); VBOvec.push_back(p1[2]); //VBOvec.push_back(1.0f);
-				VBOvec.push_back(p2[0]); VBOvec.push_back(p2[1]); VBOvec.push_back(p2[2]); //VBOvec.push_back(1.0f);
+				VBOvec.push_back(p0[0]) ; VBOvec.push_back(p0[1]); VBOvec.push_back(p0[2]); VBOvec.push_back(1.0f);
+				VBOvec.push_back(p1[0]); VBOvec.push_back(p1[1]); VBOvec.push_back(p1[2]); VBOvec.push_back(1.0f);
+				VBOvec.push_back(p2[0]); VBOvec.push_back(p2[1]); VBOvec.push_back(p2[2]); VBOvec.push_back(1.0f);
 
 				if(genNormals==false){
 					vector<int> facenormal = facenormals[k];

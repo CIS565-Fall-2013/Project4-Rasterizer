@@ -14,6 +14,14 @@
     #include <cutil_math.h>
 #endif
 
+#if RASTERIZE_MODE == 0
+	#define NUM_BLOCKS(ibosize, resolution, tileSize) ceil(((float)ibosize/3)/((float)tileSize))
+	#define RASTERIZE(x,y,z,w) rasterizeByPrimitive(x,y,z,w)
+#elif RASTERIZE_MODE == 1	
+	#define NUM_BLOCKS(iboSize, resolution, tileSize) ceil(((float)resolution.x * resolution.y) / ((float)tileSize))
+	#define R(x,y,z,w) rasterizeByFragment(x,y,z,w)
+#endif
+
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
@@ -135,9 +143,19 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 MVP, glm::vec2 resolution, float zNear, float zFar){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<vbosize/3){
+  if(index < vbosize/4){
+	  glm::vec4 in_vertex = glm::vec4(vbo[4 * index], vbo[4 * index + 1], vbo[4 * index + 2], 1.0f);
+	  
+	  glm::vec4 P = MVP * in_vertex;
+
+	  glm::vec3 P_ndc = glm::vec3(P.x / P.w, P.y / P.w, P.z / P.w);
+	  
+	  vbo[4 * index] = resolution. x / 2 * P_ndc.x + resolution.x / 2;
+	  vbo[4 * index + 1] = resolution.y / 2 * P_ndc.y + resolution.y / 2;
+	  vbo[4 * index + 2] = (zFar - zNear) / 2 * P_ndc.z + (zFar + zNear) / 2;
+	  vbo[4 * index + 3] = 1.0f;
   }
 }
 
@@ -145,7 +163,46 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize){
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
-  if(index<primitivesCount){
+  if(index < primitivesCount){
+	  int a = ibo[3 * index], b = ibo[3 * index + 1], c = ibo[3 * index + 2];
+	  
+	  // Create triangle
+	  triangle t;
+	  t.p0 = glm::vec4(vbo[4 * a], vbo[4 * a + 1], vbo[4 * a + 2], vbo[4 * a + 3]);
+	  t.p1 = glm::vec4(vbo[4 * b], vbo[4 * b + 1], vbo[4 * b + 2], vbo[4 * b + 3]);
+	  t.p2 = glm::vec4(vbo[4 * c], vbo[4 * c + 1], vbo[4 * c + 2], vbo[4 * c + 3]);
+
+	  t.c0 = glm::vec3(cbo[3 * a], cbo[3 * a + 1], cbo[3 * a + 2]);
+	  t.c1 = glm::vec3(cbo[3 * b], cbo[3 * b + 1], cbo[3 * b + 2]);
+	  t.c2 = glm::vec3(cbo[3 * c], cbo[3 * c + 1], cbo[3 * c + 2]);
+
+	  // TODO : Cull Back-Face Triangle
+
+	  // TODO : Cull Out-of-Viewport Triangles
+
+	  // Put triangle into primitives
+	  primitives[index] = t;
+  }
+}
+
+__global__ void rasterizePoints(float* vbo, float vbosize, fragment* depthbuffer, glm::vec2 resolution)
+{
+  int index = threadIdx.x + (blockDim.x * blockIdx.x);
+  if(index < vbosize/4){
+	  glm::vec2 point = glm::vec2(vbo[4 * index], vbo[4 * index + 1]);
+	  if(point.x >=0 && point.x < resolution.x && point.y >=0 && point.y < resolution.y)
+	  {
+		  fragment f;
+		  f.position.x = point.x;
+		  f.position.y = point.y;
+		  f.position.z = vbo[4 * index + 2];
+
+		  f.color = glm::vec3(1.0f);
+		  f.normal = glm::vec3(0.0f,0.0f,1.0f);
+
+		  int bufferindex = int(point.x) + int(point.y) * resolution.x;
+		  depthbuffer[bufferindex] = f;
+	  }
   }
 }
 
@@ -153,6 +210,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
+	  //RASTERIZE(primitives, primitivesCount, depthbuffer, resolution);
   }
 }
 
@@ -162,6 +220,18 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
+#if SHADING == 0
+	  // FLAT SHADING
+	  // no change to color
+#elif SHADING == 1
+	  // LAMBERT SHADING
+	  f.color = f.color * glm::dot(f.normal, glm::vec3(1.0f) - f.position);
+#elif SHADING == 2
+	  // BLINN-PHONG SHADING
+	  glm::vec3 diffuse = f.color * glm::dot(f.normal, LIGHT - f.position);
+	  glm::vec3 specular = glm::dot(reflect(LIGHT - f.position, f.normal), -1.0f * f.position) * glm::vec3(1.0f);
+	  f.color = .5f * diffuse + .5f * specular;
+#endif
   }
 }
 
@@ -178,7 +248,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, glm::mat4 MVP, float zNear, float zFar){
 
   // set up crucial magic
   int tileSize = 8;
@@ -221,12 +291,12 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   tileSize = 32;
-  int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
+  int primitiveBlocks = ceil(((float)vbosize/4)/((float)tileSize));
 
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, MVP, resolution, zNear, zFar);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -239,13 +309,16 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
-
+#if POINT_MODE == 0
+  //rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+#else
+  rasterizePoints<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, depthbuffer, resolution);
+#endif
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  //fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
 
   cudaDeviceSynchronize();
   //------------------------------

@@ -16,7 +16,11 @@
     #include <cutil_math.h>
 #endif
 
+#define POINT_MODE 1
+#define SHADING 0
+#define RASTERIZE_MODE 2
+
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, glm::mat4 MVP, float zNear, float zFar);
 
 #endif //RASTERIZEKERNEL_H
