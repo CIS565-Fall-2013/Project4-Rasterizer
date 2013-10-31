@@ -19,8 +19,10 @@ using namespace glm;
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
+float* device_screenvbo;
 float* device_cbo;
 int* device_ibo;
+float* device_nbo;
 triangle* primitives;
 
 void checkCUDAError(const char *msg) {
@@ -137,22 +139,34 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, mat4 modelViewProjection, vec2 resolution){
+__global__ void vertexShadeKernel(float* vbo, float* screenvbo, int vbosize,  float* nbo, int nbosize, mat4 modelViewProjection, vec2 resolution, mat4 model){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
-      glm::vec4 worldVertex(vbo[index*3], vbo[index*3+1], vbo[index*3+2], 1);
-      glm::vec4 projectedVertex = modelViewProjection * worldVertex;
+      vec4 worldVertex(vbo[index*3], vbo[index*3+1], vbo[index*3+2], 1.0f);
+	  vec4 worldNormal(nbo[index*3], nbo[index*3+1], nbo[index*3+2], 0.0f);
+      vec4 projectedVertex = modelViewProjection * worldVertex;
       projectedVertex = (1/projectedVertex.w) * projectedVertex;
       float xNDC = (projectedVertex.x + 1)/2.0f;
       float yNDC = (projectedVertex.y + 1)/2.0f;
-      vbo[index*3] = xNDC*resolution.x;
-      vbo[index*3+1] = yNDC* resolution.y;
-      vbo[index*3+2] = projectedVertex.z;
+      screenvbo[index*3] = xNDC*resolution.x;
+      screenvbo[index*3+1] = yNDC* resolution.y;
+      screenvbo[index*3+2] = projectedVertex.z;\
+	
+	  vec4 worldSpaceVert = model * worldVertex;
+	  vec4 worldSpaceNorm = model * worldNormal;
+	  vbo[index*3] = worldSpaceVert.x;
+	  vbo[index*3+1] = worldSpaceVert.y;
+	  vbo[index*3+2] = worldSpaceVert.z;
+	  nbo[index*3] = worldSpaceNorm.x;
+	  nbo[index*3+1] = worldSpaceNorm.y;
+	  nbo[index*3+2] = worldSpaceNorm.z;
+	  
   }
 }
 
 //TODO: Implement primative assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives){
+__global__ void primitiveAssemblyKernel(float* vbo, float* screenvbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives,
+										float* nbo){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
@@ -163,9 +177,9 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 		//create primitive
 		triangle t;
 
-		t.p0 = vec3(vbo[vboIndexStart1*3], vbo[vboIndexStart1*3+1], vbo[vboIndexStart1*3+2]);
-		t.p1 = vec3(vbo[vboIndexStart2*3], vbo[vboIndexStart2*3+1], vbo[vboIndexStart2*3+2]);
-		t.p2 = vec3(vbo[vboIndexStart3*3], vbo[vboIndexStart3*3+1], vbo[vboIndexStart3*3+2]);
+		t.p0 = vec3(screenvbo[vboIndexStart1*3], screenvbo[vboIndexStart1*3+1], screenvbo[vboIndexStart1*3+2]);
+		t.p1 = vec3(screenvbo[vboIndexStart2*3], screenvbo[vboIndexStart2*3+1], screenvbo[vboIndexStart2*3+2]);
+		t.p2 = vec3(screenvbo[vboIndexStart3*3], screenvbo[vboIndexStart3*3+1], screenvbo[vboIndexStart3*3+2]);
 		t.c0 = vec3(1,0,0);//vec3(cbo[vboIndexStart1*3], cbo[vboIndexStart1*3+1], cbo[vboIndexStart1*3+2]);
 		t.c1 = vec3(0,1,0);//vec3(cbo[vboIndexStart2*3], cbo[vboIndexStart2*3+1], cbo[vboIndexStart2*3+2]);
 		t.c2 = vec3(0,0,1);//vec3(cbo[vboIndexStart3*3], cbo[vboIndexStart3*3+1], cbo[vboIndexStart3*3+2]);
@@ -175,33 +189,76 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 }
 
 //TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, int* ibo, float* nbo, float* vbo, vec3 eye){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 
-	vec3 minP;
-	vec3 maxP;
+	int vboIndexStart1 = ibo[index*3];
+	int vboIndexStart2 = ibo[index*3+1];
+	int vboIndexStart3 = ibo[index*3+2];
+				
+	vec3 normalP0 = vec3(nbo[vboIndexStart1*3], nbo[vboIndexStart1*3+1], nbo[vboIndexStart1*3+2]);
+	vec3 normalP1 = vec3(nbo[vboIndexStart2*3], nbo[vboIndexStart2*3+1], nbo[vboIndexStart2*3+2]);
+	vec3 normalP2 = vec3(nbo[vboIndexStart3*3], nbo[vboIndexStart3*3+1], nbo[vboIndexStart3*3+2]);
 
-	getAABBForTriangle(primitives[index], minP, maxP);
+	vec3 worldP0 = vec3(vbo[vboIndexStart1*3], vbo[vboIndexStart1*3+1], vbo[vboIndexStart1*3+2]);
+	vec3 worldP1 = vec3(vbo[vboIndexStart2*3], vbo[vboIndexStart2*3+1], vbo[vboIndexStart2*3+2]);
+	vec3 worldP2 = vec3(vbo[vboIndexStart3*3], vbo[vboIndexStart3*3+1], vbo[vboIndexStart3*3+2]);
 
-	for (int x = minP.x; x < maxP.x; x++){
-		for (int y = minP.y; y < maxP.y; y++){
-			vec3 barycentricCoord = calculateBarycentricCoordinate(primitives[index], vec2((float)x,(float)y));
-			if (isBarycentricCoordInBounds(barycentricCoord)){
-				vec3 bc = vec3(barycentricCoord.x, barycentricCoord.y, getZAtCoordinate(barycentricCoord, primitives[index]));
-				//interpolate color
-				vec3 colorP0 = primitives[index].c0;
-				vec3 colorP1 = primitives[index].c1;
-				vec3 colorP2 = primitives[index].c2;
+	//check if any normals are facing camera
+	bool facingCamera = false;
+	vec3 eyeToP0 = eye-worldP0;
+	vec3 eyeToP1 = eye-worldP1;
+	vec3 eyeToP2 = eye-worldP2;
+	if (dot(normalize(eyeToP0),normalize(normalP0)) >= 0){
+		facingCamera = true;
+	}else if (dot(normalize(eyeToP1),normalize(normalP1)) >= 0){
+		facingCamera = true;
+	}else if (dot(normalize(eyeToP2),normalize(normalP2)) >= 0){
+		facingCamera = true;
+	}
 
-				vec3 c = barycentricCoord.x*colorP0+barycentricCoord.y*colorP1+barycentricCoord.z*colorP2;
-					
-				fragment f;
-				f.color = c;
-				f.normal = vec3(0,0,1);
-				f.position = bc;
-				int dbindex = y*resolution.x+x;
-				depthbuffer[dbindex] = f;
+	if (facingCamera){
+
+		//bounding box
+		vec3 minP;
+		vec3 maxP;
+
+		getAABBForTriangle(primitives[index], minP, maxP);
+
+		if(minP.x < 0) minP.x == 0;
+		if(maxP.x > resolution.x) maxP.x = resolution.x;
+		if(minP.y < 0) minP.y == 0;
+		if(maxP.y > resolution.y) maxP.y = resolution.y;
+
+		vec3 colorP0 = primitives[index].c0;
+		vec3 colorP1 = primitives[index].c1;
+		vec3 colorP2 = primitives[index].c2;
+
+		for (int x = minP.x; x < maxP.x; x++){
+			for (int y = minP.y; y < maxP.y; y++){
+				vec3 barycentricCoord = calculateBarycentricCoordinate(primitives[index], vec2((float)x,(float)y));
+				if (isBarycentricCoordInBounds(barycentricCoord)){
+					vec3 bc = vec3(barycentricCoord.x, barycentricCoord.y, getZAtCoordinate(barycentricCoord, primitives[index]));
+					//interpolate color
+					vec3 interpColor = barycentricCoord.x*colorP0+barycentricCoord.y*colorP1+barycentricCoord.z*colorP2;
+
+					//interpolate normal
+					vec3 interpNormal = barycentricCoord.x* normalP0+barycentricCoord.y* normalP1+barycentricCoord.z* normalP2;
+
+					//world position
+					vec3 interpWorldPos = barycentricCoord.x* worldP0+barycentricCoord.y* worldP1+barycentricCoord.z* worldP2;
+
+					fragment f;
+					f.color = vec3(1.0f,1.0f,1.0f);
+					f.normal = normalize(interpNormal);
+					f.position = bc;
+					f.worldPosition = interpWorldPos;
+					int dbindex = y*resolution.x+x;
+
+					if (f.position.z >= depthbuffer[dbindex].position.z)
+						depthbuffer[dbindex] = f;
+				}
 			}
 		}
 	}
@@ -209,11 +266,19 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, vec3 lightPos){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
+	  if (depthbuffer[index].worldPosition.x > -999999){
+		//depthbuffer[index].color = abs(lightPos-depthbuffer[index].worldPosition);
+		vec3 surfaceColor = depthbuffer[index].color;
+		vec3 lightToPos = lightPos-depthbuffer[index].worldPosition;
+		lightToPos = normalize(lightToPos);
+		vec3 diffuseColor = dot(depthbuffer[index].normal, lightToPos)*surfaceColor;
+		depthbuffer[index].color = diffuseColor;
+	  }
   }
 }
 
@@ -225,13 +290,13 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
   int index = x + (y * resolution.x);
 
   if(x<=resolution.x && y<=resolution.y){
-    framebuffer[index] = depthbuffer[index].color;
+		framebuffer[index] = depthbuffer[index].color;
   }
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, 
-						int ibosize, mat4 modelViewProjection){
+						int ibosize, float* nbo, int nbosize, mat4 modelViewProjection, mat4 model, vec3 lightPos, vec3 eye){
 
   // set up crucial magic
   int tileSize = 8;
@@ -253,6 +318,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
+  frag.worldPosition = glm::vec3(-999999,-999999,-999999);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
   //------------------------------
@@ -273,13 +339,20 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
 
-  tileSize = 32;
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  device_screenvbo = NULL;
+  cudaMalloc((void**)&device_screenvbo, vbosize*sizeof(float));
+
+  tileSize = 512;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
 
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, modelViewProjection, resolution);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_screenvbo, vbosize, device_nbo, nbosize, modelViewProjection, resolution, model);
   checkCUDAError("Kernel failed at vertexShadeKernel!");
 
   cudaDeviceSynchronize();
@@ -287,21 +360,22 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_screenvbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, 
+															primitives, device_nbo);
   checkCUDAError("Kernel failed at primitiveAssemblyKernel!");
 
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, device_ibo, device_nbo, device_vbo, eye);
   checkCUDAError("Kernel failed at rasterizationKernel!");
 
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, lightPos);
   checkCUDAError("Kernel failed at fragmentShadeKernel!");
 
   cudaDeviceSynchronize();
@@ -326,5 +400,7 @@ void kernelCleanup(){
   cudaFree( device_ibo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
+  cudaFree( device_screenvbo );
+  cudaFree( device_nbo );
 }
 

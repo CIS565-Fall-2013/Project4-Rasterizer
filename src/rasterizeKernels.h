@@ -19,6 +19,7 @@
 
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, 
-						int ibosize, glm::mat4 modelViewProjection);
+						int ibosize, float* nbo, int nbosize, glm::mat4 modelViewProjection, glm::mat4 model, glm::vec3 lightPos,
+						glm::vec3 eye);
 
 #endif //RASTERIZEKERNEL_H

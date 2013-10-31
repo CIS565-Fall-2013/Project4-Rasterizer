@@ -71,6 +71,9 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+	glutMouseFunc(mouse);
+	glutMotionFunc(update);
+	glutPassiveMotionFunc(drag);
 
     glutMainLoop();
   #endif
@@ -100,13 +103,15 @@ void runCuda(){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
 
   glm::mat4 view = glm::lookAt(eye, center, up);
   glm::mat4 proj = glm::perspective(fov, (float)width/(float)height, zNear, zFar);
   modelViewProjection = proj*view*model;
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, modelViewProjection);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, modelViewProjection, model, lightPos, eye);
   //projection, view, zNear, zFar, lightPosition,
   cudaGLUnmapBufferObject(pbo);
 
@@ -190,7 +195,76 @@ void runCuda(){
        case(27):
          shut_down(1);    
          break;
+	   case('r'):
+	   case('R'):
+		   deg++;
+		   model = glm::rotate(glm::mat4(1.0f), deg, glm::vec3(0,1,0));
+		   break;
     }
+  }
+
+  void mouse(int button, int state, int x, int y){
+	  switch(button){
+		  case GLUT_LEFT_BUTTON:		//rotate
+			  if(state == GLUT_DOWN){
+				  Lpressed = true;
+				  oldx = x;
+				  oldy = y;
+			  }else if (state == GLUT_UP){
+				  Lpressed = false;
+			  }
+			  break;
+		  case GLUT_RIGHT_BUTTON:		//zoom
+			  if(state == GLUT_DOWN){
+				  Rpressed = true;
+				  oldx = x;
+			  }else if (state == GLUT_UP){
+				  Rpressed = false;
+			  }
+			  break;
+	  }
+  }
+
+  void update(int x, int y){
+	  if (Lpressed){		//rotate
+			float difx = x-oldx;
+			float dify = y-oldy;
+			phi += dify*.5f;
+			theta += difx*.5f;
+
+			if (phi < -90){
+				phi = -89.999;
+			}else if (phi > 90){
+				phi = 89.999;
+			}
+
+			float radPhi = 3.14159265359/180*phi;
+			float radTheta = 3.14159265359/180*theta;
+
+			float eyex = r*cos(radTheta)*cos(radPhi);
+			float eyey = r*sin(radPhi);
+			float eyez = r*sin(radTheta)*cos(radPhi);
+			eye = glm::vec3(eyex,eyey,eyez);
+			oldx = x;
+			oldy = y;
+	  }else if (Rpressed){	//zoom
+			float difx = x-oldx;
+			r -= 0.01*difx;
+
+			float radPhi = 3.14159265359/180*phi;
+			float radTheta = 3.14159265359/180*theta;
+
+			float eyex = r*cos(radTheta)*cos(radPhi);
+			float eyey = r*sin(radPhi);
+			float eyez = r*sin(radTheta)*cos(radPhi);
+			eye = glm::vec3(eyex,eyey,eyez);
+			oldx = x;
+			oldy = y;
+	  }
+  }
+
+  void drag(int x, int y){
+	  //USELESS
   }
 
 #endif

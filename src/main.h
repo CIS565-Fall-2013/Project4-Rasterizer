@@ -60,16 +60,32 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+float* nbo;
+int nbosize;
 
-glm::vec3 eye = glm::vec3(0,0,1);
+glm::vec3 eye = glm::vec3(0,0,8);
 glm::vec3 center = glm::vec3(0,0,0);
-glm::vec3 up = glm::vec3(0,-1,0); //flip view for some reason
+glm::vec3 up = glm::vec3(0,-1,0); //flip view	
+glm::vec3 lightPos = glm::vec3(0,10,5);
 
 float fov = 90.0f;
 float zNear = 0.10;
 float zFar = 100.0;
 
-glm::mat4 model = glm::mat4(1.0f);
+float deg = 0;
+
+//camera stuff
+float theta = 90; //up and down
+float phi = 0; //right to left
+float r = glm::length(eye-center);
+float oldx;
+float oldy;
+
+bool Lpressed = false;
+bool Rpressed = false;
+
+//glm::mat4 model = glm::mat4(1.0f);
+glm::mat4 model = glm::rotate(glm::mat4(1.0f), deg, glm::vec3(0,1,0));
 glm::mat4 modelViewProjection;
 
 //-------------------------------
@@ -95,6 +111,9 @@ void runCuda();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void mouse(int button, int state, int x, int y);
+	void drag(int x, int y);
+	void update(int x, int y);
 #endif
 
 //-------------------------------
