@@ -13,24 +13,24 @@ NVidia Cards with compute 3.0 supported
 Screenshots
 ---
 
-*Diffuse Shading*
+*Diffuse Shading: 871k, 5k triangles*
 
 ![Screen](renders/dragon_diffuse.png)
 ![Screen](renders/cow_diffuse.png)
 
-*Depth Shading*
+*Depth Shading: 100k triangles*
 
 ![Screen](renders/dragon.png)
 
-*Normal Shading*
+*Normal Shading: 871k triangles*
 
 ![Screen](renders/dragon_Normal.png)
 
-*Color Per Triangle*
+*Color Per Triangle: 6k triangles*
 
 ![Screen](renders/suzanne_col_per_tri.png)
 
-*Color Per Vertex (interpolated Colors)*
+*Color Per Vertex (interpolated Colors): 6k triangles*
 
 ![Screen](renders/suzanne_col_per_vert.png)
 
