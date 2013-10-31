@@ -24,7 +24,7 @@
 #define DEPTHPRECHECK 0
 #define OPTIMIZE_RASTER 1
 // Will only work on copmute 3.5+, so check with someone
-#define DYNAMICPARALLELISM 1
+#define DYNAMICPARALLELISM 0
 
 #define BACKFACECULLING 1
 #define BACKFACEIGNORING 1

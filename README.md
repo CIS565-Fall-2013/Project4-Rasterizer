@@ -13,7 +13,12 @@ NVidia Cards with compute 3.0 supported
 Screenshots
 ---
 
-![Screen](link)
+![Screen](renders/dragon_diffuse.png)
+![Screen](renders/cow.png)
+![Screen](renders/dragon.png)
+![Screen](renders/dragon_Normal.png)
+![Screen](renders/suzanne_col_per_tri.png)
+![Screen](renders/suzanne_col_per_verts.png)
 
 --- 
 Features
