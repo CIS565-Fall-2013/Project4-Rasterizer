@@ -12,24 +12,33 @@
 struct vertex {
   glm::vec3 point;
   glm::vec3 normal;
+  glm::vec3 lightdir;
 };
 
 struct triangle {
+  // points
   glm::vec3 p0;
   glm::vec3 p1;
   glm::vec3 p2;
+  // normals
   glm::vec3 n0;
   glm::vec3 n1;
   glm::vec3 n2;
+  // colors
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
+  // light directions
+  glm::vec3 l0;
+  glm::vec3 l1;
+  glm::vec3 l2;
 };
 
 struct fragment{
-  glm::vec3 color;
-  glm::vec3 normal;
   glm::vec3 position;
+  glm::vec3 normal;
+  glm::vec3 color;
+  glm::vec3 lightdir;
 };
 
 //Multiplies a cudaMat4 matrix and a vec4

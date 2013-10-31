@@ -146,12 +146,11 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
    that map vertex coordinates to camera coordinates:
      Pclip = (Mmodel-view-projection)(Pmodel)
 */
-__global__ void vertexShadeKernel(glm::mat4 view, glm::mat4 projection, float* vbo, int vbosize, float* nbo, int nbosize, vertex* vertices ){
+__global__ void vertexShadeKernel(glm::mat4 view, glm::mat4 projection, glm::vec3 light, float* vbo, int vbosize, float* nbo, int nbosize, vertex* vertices ){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   glm::vec4 point;
   glm::vec4 point_tformd;
-  glm::vec4 normal;
-  glm::vec4 normal_tformd;
+  glm::vec3 normal;
   if(index<vbosize/3){
     // Assemble vec4 from vbo ... vertex assembly :)
     point.x = vbo[3*index];
@@ -162,52 +161,24 @@ __global__ void vertexShadeKernel(glm::mat4 view, glm::mat4 projection, float* v
     normal.x = nbo[3*index];
     normal.y = nbo[3*index+1];
     normal.z = nbo[3*index+2];
-    normal.w = 0.0f;
 
-    // Apply model-view-project matrix transform
-    // ... at the moment just the identity 
     glm::mat4 eye = glm::mat4( 1.0f );
-    /*
-    glm::mat4 trans = glm::translate( eye, glm::vec3(0.5, 0.0, 0.0 ));
-    glm::mat4 model = glm::rotate( trans, 30.0f, glm::vec3( 1.0, 0.0, 0.0 ) );
-    */
-    /*
-    glm::mat4 projection = glm::perspective(60.0f, 1.0f, 0.1f, 100.0f);
-    glm::quat rot;
-    rot = quat::angleAxis( 45.0f, glm::vec3( 1.0, 0.0, 0.0 ) );
-    
 
-    glm::mat4 model = quaternion::toMat4( rot );
-    */
-    
-    //glm::mat4 projection = glm::perspective(60.0f, 1.0f, 0.1f, 100.0f);
+    // Before transforming compute light direction for each vertex
+    vertices[index].lightdir = glm::normalize(light - glm::vec3( point.x, point.y, point.z ));
+    // Copy over normals
+    vertices[index].normal = normal;
 
     // Transform vertex and normal
     point_tformd = projection*view*point;
-    normal_tformd = projection*view*normal;
-    //vertex_tformd = view*vertex;
-    //vertex_tformd = (eye*projection)*vertex;
 
     // Convert to normalized device coordinates
     float div = 1.0f;
     if ( abs(point_tformd.w) > 0.0f )
       div = 1.0f/point_tformd.w;
-    /*
-    vbo[3*index] = vertex_tformd.x*div;
-    vbo[3*index+1] = vertex_tformd.y*div;
-    vbo[3*index+2] = vertex_tformd.z*div; 
-    */
     vertices[index].point.x = point_tformd.x*div;
     vertices[index].point.y=  point_tformd.y*div;
     vertices[index].point.z = point_tformd.z*div; 
-
-    div = 1.0f;
-    if ( abs(normal_tformd.w) > 0.0f )
-      div = 1.0f/normal_tformd.w;
-    vertices[index].normal.x = normal_tformd.x*div;
-    vertices[index].normal.y = normal_tformd.y*div;
-    vertices[index].normal.z = normal_tformd.z*div;
-
   }
 }
 
@@ -243,7 +214,11 @@ __global__ void primitiveAssemblyKernel(vertex* vertices, float* cbo, int cbosiz
     primitives[index].c0 = glm::vec3( cbo[0], cbo[1], cbo[2] );
     primitives[index].c1 = glm::vec3( cbo[3], cbo[4], cbo[5] );
     primitives[index].c2 = glm::vec3( cbo[6], cbo[7], cbo[8] );
-            
+
+    // Copy over light directions
+    primitives[index].l0 = vertices[i0].lightdir;
+    primitives[index].l1 = vertices[i1].lightdir;
+    primitives[index].l2 = vertices[i2].lightdir;
   }
 }
 
@@ -287,7 +262,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
     tri.p2.y = offs_y - scale_y*primitives[index].p2.y;
 
     // Normal does not point towards the camera
-    if ( calculateSignedArea( tri ) <= 0.0f )
+    if ( calculateSignedArea( tri ) < 0.0f )
       return;
   
     getAABBForTriangle( tri, min_point, max_point );
@@ -316,6 +291,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		     + bary_coord[1]*primitives[index].c1 \
 		     + bary_coord[2]*primitives[index].c2;
 	  
+	  frag.lightdir = bary_coord[0]*primitives[index].l0 \
+		        + bary_coord[1]*primitives[index].l1 \
+		        + bary_coord[2]*primitives[index].l2;
+	  
 	  // Block until its our turn to do a compare
 	  while ( !atomicCAS( &depthlock[frag_index], 0, 1 ) );
 	  fragment cur_frag = getFromDepthbuffer( x, y, depthbuffer, resolution );
@@ -331,13 +310,12 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(glm::vec3 light, fragment* depthbuffer, glm::vec2 resolution, int draw_mode ){
+__global__ void fragmentShadeKernel( fragment* depthbuffer, glm::vec2 resolution, int draw_mode ){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
 
   fragment frag;
-  glm::vec3 lightdir;
 
   if(x<=resolution.x && y<=resolution.y){
     frag = getFromDepthbuffer( x, y, depthbuffer, resolution );
@@ -358,13 +336,11 @@ __global__ void fragmentShadeKernel(glm::vec3 light, fragment* depthbuffer, glm:
 	// Lambertian shading
 	if ( glm::length( frag.color ) > 1e-10 )
 	  frag.color = glm::vec3( 1.0, 1.0, 1.0 );
-	lightdir = glm::normalize( light - frag.position );
-	frag.color = glm::dot( lightdir, frag.normal )*frag.color;
+	frag.color = clamp(max(glm::dot( frag.normal, frag.lightdir ), 0.0f), 0.0f, 1.0f)*frag.color;
 	break;
       case( SHADE_COLOR ):
-	// phong shading interpolated color
-	lightdir = glm::normalize( light - frag.position );
-	frag.color = glm::dot( lightdir, frag.normal )*frag.color;
+	// Lambertian shading
+	frag.color = clamp(max(glm::dot( frag.normal, frag.lightdir ), 0.0f), 0.0f, 1.0f)*frag.color;
 	break;
     }
     writeToDepthbuffer( x, y, frag, depthbuffer, resolution ); 
@@ -386,17 +362,6 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(glm::mat4 view, glm::mat4 projection, glm::vec3 light, int draw_mode, uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize){
 
-  // Transform light 
-  glm::vec4 light4( light.x, light.y, light.z, 1.0f );
-  light4 = projection*view*light4;
-  float div = 1.0f;
-  // Convert light to normalized device coordinates
-  if ( abs(light4.w) > 1e-8 ) 
-    div = 1.0f/light4.w;
-  light.x = light4.x*div;
-  light.y = light4.y*div;
-  light.z = light4.z*div;
-
   // set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -417,6 +382,7 @@ void cudaRasterizeCore(glm::mat4 view, glm::mat4 projection, glm::vec3 light, in
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
   fragment frag;
+  frag.lightdir = glm::vec3(0,0,0);
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
@@ -480,7 +446,7 @@ void cudaRasterizeCore(glm::mat4 view, glm::mat4 projection, glm::vec3 light, in
   }
 #endif
 
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(view, projection, device_vbo, vbosize, device_nbo, nbosize, vertices);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(view, projection, light, device_vbo, vbosize, device_nbo, nbosize, vertices);
 
   // DEBUG
 #ifdef DEBUG 
@@ -547,7 +513,7 @@ void cudaRasterizeCore(glm::mat4 view, glm::mat4 projection, glm::vec3 light, in
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(light, depthbuffer, resolution, draw_mode);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, draw_mode);
 
   cudaDeviceSynchronize();
   //------------------------------
