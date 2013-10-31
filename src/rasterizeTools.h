@@ -22,6 +22,7 @@ struct triangle {
   glm::vec3 p0view;
   glm::vec3 p1view;
   glm::vec3 p2view;
+  bool backfacing;
 };
 
 struct fragment{

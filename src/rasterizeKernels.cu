@@ -7,6 +7,8 @@
 #include <thrust/random.h>
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
+#include <thrust/device_ptr.h>
+#include <thrust/partition.h>
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -79,6 +81,7 @@ __host__ __device__ glm::vec3 getFromFramebuffer(int x, int y, glm::vec3* frameb
   }
 }
 
+
 //Kernel that clears a given pixel buffer with a given color
 __global__ void clearImage(glm::vec2 resolution, glm::vec3* image, glm::vec3 color){
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -148,8 +151,8 @@ __global__ void vertexShadeKernel(float* vbo,float* vboViewSpace, int vbosize,  
 	  transformedVec.z = transformedVec.z/transformedVec.w;
 
 	  cudaMat4 viewport;
-	  viewport.x = glm::vec4(resolution.x/2.0f,0.0f,0.0f,0.5f*resolution.x);
-	  viewport.y = glm::vec4(0.0f,resolution.y/2.0f,0.0f,0.5f*resolution.y);
+	  viewport.x = glm::vec4(0.5f*resolution.x,0.0f,0.0f,0.5f*resolution.x);
+	  viewport.y = glm::vec4(0.0f,0.5f*resolution.y,0.0f,0.5f*resolution.y);
 	  viewport.z = glm::vec4(0.0f,0.0f,0.5f*(zplanes.y-zplanes.x),0.5f*(zplanes.y-zplanes.x));
 	  viewport.w = glm::vec4(0.0f,0.0f,0.0f,1.0f);
 	  
@@ -182,18 +185,27 @@ __global__ void primitiveAssemblyKernel(float* vbo,float* vboViewSpace, int vbos
 	  int firstVertexIdx = ibo[3*index];
 	  int secondVertexIdx = ibo[3*index+1];
 	  int thirdVertexIdx = ibo[3*index+2];
-	  primitives[index].p0 = glm::vec3(vbo[3*firstVertexIdx], vbo[3*firstVertexIdx + 1], vbo[3*firstVertexIdx+2]);
-	  primitives[index].p1 = glm::vec3(vbo[3*secondVertexIdx], vbo[3*secondVertexIdx + 1], vbo[3*secondVertexIdx+2]);
-	  primitives[index].p2 = glm::vec3(vbo[3*thirdVertexIdx], vbo[3*thirdVertexIdx + 1], vbo[3*thirdVertexIdx+2]);
-	  primitives[index].c0 = glm::vec3(cbo[0],cbo[1],cbo[2]);
-	  primitives[index].c1 = glm::vec3(cbo[3],cbo[4],cbo[5]);
-	  primitives[index].c2 = glm::vec3(cbo[6],cbo[7],cbo[8]);
-	  primitives[index].n0 = glm::vec3(nbo[3*firstVertexIdx], nbo[3*firstVertexIdx + 1], nbo[3*firstVertexIdx+2]);
-	  primitives[index].n1 = glm::vec3(nbo[3*secondVertexIdx],nbo[3*secondVertexIdx + 1], nbo[3*secondVertexIdx+2]);
-	  primitives[index].n2 = glm::vec3(nbo[3*thirdVertexIdx], nbo[3*thirdVertexIdx + 1], nbo[3*thirdVertexIdx+2]);
-	  primitives[index].p0view = glm::vec3(vboViewSpace[3*firstVertexIdx], vboViewSpace[3*firstVertexIdx + 1], vboViewSpace[3*firstVertexIdx+2]);
-	  primitives[index].p1view = glm::vec3(vboViewSpace[3*secondVertexIdx], vboViewSpace[3*secondVertexIdx + 1], vboViewSpace[3*secondVertexIdx+2]);
-	  primitives[index].p2view = glm::vec3(vboViewSpace[3*thirdVertexIdx], vboViewSpace[3*thirdVertexIdx + 1], vboViewSpace[3*thirdVertexIdx+2]);
+	  triangle t;
+	  t.p0 = glm::vec3(vbo[3*firstVertexIdx], vbo[3*firstVertexIdx + 1], vbo[3*firstVertexIdx+2]);
+	  t.p1 = glm::vec3(vbo[3*secondVertexIdx], vbo[3*secondVertexIdx + 1], vbo[3*secondVertexIdx+2]);
+	  t.p2 = glm::vec3(vbo[3*thirdVertexIdx], vbo[3*thirdVertexIdx + 1], vbo[3*thirdVertexIdx+2]);
+	  t.c0 = glm::vec3(cbo[0],cbo[1],cbo[2]);
+	  t.c1 = glm::vec3(cbo[3],cbo[4],cbo[5]);
+	  t.c2 = glm::vec3(cbo[6],cbo[7],cbo[8]);
+	  t.n0 = glm::vec3(nbo[3*firstVertexIdx], nbo[3*firstVertexIdx + 1], nbo[3*firstVertexIdx+2]);
+	  t.n1 = glm::vec3(nbo[3*secondVertexIdx],nbo[3*secondVertexIdx + 1], nbo[3*secondVertexIdx+2]);
+	  t.n2 = glm::vec3(nbo[3*thirdVertexIdx], nbo[3*thirdVertexIdx + 1], nbo[3*thirdVertexIdx+2]);
+	  t.p0view = glm::vec3(vboViewSpace[3*firstVertexIdx], vboViewSpace[3*firstVertexIdx + 1], vboViewSpace[3*firstVertexIdx+2]);
+	  t.p1view = glm::vec3(vboViewSpace[3*secondVertexIdx], vboViewSpace[3*secondVertexIdx + 1], vboViewSpace[3*secondVertexIdx+2]);
+	  t.p2view = glm::vec3(vboViewSpace[3*thirdVertexIdx], vboViewSpace[3*thirdVertexIdx + 1], vboViewSpace[3*thirdVertexIdx+2]);
+	  
+	  glm::vec3 n = glm::cross( (t.p1view - t.p0view), (t.p2view - t.p0view));
+	  if (n.z<-0.001f)
+		  t.backfacing = true;
+	  else
+		  t.backfacing = false;
+	  
+	  primitives[index] = t;
   }
 }
 
@@ -210,8 +222,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   int maxX = int(ceil(aabbMax.x));
   int minY = int(floor(aabbMin.y));
   int maxY = int(ceil(aabbMax.y));
-
-
 
 	  for(int j=minY; j<maxY; ++j)
 		    for(int i=minX; i<maxX ; ++i)
@@ -256,11 +266,12 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  continue;
 		  fragment f;
 		  f.color = bCoords.x*t.c0 + bCoords.y*t.c1 + bCoords.z*t.c2;
-		  float fragZ = getZAtCoordinate(bCoords,t);
+		  //float fragZ = getZAtCoordinate(bCoords,t);
 		  f.position = bCoords.x*t.p0view + bCoords.y*t.p1view + bCoords.z*t.p2view;
 		  f.normal = bCoords.x*t.n0 + bCoords.y*t.n1 + bCoords.z*t.n2;
+		  //f.position.z = fragZ;
 		  int pixelIndex = i + (j * resolution.x);
-		  if ( fragZ < depthbuffer[pixelIndex].position.z)
+		  if ( f.position.z > depthbuffer[pixelIndex].position.z)
 		  {
 			  depthbuffer[pixelIndex] = f;
 		  }
@@ -295,6 +306,15 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
   }
 }
 
+struct is_backfacing
+{
+	__device__ bool operator() (const triangle t)
+	{
+		return t.backfacing;
+	}
+};
+
+
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize,const glm::mat4& modelMatrix,const glm::mat4& viewMatrix,const glm::mat4& projectionMatrix,const glm::vec2 zplanes){
 
@@ -317,7 +337,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   fragment frag;
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
-  frag.position = glm::vec3(0,0,10000);
+  frag.position = glm::vec3(0,0,-10000);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
   //memory stuff
@@ -362,11 +382,12 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   
   ///*TEST VERTEX SHADER*/
   //float* h_vertices = new float[vbosize];
-  //cudaMemcpy(h_vertices,device_vbo,vbosize*sizeof(float),cudaMemcpyDeviceToHost);
+  //cudaMemcpy(h_vertices,device_vbo_viewspace,vbosize*sizeof(float),cudaMemcpyDeviceToHost);
   //for(int i=0; i<vbosize/3;i++)
   //{
 	 // std::cout << vbo[3*i] <<","<<vbo[3*i+1]<<","<<vbo[3*i+2]<<std::endl;
-	 // std::cout << h_vertices[3*i] <<","<<h_vertices[3*i+1]<<","<<h_vertices[3*i+2]<<std::endl;
+	 // //std::cout << [3*i] <<","<<vbo[3*i+1]<<","<<vbo[3*i+2]<<std::endl;
+	 // std::cout << h_vertices[3*i] <<","<<h_vertices[3*i+1]<<","<<h_vertices[3*i+2]<<std::endl<<std::endl;
   //}
 
   //std::cout<<std::endl;
@@ -392,37 +413,23 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //triangle* h_triangles = new triangle[ibosize/3];
   //cudaMemcpy(h_triangles,primitives,ibosize/3*sizeof(triangle),cudaMemcpyDeviceToHost);
   //
-  //glm::vec3 aabbMin;
-  //glm::vec3 aabbMax;
-
-  //getAABBForTriangle(h_triangles[0],aabbMin,aabbMax);
-  //int minX = int(floor(aabbMin.x));
-  //int maxX = int(ceil(aabbMax.x));
-  //int minY = int(floor(aabbMin.y));
-  //int maxY = int(ceil(aabbMax.y));
-
-
-  //glm::vec3 b = calculateBarycentricCoordinate(h_triangles[0],glm::vec2(370,401));
-  //
-	 // for(int j=minY; j<maxY; ++j)
-	 // {
-		//for(int i=minX; i<maxX ; ++i)
-		//  {
-		//	  glm::vec3 b = calculateBarycentricCoordinate(h_triangles[0], glm::vec2(i,j));
-		//	  if ( b.x<0.0f || b.y<0.0f || b.z<0.0f)
-		//		  continue;
-		//	  if ( b.x+b.y+b.z> 1 )
-		//		  continue;
-		//	  std::cout<<"-";
-		//  }
-		//std::cout<<std::endl;
-	 // }
+  //for(int i=0; i <ibosize/3 ; i++)
+  //{
+	 // triangle t = h_triangles[i];
+	 // glm::vec3 n = glm::normalize(glm::cross( (t.p1view - t.p0view), (t.p2view-t.p0view)));
+	 // std::cout<<n.x<<","<<n.y<<","<<n.z<<"  "<<t.backfacing<<std::endl;
+  //}
 
   cudaDeviceSynchronize();
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  thrust::device_ptr<triangle> thrustPrimitivesArray = thrust::device_pointer_cast(primitives);
+  unsigned int numberOfPrimitives = ceil(ibosize/3);
+  int numberOfFrontPrimitives = thrust::remove_if(thrustPrimitivesArray,thrustPrimitivesArray+numberOfPrimitives,is_backfacing()) - thrustPrimitivesArray ;
+  int rasterizationBlocks = ceil(((float)numberOfFrontPrimitives)/((float)tileSize));
+  
+  rasterizationKernel<<<rasterizationBlocks, tileSize>>>(primitives,numberOfFrontPrimitives, depthbuffer, resolution);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -447,6 +454,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 void kernelCleanup(){
   cudaFree( primitives );
   cudaFree( device_vbo );
+  cudaFree( device_vbo_viewspace);
   cudaFree( device_cbo );
   cudaFree( device_ibo );
   cudaFree( framebuffer );
