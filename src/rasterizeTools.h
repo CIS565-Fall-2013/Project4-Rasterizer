@@ -13,6 +13,9 @@ struct triangle {
   glm::vec4 p0;
   glm::vec4 p1;
   glm::vec4 p2;
+  glm::vec4 p0_w;
+  glm::vec4 p1_w;
+  glm::vec4 p2_w;
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;

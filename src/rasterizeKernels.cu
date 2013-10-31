@@ -150,7 +150,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, float *nbo, int nbosize, cbuffer *constantBuffer)
+__global__ void vertexShadeKernel(float* vbo, float *vbo2, int vbosize, float *nbo, int nbosize, cbuffer *constantBuffer)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 //  __shared__ glm::mat4 model;
@@ -178,13 +178,18 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float *nbo, int nbosi
   if(index<step)
   {
 	  glm::vec4 currentVertex (vbo [index], vbo [index+step], vbo [index+(2*step)], vbo [index+(3*step)]);
-	  cudaMat4 stupidMat;
+	  cudaMat4 stupidMat, stupidMat2;
+	  glm::vec4 currVertex2 = currentVertex;
 
 	  // Transform vertex to clip space.
 	  stupidMat.x = ModelViewProjection [0];	stupidMat.y = ModelViewProjection [1];	stupidMat.z = ModelViewProjection [2];	stupidMat.w = ModelViewProjection [3];
+	  stupidMat2.x = constBuff.model [0];	stupidMat2.y = constBuff.model [1];	stupidMat2.z = constBuff.model [2];	stupidMat2.w = constBuff.model [3];
 	  currentVertex = multiplyMV (stupidMat, currentVertex);
+	  currVertex2 = multiplyMV (stupidMat2, currVertex2);
 	  
 	  vbo [index] = currentVertex.x;	vbo [index+step] = currentVertex.y;	vbo [index+(2*step)] = currentVertex.z;	vbo [index+(3*step)] = currentVertex.w;
+	  vbo2 [index] = currVertex2.x;	vbo2 [index+step] = currVertex2.y;	vbo2 [index+(2*step)] = currVertex2.z;	vbo2 [index+(3*step)] = currVertex2.w;
+
   }
 
   if (index < normStep)
@@ -201,7 +206,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float *nbo, int nbosi
 }
 
 //TODO: Implement primitive assembly
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
+__global__ void primitiveAssemblyKernel(float* vbo, float* vbo2, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
 										float* nbo, int nbosize, triangle* primitives)
 {
   __shared__ int colourStep;
@@ -229,16 +234,19 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  int curIndex = ibo [index];
 	  thisTriangle.c0.x = cbo [0];	thisTriangle.c0.y = cbo [1];	thisTriangle.c0.z = cbo [2];
 	  thisTriangle.p0.x = vbo [curIndex];	thisTriangle.p0.y = vbo [curIndex + vertStep];		thisTriangle.p0.z = vbo [curIndex + (2*vertStep)];		thisTriangle.p0.w = vbo [curIndex + (3*vertStep)];
+	  thisTriangle.p0_w.x = vbo2 [curIndex];	thisTriangle.p0_w.y = vbo2 [curIndex + vertStep];		thisTriangle.p0_w.z = vbo2 [curIndex + (2*vertStep)];		thisTriangle.p0_w.w = vbo2 [curIndex + (3*vertStep)];
 	  thisTriangle.n0.x = nbo [curIndex];	thisTriangle.n0.y = nbo [curIndex + normStep];		thisTriangle.n0.z = nbo [curIndex + (2*normStep)];		thisTriangle.n0.w = nbo [curIndex + (3*normStep)];
 
 	  curIndex = ibo [index+indexStep];
 	  thisTriangle.c1.x = cbo [3];	thisTriangle.c1.y = cbo [4];	thisTriangle.c1.z = cbo [5];
 	  thisTriangle.p1.x = vbo [curIndex];	thisTriangle.p1.y = vbo [curIndex + vertStep];		thisTriangle.p1.z = vbo [curIndex + (2*vertStep)];		thisTriangle.p1.w = vbo [curIndex + (3*vertStep)];
+	  thisTriangle.p1_w.x = vbo2 [curIndex];	thisTriangle.p1_w.y = vbo2 [curIndex + vertStep];		thisTriangle.p1_w.z = vbo2 [curIndex + (2*vertStep)];		thisTriangle.p1_w.w = vbo2 [curIndex + (3*vertStep)];
 	  thisTriangle.n1.x = nbo [curIndex];	thisTriangle.n1.y = nbo [curIndex + normStep];		thisTriangle.n1.z = nbo [curIndex + (2*normStep)];		thisTriangle.n1.w = nbo [curIndex + (3*normStep)];
 
 	  curIndex = ibo [index+(2*indexStep)];
 	  thisTriangle.c2.x = cbo [6];	thisTriangle.c2.y = cbo [7];	thisTriangle.c2.z = cbo [8];
 	  thisTriangle.p2.x = vbo [curIndex];	thisTriangle.p2.y = vbo [curIndex + vertStep];		thisTriangle.p2.z =	vbo [curIndex + (2*vertStep)];		thisTriangle.p2.w = vbo [curIndex + (3*vertStep)];
+	  thisTriangle.p2_w.x = vbo2 [curIndex];	thisTriangle.p2_w.y = vbo2 [curIndex + vertStep];		thisTriangle.p2_w.z =	vbo2 [curIndex + (2*vertStep)];		thisTriangle.p2_w.w = vbo2 [curIndex + (3*vertStep)];
 	  thisTriangle.n2.x = nbo [curIndex];	thisTriangle.n2.y = nbo [curIndex + normStep];		thisTriangle.n2.z =	nbo [curIndex + (2*normStep)];		thisTriangle.n2.w = nbo [curIndex + (3*normStep)];
 	  
 	  primitives [index] = thisTriangle;
@@ -464,7 +472,20 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 							curFragment.position.z = 1/curFragment.position.z;
 
 							if (depthbuffer [(int)(j*resolution.x) + i].position.z > curFragment.position.z)
+							{
+								curFragment.position.x =	baryCoord.x * currentPrim.p0_w.x + 
+												baryCoord.y * currentPrim.p1_w.x + 
+												baryCoord.z * currentPrim.p2_w.x;
+					  
+							curFragment.position.y =	baryCoord.x * currentPrim.p0_w.y + 
+												baryCoord.y * currentPrim.p1_w.y + 
+												baryCoord.z * currentPrim.p2_w.y;
+
+							curFragment.position.z =	baryCoord.x * currentPrim.p0_w.z + 
+												baryCoord.y * currentPrim.p1_w.z + 
+												baryCoord.z * currentPrim.p2_w.z;
 								depthbuffer [(int)(j*resolution.x) + i] = curFragment;
+							}
 						}
 					}
 			}
@@ -477,10 +498,27 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
-  
-  if(x<=resolution.x && y<=resolution.y)
+  __shared__ glm::vec3	lightVec;
+
+  fragment curFragment;
+  if (index < resolution.x*resolution.y)
+	  curFragment = depthbuffer [index];
+
+  if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
-	  ;
+	  lightVec = glm::vec3 (2.5, -2.5, 2.5);
+  }
+
+  __syncthreads ();
+
+  if(x<resolution.x && y<resolution.y)
+  {
+	  float dotPdt = glm::dot (curFragment.normal, (lightVec-curFragment.position));
+	  dotPdt = max (dotPdt, 0.0f);
+	  dotPdt = min (dotPdt, 1.0f);
+	  curFragment.color *= dotPdt;
+
+	  depthbuffer [index] = curFragment;
   }
 }
 
@@ -543,6 +581,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   device_vbo = NULL;
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+  float * device_vboW = NULL;
+  cudaMalloc((void**)&device_vboW, vbosize*sizeof(float));
+  cudaMemcpy( device_vboW, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   device_nbo = NULL;
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
@@ -558,7 +599,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, device_constantBuffer);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_vboW, vbosize, device_nbo, nbosize, device_constantBuffer);
   checkCUDAError("Vertex shader failed!");
   cudaDeviceSynchronize();
   cudaFree (device_constantBuffer);
@@ -566,10 +607,12 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)nPrims)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, 
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_vboW, vbosize, device_cbo, cbosize, device_ibo, ibosize, 
 															device_nbo, nbosize, primitives);
   checkCUDAError("Primitive Assembly failed!");
   cudaDeviceSynchronize();
+  cudaFree (device_vboW);
+  device_vboW = NULL;
   //------------------------------
   // Map to Screen Space
   //------------------------------
