@@ -54,6 +54,12 @@ Basic features implemented:
 * Fragment shader: for different lighting techniques
 
 ---
+Atomics
+---
+
+I tried implementing locking by using a mutex per fragment (storing it in the fragment buffer itself), but for some reason, it seemed to always be going to a deadlock situation.
+
+---
 Performance Analysis
 ---
 
