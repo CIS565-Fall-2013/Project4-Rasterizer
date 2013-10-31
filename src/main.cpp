@@ -2,10 +2,13 @@
 // Written by Yining Karl Li, Copyright (c) 2012 University of Pennsylvania
 
 #include "main.h"
+#include "glm/gtc/matrix_transform.hpp"
 
 bool first = true;
 int oldX = 0, oldY = 0, dx = 0, dy = 0;	
 bool leftMButtonDown = false;
+
+float camRadius = 2.5f;
 
 cbuffer constantBuffer;
 
@@ -40,7 +43,7 @@ int main(int argc, char** argv){
   seconds = time (NULL);
   fpstracker = 0;
 
-  constantBuffer.model = glm::mat4 (1.0);
+  constantBuffer.model = glm::translate (glm::mat4 (1.0f), glm::vec3 (0,0,2.5));
   constantBuffer.modelIT = glm::transpose (glm::inverse (constantBuffer.model));
 
   // Launch CUDA/GL
@@ -114,8 +117,10 @@ void runCuda(bool &isFirstTime){
   nbo = mesh->getNBO ();
   nbosize = mesh->getNBOsize ();
 
-  constantBuffer.projection = glm::mat4 (1.0);
-  constantBuffer.view = glm::mat4 (1.0);
+  glm::mat4	cameraTransform = glm::translate (
+
+  constantBuffer.projection = /*glm::mat4 (1.0f);*/glm::perspective (60.0f, (float)(width/height), 0.1f, 100.0f);
+  constantBuffer.view = glm::lookAt (glm::vec3 (0), glm::vec3 (0,0,1), glm::vec3 (0,1,0));
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, 

@@ -630,6 +630,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   // Rasterization - rasterize each primitive
   //-----------------------------------------
   time_t current = time (NULL);
+  primitiveBlocks = ceil(((float)nPrims)/((float)tileSize));
 //  for (int i = 0; i<(nPrims);  i++)
 //	rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y*sizeof(fragment)>>>(primitives, i, depthbuffer, resolution);
   rasterizationKernelAlt<<<primitiveBlocks, tileSize>>>(primitives, nPrims, depthbuffer, resolution);
