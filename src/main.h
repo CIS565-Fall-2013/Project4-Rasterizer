@@ -40,6 +40,7 @@ using namespace std;
 //-------------------------------
 //------------GL STUFF-----------
 //-------------------------------
+bool rotateModel = false;
 bool drawLines = false;
 glm::vec3 camPos;
 int frame;
