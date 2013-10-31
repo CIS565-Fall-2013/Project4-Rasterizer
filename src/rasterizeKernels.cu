@@ -828,7 +828,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   checkCUDAError("Kernel failed!");
 #if PERFANALYZE
-  printf(" vs: %fms  pa: %fms  bf:  %fms  rz  %fms  fs %fms\n",vsTime,paTime,bfTime,rzTime,fsTime);
+  printf(" vs: %2.3fms  pa: %2.3fms  bf:  %2.3fms  rz  %2.3fms  fs %2.3fms\n",vsTime,paTime,bfTime,rzTime,fsTime);
 #endif
 }
 
