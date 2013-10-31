@@ -34,18 +34,6 @@ __host__ __device__ unsigned int hash(unsigned int a){
 	return a;
 }
 
-__device__ float fatomicMin(float* addr, float value)
-{
-
-	float old = *addr, assumed;
-	do
-	{
-		if(old <= value) return old;
-		assumed = old;
-		old = atomicCAS((unsigned int*)addr, __float_as_int(assumed), __float_as_int(value));
-	}while(old!=assumed);//If someone else has changed this, start over.
-	return old;
-}
 
 //Writes a given fragment to a fragment buffer at a given location
 __host__ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution){
@@ -67,7 +55,7 @@ __host__ __device__ fragment getFromDepthbuffer(int x, int y, fragment* depthbuf
 }
 
 __host__ __device__ int getDepthBufferIndex(int x, int y, glm::vec2 resolution){
-	if(x<resolution.x && y<resolution.y)
+	if(x<resolution.x && y<resolution.y && x>=0 && y >= 0)
 		return (y*resolution.x) + x;
 
 	return -1;
@@ -76,10 +64,23 @@ __host__ __device__ int getDepthBufferIndex(int x, int y, glm::vec2 resolution){
 __host__ __device__ float getDepthFromDepthbuffer(int x, int y, fragment* depthbuffer, glm::vec2 resolution){
 	if(x<resolution.x && y<resolution.y){
 		int index = (y*resolution.x) + x;
-		return depthbuffer[index].position.z;
+		return depthbuffer[index].depth;
 	}else{
 		return 0;
 	}
+}
+
+__device__ unsigned long long int fatomicMin(unsigned long long int  * addr, unsigned long long int value)
+{
+	unsigned long long ret = *addr;
+    while(value < ret)
+    {
+        unsigned long long old = ret;
+        if((ret = atomicCAS(addr, old, value)) == old)
+            break;
+    }
+    return ret;
+
 }
 
 
@@ -118,7 +119,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer){
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 	int index = x + (y * resolution.x);
 	if(x<=resolution.x && y<=resolution.y){
-		buffer[index].position.z = MAX_DEPTH;
+		buffer[index].depth= MAX_DEPTH;
 	}
 }
 
@@ -246,51 +247,57 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 
 		//Compute pixel range
-		int minX = glm::floor(minPoint.x);
-		int maxX = glm::ceil(maxPoint.x);
-		int minY = glm::floor(minPoint.y);
-		int maxY = glm::ceil(maxPoint.y);
+		//Do some per-fragment clipping and restrict to screen space
+		int minX = glm::max(glm::floor(minPoint.x),0.0f);
+		int maxX = glm::min(glm::ceil(maxPoint.x),resolution.x);
+		int minY = glm::max(glm::floor(minPoint.y),0.0f);
+		int maxY = glm::min(glm::ceil(maxPoint.y),resolution.y);
 
 
 		fragment frag;
+		frag.primitiveIndex = index;
 		//TODO: Do something more efficient than this
 		for(int x = minX; x <= maxX; ++x)
 		{
 			for(int y = minY; y <= maxY; ++y)
 			{
+				int index = getDepthBufferIndex(x,y,resolution);
+				if(index < 0)
+					continue;
+
+				frag.position.x = x;
+				frag.position.y = y;
+
 				glm::vec3 bCoords = calculateBarycentricCoordinate(tri, glm::vec2(x,y));
 				if(isBarycentricCoordInBounds(bCoords))
 				{
 					//Blend values.
-					frag.color = tri.v0.color*bCoords.x+tri.v1.color*bCoords.y+tri.v2.color*bCoords.z;
-					frag.position = tri.v0.pos*bCoords.x+tri.v1.pos*bCoords.y+tri.v2.pos*bCoords.z;
-					frag.normal = glm::normalize(tri.v0.eyeNormal*bCoords.x+tri.v1.eyeNormal*bCoords.y+tri.v2.eyeNormal*bCoords.z);
-					frag.lightDir = glm::normalize(tri.v0.eyeLightDirection*bCoords.x+tri.v1.eyeLightDirection*bCoords.y+tri.v2.eyeLightDirection*bCoords.z);
-					frag.halfVector = glm::normalize(tri.v0.eyeHalfVector*bCoords.x+tri.v1.eyeHalfVector*bCoords.y+tri.v2.eyeHalfVector*bCoords.z);
-
-					int index = getDepthBufferIndex(x,y,resolution);
-
-					//Use fmin to 
-					float olddepth = depthbuffer[index].position.z;
-					if(frag.position.z < olddepth)
+					frag.depth = tri.v0.pos.z*bCoords.x+tri.v1.pos.z*bCoords.y+tri.v2.pos.z*bCoords.z;
+					if(frag.depth > 0.0f && frag.depth < 1.0f)
 					{
-						float readback = fatomicMin(&(depthbuffer[index].position.z),frag.position.z);
+						//Only continue if pixel is in screen.
+						frag.color = tri.v0.color*bCoords.x+tri.v1.color*bCoords.y+tri.v2.color*bCoords.z;
+						frag.normal = glm::normalize(tri.v0.eyeNormal*bCoords.x+tri.v1.eyeNormal*bCoords.y+tri.v2.eyeNormal*bCoords.z);
+						frag.lightDir = glm::normalize(tri.v0.eyeLightDirection*bCoords.x+tri.v1.eyeLightDirection*bCoords.y+tri.v2.eyeLightDirection*bCoords.z);
+						frag.halfVector = glm::normalize(tri.v0.eyeHalfVector*bCoords.x+tri.v1.eyeHalfVector*bCoords.y+tri.v2.eyeHalfVector*bCoords.z);
 
-						if(frag.position.z < readback)//If this is true, we won the race condition
+
+						fatomicMin(&(depthbuffer[index].depthPrimTag),frag.depthPrimTag);
+
+						if(frag.depthPrimTag == depthbuffer[index].depthPrimTag)//If this is true, we won the race condition
 							writeToDepthbuffer(x,y,frag, depthbuffer,resolution);
 
 					}
 				}
 			}
 		}
-
 	}
 }
 
 __host__ __device__ void depthFSImpl(fragment* depthbuffer, int index,  uniforms* u_variables, pipelineOpts opts)
 {
-	float depth = depthbuffer[index].position.z;
-	if(depth < MAX_DEPTH)
+	float depth = depthbuffer[index].depth;
+	if(depth < 1.0f)
 		depthbuffer[index].color = glm::vec3(1.0f-depth); 
 }
 
@@ -346,7 +353,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 	int index = x + (y * resolution.x);
 	if(x<=resolution.x && y<=resolution.y){
-		if(depthbuffer[index].position.z < MAX_DEPTH){
+		if(depthbuffer[index].depth < MAX_DEPTH){
 			switch(opts.fShaderProgram)
 			{
 			case DEPTH_SHADING:
@@ -375,7 +382,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 	int index = x + (y * resolution.x);
 
 	if(x<=resolution.x && y<=resolution.y){
-		if(depthbuffer[index].position.z < MAX_DEPTH){//Only 
+		if(depthbuffer[index].depth < MAX_DEPTH){//Only 
 			framebuffer[index] = depthbuffer[index].color;
 		}
 	}
@@ -405,7 +412,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	fragment frag;
 	frag.color = glm::vec3(0.0f);
 	frag.normal = glm::vec3(0.0f);
-	frag.position = glm::vec3(0.0f,0.0f,MAX_DEPTH);
+	frag.position = glm::vec2(0.0f,0.0f);
+	frag.depth = MAX_DEPTH;
 	clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer);
 
 	//------------------------------
@@ -445,6 +453,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//vertex shader
 	//------------------------------
 	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, device_cbo, cbosize, verticies, device_uniforms, opts);
+	checkCUDAError("Kernel failed VS!");
 
 	cudaDeviceSynchronize();
 	//------------------------------
@@ -454,6 +463,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(verticies, device_ibo, ibosize, primitives, device_uniforms, opts);
 
 	cudaDeviceSynchronize();
+	checkCUDAError("Kernel failed PA!");
 	//------------------------------
 	//rasterization
 	//------------------------------
@@ -463,12 +473,14 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
 
 	cudaDeviceSynchronize();
+	checkCUDAError("Kernel failed Raster!");
 	//------------------------------
 	//fragment shader
 	//------------------------------
 	fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, device_uniforms, opts);
 
 	cudaDeviceSynchronize();
+	checkCUDAError("Kernel failed FS!");
 	//------------------------------
 	//write fragments to framebuffer
 	//------------------------------

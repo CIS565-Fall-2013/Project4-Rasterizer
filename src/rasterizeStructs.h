@@ -17,9 +17,17 @@ struct triangle {
 };
 
 struct fragment{
+	//Together this is a 64-bit depth sortable tag
+	union{
+		struct{
+			int primitiveIndex;
+			float depth;
+		};
+		unsigned long long int depthPrimTag;
+	};
+	glm::vec2 position;
 	glm::vec3 color;
 	glm::vec3 normal;
-	glm::vec3 position;
 	glm::vec3 lightDir;
 	glm::vec3 halfVector;
 };
