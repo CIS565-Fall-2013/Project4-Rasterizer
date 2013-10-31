@@ -30,6 +30,7 @@ using glm::clamp;
 using glm::inverse;
 using glm::transpose;
 using glm::dot;
+using glm::normalize;
 
 void printVAO(float* device_vao, int size);
 void kernelCleanup();

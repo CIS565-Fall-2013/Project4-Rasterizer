@@ -102,7 +102,7 @@ void runCuda(){
   cbo = newcbo;
   cbosize = 9;
 #elif RGBONLY == 0
-  vec3 defaultColor(0,0,1);
+  vec3 defaultColor(1.f, 1.f, 1.f);
   mesh->setColor(defaultColor);
   cbo = mesh->getCBO();
   cbosize = mesh->getCBOsize();
@@ -279,7 +279,7 @@ void initCamera()
 	float zNear = 0.10f;
 	float zFar = 5.0f;
 	vec3 up = vec3(0,1,0);
-	vec3 cameraPosition = vec3(0, 0, 2);
+	vec3 cameraPosition = vec3(0, 0, 1);
 	vec3 center = vec3(0);
 	mat4 projection = glm::perspective(-fovy, float(width)/float(height), zNear, zFar); // LOOK: Passed in -fovy to have the image rightside up
     mat4 view = glm::lookAt(cameraPosition, center, up);
@@ -295,12 +295,24 @@ void initCamera()
 
 void initLights()
 {
-	lightsize = 1;
+	lightsize = 4;
 	lights = new light[lightsize];
 
 	// first light
-	lights[0].color = vec3(1,1,1);
-	lights[0].position = vec3(0, 5.f, 2.f);
+	lights[0].color = vec3(1,0,0);
+	lights[0].position = vec3(0, 0.f, 2.f);
+
+	// second light
+	lights[1].color = vec3(0,1,0);
+	lights[1].position = vec3(-3.f, 5.f, 1.f);
+
+	// third light
+	lights[2].color = vec3(0,0,1);
+	lights[2].position = vec3(3.f, 5.f, 1.f);
+
+	// fourth light
+	lights[3].color = vec3(1,1,1);
+	lights[3].position = vec3(0.0f, 2.5f, 2.f);
 }
 
 void initTextures(){
