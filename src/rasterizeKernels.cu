@@ -163,9 +163,6 @@ __global__ void vertexShadeKernel(float* vbo, float *vbo2, int vbosize, float *n
 
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
-//	  model = glm::mat4 (1.0f);
-//	  view = glm::mat4 (1.0f);
-//	  projection = glm::mat4 (1.0f);
 	  constBuff = *constantBuffer;
 	  step = vbosize/4;
 	  normStep = nbosize / 4;
