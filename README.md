@@ -1,3 +1,28 @@
+![first_steps](renders/first_steps.png)
+
+
+-------------------------------------------------------------------------------
+First Steps
+-------------------------------------------------------------------------------
+I've implemented the first steps of the rasterizer and the above image shows
+the progress I've made so far
+- Vertex Shader with identity model-view-projection matrix and perspective division.
+  I'm not sure if this should be done here but it works
+- Primitive Assembly
+- Rasterization, using the triangle AABB and barycentric coordinates to check
+  if the pixel is inside the triangle. I also added linear vertex color 
+  interpolation in window space using the barycentric coordinates because its 
+  pretty 
+
+
+Theres still a lot to do:
+- Actual model-view-project transformations, hopefully using interactive camera :)
+- Fragment Shading
+- Depth Buffer
+- Lighting
+
+I still haven't decided what additional features would be cool.
+
 -------------------------------------------------------------------------------
 CIS565: Project 4: CUDA Rasterizer
 -------------------------------------------------------------------------------
