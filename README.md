@@ -57,7 +57,7 @@ Basic features implemented:
 Performance Analysis
 ---
 
-One curious thing we realize is that this problem lends itself to dynamic parallelism since we don't want to write a loop over the pixels in the bounding box but rather l=do that parallely as well.
+One curious thing we realize is that this problem lends itself to dynamic parallelism since we don't want to write a loop over the pixels in the bounding box but rather do that parallely as well.
 
 We notice that the per primitive rasterization stage is pixel bound. i.e., the limit depends on the screen-space size of the triangle being rasterized since we have one triangle per thread. We could potentially parallelize by thread per fragment in output fragment buffer but then we would be bound by the number of fragments in the scene instead.
 Thus, this implementation works most efficiently if there are small triangles. One large triangle covering most of the space would be a bad case scenario where this implementation doesn't scale down well.
