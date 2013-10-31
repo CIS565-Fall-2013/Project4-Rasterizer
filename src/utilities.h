@@ -39,8 +39,8 @@ namespace utilityCore {
     //-----------------------------
     //-------GLM Printers----------
     //-----------------------------
-    extern __host__ __device__ void printMat4(glm::mat4);
-    extern __host__ __device__ void printVec4(glm::vec4);
-    extern __host__ __device__ void printVec3(glm::vec3);
+	extern  void printMat4(glm::mat4);
+	extern  void printVec4(glm::vec4);
+    extern  void printVec3(glm::vec3);
 }
 #endif

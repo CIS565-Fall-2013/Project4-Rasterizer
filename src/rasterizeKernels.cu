@@ -225,17 +225,17 @@ __global__ void primitiveAssemblyKernel(float* vbo, float *vbo_eye, int vbosize,
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index<primitivesCount){
-	  primitives[index].p0.x = vbo[9*index];   primitives[index].p0.y = vbo[9*index+1]; primitives[index].p0.z = vbo[9*index+2];
-	  primitives[index].p1.x = vbo[9*index+3]; primitives[index].p1.y = vbo[9*index+4]; primitives[index].p1.z = vbo[9*index+5];
-	  primitives[index].p2.x = vbo[9*index+6]; primitives[index].p2.y = vbo[9*index+7]; primitives[index].p2.z = vbo[9*index+8];
+	  primitives[index].p0.x = vbo[3*ibo[3*index]];     primitives[index].p0.y = vbo[3*ibo[3*index]+1];     primitives[index].p0.z = vbo[3*ibo[3*index]+2];
+	  primitives[index].p1.x = vbo[3*ibo[3*index+1]];   primitives[index].p1.y = vbo[3*ibo[3*index+1]+1];   primitives[index].p1.z = vbo[3*ibo[3*index+1]+2];
+	  primitives[index].p2.x = vbo[3*ibo[3*index+2]];   primitives[index].p2.y = vbo[3*ibo[3*index+2]+1];   primitives[index].p2.z = vbo[3*ibo[3*index+2]+2];
 
-	  primitives[index].eyeCoords0.x = vbo_eye[9*index];   primitives[index].eyeCoords0.y = vbo_eye[9*index+1]; primitives[index].eyeCoords0.z = vbo_eye[9*index+2];
-	  primitives[index].eyeCoords1.x = vbo_eye[9*index+3]; primitives[index].eyeCoords1.y = vbo_eye[9*index+4]; primitives[index].eyeCoords1.z = vbo_eye[9*index+5];
-	  primitives[index].eyeCoords2.x = vbo_eye[9*index+6]; primitives[index].eyeCoords2.y = vbo_eye[9*index+7]; primitives[index].eyeCoords2.z = vbo_eye[9*index+8];
+	  primitives[index].eyeCoords0.x = vbo_eye[3*ibo[3*index]];     primitives[index].eyeCoords0.y = vbo_eye[3*ibo[3*index]+1];      primitives[index].eyeCoords0.z = vbo_eye[3*ibo[3*index]+2];
+	  primitives[index].eyeCoords1.x = vbo_eye[3*ibo[3*index+1]];   primitives[index].eyeCoords1.y = vbo_eye[3*ibo[3*index+1]+1];    primitives[index].eyeCoords1.z = vbo_eye[3*ibo[3*index+1]+2];
+	  primitives[index].eyeCoords2.x = vbo_eye[3*ibo[3*index+2]];   primitives[index].eyeCoords2.y = vbo_eye[3*ibo[3*index+2]+1];    primitives[index].eyeCoords2.z = vbo_eye[3*ibo[3*index+2]+2];
 
-	  primitives[index].eyeNormal0.x = nbo[9*index];   primitives[index].eyeNormal0.y = nbo[9*index+1]; primitives[index].eyeNormal0.z = nbo[9*index+2];
-	  primitives[index].eyeNormal1.x = nbo[9*index+3]; primitives[index].eyeNormal1.y = nbo[9*index+4]; primitives[index].eyeNormal1.z = nbo[9*index+5];
-	  primitives[index].eyeNormal2.x = nbo[9*index+6]; primitives[index].eyeNormal2.y = nbo[9*index+7]; primitives[index].eyeNormal2.z = nbo[9*index+8];
+	  primitives[index].eyeNormal0.x = nbo[3*ibo[3*index]];      primitives[index].eyeNormal0.y = nbo[3*ibo[3*index]+1];     primitives[index].eyeNormal0.z = nbo[3*ibo[3*index]+2];
+	  primitives[index].eyeNormal1.x = nbo[3*ibo[3*index+1]];    primitives[index].eyeNormal1.y = nbo[3*ibo[3*index+1]+1];   primitives[index].eyeNormal1.z = nbo[3*ibo[3*index+1]+2];
+	  primitives[index].eyeNormal2.x = nbo[3*ibo[3*index+2]];    primitives[index].eyeNormal2.y = nbo[3*ibo[3*index+2]+1];   primitives[index].eyeNormal2.z = nbo[3*ibo[3*index+2]+2];
 
 	  primitives[index].c0.x = cbo[0];		   primitives[index].c0.y = cbo[1];         primitives[index].c0.z = cbo[2];  
 	  primitives[index].c1.x = cbo[3];         primitives[index].c1.y = cbo[4];		    primitives[index].c1.z = cbo[5];
@@ -257,19 +257,22 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 	  {
 		  glm::vec3 triMin, triMax;
 		  getAABBForTriangle(thisTriangle, triMin, triMax);  
+
+		  
 		  // if wholly outside of rendering area, discard
 		  if(triMin.x > resolution.x || triMin.y > resolution.y || triMin.z > zFar || 
 			 triMax.x < 0            || triMax.y < 0            || triMax.z < zNear) 
-			 {
-				 printf("triangle %d is outside!\n", index);
-				 return; // all out-of-screen tris not culled 
-		     }
-		  else {
+		  {
+				 //printf("triangle %d is outside!\n", index);
+				 return; 
+		  }
+		  else 
+		  {
 			  glm::vec2 pixelCoords;
 			  float depth;
 			  glm::vec3 barycentricCoords;
 			  int pixelIndex;
-			  for(int j = int(triMin.y); j < int(triMax.y+1); ++j)
+			  for(int j = max(int(triMin.y), 0); j < min(int(triMax.y+1), int(resolution.y)); ++j)
 			  {
 				  glm::vec2 Q0(triMin.x, float(j+0.5));
 				  glm::vec2 Q1(triMax.x, float(j+0.5));
@@ -282,7 +285,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 				  glm::vec2 v2((thisTriangle.p0 - thisTriangle.p2).x, (thisTriangle.p0 - thisTriangle.p2).y);
 
 				  glm::vec2 w;
-				  if(abs(u.x*v0.y - u.y*v0.x) > 1e-6)
+				  if(abs(u.x*v0.y - u.y*v0.x) > 1e-6) // not parallel
 				  {
 					  w = Q0 - glm::vec2(thisTriangle.p0.x, thisTriangle.p0.y);
 					  s = (v0.y*w.x - v0.x*w.y) / (v0.x*u.y - v0.y*u.x);
@@ -293,7 +296,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 						  maxS = fmaxf(s, maxS);
 					  }
 				  }
-				  if(abs(u.x*v1.y - u.y*v1.x) > 1e-6)
+				  if(abs(u.x*v1.y - u.y*v1.x) > 1e-6) // not parallel
 				  {
 					  w = Q0 - glm::vec2(thisTriangle.p1.x, thisTriangle.p1.y);
 					  s = (v1.y*w.x - v1.x*w.y) / (v1.x*u.y - v1.y*u.x);
@@ -304,7 +307,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 						  maxS = fmaxf(s, maxS);
 					  }
 				  }
-				  if(abs(u.x*v2.y - u.y*v2.x) > 1e-6)
+				  if(abs(u.x*v2.y - u.y*v2.x) > 1e-6) // not parallel
 				  {
 					  w = Q0 - glm::vec2(thisTriangle.p2.x, thisTriangle.p2.y);
 					  s = (v2.y*w.x - v2.x*w.y) / (v2.x*u.y - v2.y*u.x);
@@ -316,7 +319,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 					  }
 				  }
 				  
-				  for(int i = int(triMin.x + minS * u.x); i < int(triMin.x + maxS * u.x + 1); ++i)
+				  for(int i = max(int(triMin.x + minS * u.x), 0); i < min(int(triMin.x + maxS * u.x + 1), int(resolution.x)); ++i)
 				  {
 					  pixelCoords = glm::vec2(float(i+0.5), float(j+0.5));
 					  barycentricCoords = calculateBarycentricCoordinate(thisTriangle, pixelCoords);
@@ -325,9 +328,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 //					  unsigned int *depthPtr = (unsigned int *)&depth;
 //					  unsigned int intDepth = FloatFlip((unsigned int&)*depthPtr);
 //					  float oldDepth = atomicMin(depthBuffer[pixelIndex], depth);
-					  if(isBarycentricCoordInBounds(barycentricCoords) /*&& 0 == atomicExch(&dBufferLocked[pixelIndex], 1)*//*atomicMin(&depthBuffer[pixelIndex], intDepth)*/)
+					  if(isBarycentricCoordInBounds(barycentricCoords) && depth > zNear && depth < zFar/*&& 0 == atomicExch(&dBufferLocked[pixelIndex], 1)*//*atomicMin(&depthBuffer[pixelIndex], intDepth)*/)
 					  {
-
 //						  do{} while(0 != atomicExch(&dBufferLocked[pixelIndex], 1));
 						  /*if(0 == dBufferLocked[pixelIndex])
 							  atomicExch(&dBufferLocked[pixelIndex], 1);
@@ -348,7 +350,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 //						  interpVariables[pixelIndex].color = glm::vec3(1.0f);
 						  while(wait)
 						  {
-
 							  if(0 == atomicExch(&dBufferLocked[pixelIndex], 1))
 							  {
 								//do{} while(atomicCAS(&dBufferLocked[pixelIndex], 0, 1));  
@@ -361,10 +362,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 								  }
 								  dBufferLocked[pixelIndex] = 0;
 								  wait = false;
-								  //atomicExch(&dBufferLocked[pixelIndex], 0);
-
 							  }
-	//						  wait = false;
 						  }
 					  }	
 				  }
@@ -387,13 +385,13 @@ __global__ void fragmentShadeKernel(varying* interpVariables, glm::vec2 resoluti
 	  float ks = 0.2;
 	  varying inVariables = interpVariables[index];
 
-	  glm::vec3 lightVector = glm::normalize(lightPosition - inVariables.position);
-	  glm::vec3 normal = glm::normalize(inVariables.normal);
+	  glm::vec3 lightVector = glm::normalize(lightPosition - inVariables.position);  // watch out for division by zero
+	  glm::vec3 normal = glm::normalize(inVariables.normal); // watch out for division by zero
 	  float diffuseTerm = glm::clamp(glm::dot(normal, lightVector), 0.0f, 1.0f);
 
-	  glm::vec3 R = glm::normalize(reflect(-lightVector, normal));
-	  glm::vec3 V = glm::normalize(- inVariables.position);
-      float specularTerm = pow( fmaxf(glm::dot(R, V), 0.0), specular );
+	  glm::vec3 R = glm::normalize(reflect(-lightVector, normal)); // watch out for division by zero
+	  glm::vec3 V = glm::normalize(- inVariables.position); // watch out for division by zero
+      float specularTerm = pow( fmaxf(glm::dot(R, V), 0.0f), specular );
 
 	  framebuffer[index] = ka*inVariables.color + glm::vec3(1.0f) * (kd*inVariables.color*diffuseTerm + ks*specularTerm);
   }
@@ -440,7 +438,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
   checkCUDAErrorWithLine("Kernel failed!");
   varying frag;
   frag.color = glm::vec3(0,0,0);
-  frag.normal = glm::vec3(0,0,0);
+  frag.normal = glm::vec3(1,0,0);
   frag.position = glm::vec3(0,0,-10000);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, interpVariables, depthBuffer, dBufferLocked, frag, zFar); // launch kernel for every pixel
   checkCUDAErrorWithLine("Kernel failed!");

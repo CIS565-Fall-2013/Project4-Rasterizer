@@ -204,9 +204,19 @@ void runCuda(){
   {
     switch (key) 
     {
+	   case(' '):
+		   cameraPosition = glm::vec3(0,0,5);
+		   lookatPosition = glm::vec3(0.0f);
+		   viewPhi = 0.0f;
+		   viewTheta = HALF_PI;
+		   r = glm::length(cameraPosition);
+		   view = glm::lookAt(cameraPosition, lookatPosition, glm::vec3(0,1,0));
+		   printf("viewPhi = %f, viewTheta = %f\n", viewPhi * 180 / PI, viewTheta * 180 / PI);
+		   utilityCore::printVec3(cameraPosition);
+		   break;
        case(27):
-         shut_down(1);    
-         break;
+           shut_down(1);    
+           break;
     }
   }
 
@@ -236,9 +246,19 @@ void runCuda(){
 		  viewPhi -= dx * 0.002f;
 		  viewTheta -= dy * 0.002f;
 		  viewTheta = glm::clamp(viewTheta, float(1e-6), float(PI-(1e-6)));
-		  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta), r*sin(viewTheta)*cos(viewPhi));
-		  view = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0), glm::vec3(0,1,0));
+		  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta) + lookatPosition.y, r*sin(viewTheta)*cos(viewPhi));
+		  //printf("viewPhi = %f, viewTheta = %f\n", viewPhi * 180 / PI, viewTheta * 180 / PI);
+		  //utilityCore::printVec3(cameraPosition);
+		  view = glm::lookAt(cameraPosition, lookatPosition, glm::vec3(0,1,0));
 	  } 
+	  if (button_mask & 0x02) 
+	  {// middle button
+		  cameraPosition.y += 0.02f*dy;
+		  lookatPosition.y += 0.02f*dy;
+		  view = glm::lookAt(cameraPosition, lookatPosition, glm::vec3(0,1,0));
+		  //printf("viewPhi = %f, viewTheta = %f\n", viewPhi * 180 / PI, viewTheta * 180 / PI);
+		  //utilityCore::printVec3(cameraPosition);
+	  }
 
 	  mouse_old_x = x;
 	  mouse_old_y = y;
@@ -248,9 +268,9 @@ void runCuda(){
   {
 	  r -= dir>0 ? 0.1f : -0.1f;
 	  r = glm::clamp(r, zNear, zFar);
-	  printf("r = %f\n", r);
-	  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta), r*sin(viewTheta)*cos(viewPhi));
-	  view = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0), glm::vec3(0,1,0));
+	 // printf("r = %f\n", r);
+	  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta) + lookatPosition.y, r*sin(viewTheta)*cos(viewPhi));
+	  view = glm::lookAt(cameraPosition, lookatPosition, glm::vec3(0,1,0));
   }
 #endif
   
