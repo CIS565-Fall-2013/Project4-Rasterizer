@@ -71,6 +71,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+	glutMouseFunc(mouse);
+	glutMotionFunc(mouseMove);
 
     glutMainLoop();
   #endif
@@ -183,6 +185,25 @@ void runCuda(){
     glutSwapBuffers();
   }
 
+  glm::vec3 raycast(float x, float y){
+	glm::vec3 view = center - eye;
+	glm::vec3 A = glm::cross(view, up);
+	glm::vec3 B = glm::cross(A, view);
+	glm::vec3 M = eye + view;
+
+	float phi = glm::radians(fov);
+	float theta = glm::atan(tan(phi)*(float)width/height);
+	float C = glm::length(view);
+
+	glm::vec3 V = glm::normalize(B) * (C * tan(phi));
+	glm::vec3 H = glm::normalize(A) * (C * tan(theta));
+
+	float sx = (float) x / (width - 1.0f);
+	float sy = (float) y / (height - 1.0f);
+
+	return (M + (2 * sx - 1.0f)*H	 + (1.0f - 2 * sy)*V - eye);
+  }
+
   void keyboard(unsigned char key, int x, int y)
   {
     switch (key) 
@@ -190,7 +211,53 @@ void runCuda(){
        case(27):
          shut_down(1);    
          break;
+	   case 'i':
+		   fov -= .5f;
+		   break;
+	   case 'o':
+		   fov += .5f;
+		   break;
     }
+  }
+
+  void mouse(int button, int state, int x, int y){
+	  switch (button){
+	  case(GLUT_LEFT_BUTTON):
+		  if(state == GLUT_DOWN){
+			  mouseClickPos = glm::vec2(x,y);
+			  buttonID = button;
+		  }
+		  break;
+	  case(GLUT_MIDDLE_BUTTON):
+		  if(state == GLUT_DOWN){
+			  mouseClickPos = glm::vec2(x,y);
+			  buttonID = button;
+		  }
+		  break; 
+	  }
+  } 
+
+  void mouseMove(int x, int y){
+	  switch(buttonID){
+	  case(GLUT_LEFT_BUTTON):
+		  rightDir = glm::normalize(glm::cross(center - eye, up));
+		  eye = glm::rotate(eye, glm::length(center - eye) * glm::radians((x - mouseClickPos.x)), up); 
+		  eye = glm::rotate(eye, glm::length(center - eye) * glm::radians((y - mouseClickPos.y)), rightDir);
+		  up = glm::normalize(glm::cross(rightDir, glm::normalize(center - eye)));
+		  mouseClickPos = glm::vec2(x,y);
+		  break;
+	  case(GLUT_MIDDLE_BUTTON):
+		  glm::vec3 click_pos = raycast(mouseClickPos.x, mouseClickPos.y);
+		  glm::vec3 curr_pos = raycast(x,y);
+		  glm::vec3 diff = curr_pos - click_pos;
+		  
+		  rightDir = glm::normalize(glm::cross(glm::normalize(center - eye), up));
+		  
+		  eye = eye + (glm::length(diff) * glm::dot(diff, rightDir)) * rightDir + (glm::length(diff) * glm::dot(diff, up)) * up;
+		  center = center + (glm::length(diff) * glm::dot(diff, rightDir)) * rightDir + (glm::length(diff) * glm::dot(diff, up)) * up;
+		  mouseClickPos = glm::vec2(x,y);
+		  break;
+	  }
   }
 
 #endif

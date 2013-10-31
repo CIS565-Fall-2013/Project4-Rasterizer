@@ -22,6 +22,7 @@
 #include "glslUtility.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtx/rotate_vector.hpp"s
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
@@ -97,11 +98,18 @@ int main(int argc, char** argv);
 
 void runCuda();
 
+int buttonID = -1;
+
+glm::vec2 mouseClickPos;
+glm::vec3 rightDir;
+
 #ifdef __APPLE__
 	void display();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void mouse(int button, int state, int x, int y);
+	void mouseMove(int x, int y);
 #endif
 
 //-------------------------------
