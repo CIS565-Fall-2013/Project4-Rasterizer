@@ -7,6 +7,9 @@
 //-------------MAIN--------------
 //-------------------------------
 
+// Camera 
+glm::mat4 cam = glm::mat4( 1.0 ); // eye
+
 int main(int argc, char** argv){
 
   bool loadedScene = false;
@@ -44,6 +47,9 @@ int main(int argc, char** argv){
   #else
   init(argc, argv);
   #endif
+
+  // Initialize camera position
+  cam = glm::translate( cam, glm::vec3( 0.0, 0.0, 2.0f ) );
 
   initCuda();
 
@@ -100,7 +106,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -150,8 +156,10 @@ void runCuda(){
   void display(){
 
     // DEBUG: display only one frame 
+    /*
     if ( frame > 5 )
       return;
+    */
     runCuda();
 	time_t seconds2 = time (NULL);
 
@@ -187,6 +195,33 @@ void runCuda(){
        case(27):
          shut_down(1);    
          break;
+       // Rotate camera
+       case('i'):
+	 cam = glm::rotate( cam, 10.0f, glm::vec3( 1.0, 0.0, 0.0 ) );
+	 break;
+       case('k'):
+	 cam = glm::rotate( cam, -10.0f, glm::vec3( 1.0, 0.0, 0.0 ) );
+	 break;
+       case('j'):
+	 cam = glm::rotate( cam, 10.0f, glm::vec3( 0.0, 1.0, 0.0 ) );
+	 break;
+       case('l'):
+	 cam = glm::rotate( cam, -10.0f, glm::vec3( 0.0, 1.0, 0.0 ) );
+	 break;
+      // Translate camera
+      case('w'):
+	 cam = glm::translate( cam, glm::vec3( 0.1, 0.0, 0.0 ) ); 
+	 break;
+      case('s'):
+	 cam = glm::translate( cam, glm::vec3( -0.1, 0.0, 0.0) ); 
+	 break;
+      case('a'):
+	 cam = glm::translate( cam, glm::vec3( 0.0, 0.1, 0.0 ) ); 
+	 break;
+      case('d'):
+	 cam = glm::translate( cam, glm::vec3( 0.0, -0.1, 0.0 ) ); 
+	 break;
+
     }
   }
 

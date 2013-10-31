@@ -9,6 +9,10 @@
 #include <cuda.h>
 #include <cmath>
 #include "glm/glm.hpp"
+// for persepective etc ... 
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtx/quaternion.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -17,6 +21,6 @@
 #endif
 
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize);
+void cudaRasterizeCore(glm::mat4 cam, uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize);
 
 #endif //RASTERIZEKERNEL_H
