@@ -65,7 +65,7 @@ int ibosize;
 //---------CAMERA STUFF----------
 //-------------------------------
 
-glm::vec3 eye = glm::vec3(0,0,2);
+glm::vec3 eye = glm::vec3(2,2,2);
 glm::vec3 up = glm::vec3(0,1,0);
 glm::vec3 center = glm::vec3(0,0,0);
 

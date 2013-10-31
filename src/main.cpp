@@ -101,6 +101,8 @@ void runCuda(){
 
   glm::mat4 view = glm::lookAt(eye, center, up);
   glm::mat4 proj = glm::perspective(fov, (float)width/height, zNear, zFar);
+  float angle = glm::radians(5.0f);
+  model = glm::rotate(model, angle, glm::vec3(0,1,0));
 
   MVP = proj * view * model;
 

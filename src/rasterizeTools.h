@@ -10,9 +10,15 @@
 #include "cudaMat4.h"
 
 struct triangle {
+#if THREE == 0
   glm::vec4 p0;
   glm::vec4 p1;
   glm::vec4 p2;
+#else 
+  glm::vec3 p0;
+  glm::vec3 p1;
+  glm::vec3 p2;
+#endif
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
@@ -51,7 +57,11 @@ __host__ __device__ float calculateSignedArea(triangle tri){
 //LOOK: helper function for calculating barycentric coordinates
 __host__ __device__ float calculateBarycentricCoordinateValue(glm::vec2 a, glm::vec2 b, glm::vec2 c, triangle tri){
   triangle baryTri;
+#if THREE == 0
   baryTri.p0 = glm::vec4(a,0,1); baryTri.p1 = glm::vec4(b,0,1); baryTri.p2 = glm::vec4(c,0,1);
+#else
+  baryTri.p0 = glm::vec3(a,0); baryTri.p1 = glm::vec3(b,0); baryTri.p2 = glm::vec3(c,0);
+#endif
   return calculateSignedArea(baryTri)/calculateSignedArea(tri);
 }
 
