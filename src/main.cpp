@@ -106,7 +106,7 @@ void runCuda(){
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
   float angleDeg = frame%360; //rotation angle of the model in degrees
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, camPos);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, camPos, drawLines);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -208,6 +208,9 @@ void runCuda(){
 	   case(101): //E
          camPos.z += 0.1f;  
          break;
+	   case(108):
+		drawLines = !drawLines;
+		break;
     }
   }
 

@@ -40,6 +40,7 @@ using namespace std;
 //-------------------------------
 //------------GL STUFF-----------
 //-------------------------------
+bool drawLines = false;
 glm::vec3 camPos;
 int frame;
 int fpstracker;

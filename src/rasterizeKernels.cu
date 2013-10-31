@@ -313,7 +313,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, float* nbo
 //NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
 //for now the normal can just be the cross product of the vectors that make up the face (flat shading).
 //NATHAN: add early-z here.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 vdir){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 vdir, bool drawLines){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 	  //based on notes from here: http://sol.gfxile.net/tri/index.html
@@ -379,9 +379,11 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  
-	  int numPixels = rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index);
-	  numPixels += rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index);
-	  numPixels += rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index);
+	  if(drawLines){
+		rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index);
+		rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index);
+		rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index);
+	  }
 
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
 	  //float d1 = (p2.x - p0.x) / (p2.y - p0.y);
@@ -468,7 +470,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, float angleDeg, glm::vec3 camPos){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, float angleDeg, glm::vec3 camPos, bool drawLines){
 
   // set up crucial magic
   int tileSize = 8;
@@ -561,7 +563,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //first draw the outlines of the triangle
   glm::vec3 vdir = center - eye;
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines);
   cudaDeviceSynchronize();
   //next, march through all scanlines
   //int scanlineBlocks = ceil(resolution.y/(float)tileSize);
