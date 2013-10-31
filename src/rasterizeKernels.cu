@@ -458,10 +458,12 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 												baryCoord.y * currentPrim.n1.y + 
 												baryCoord.z * currentPrim.n2.y;
 
-							curFragment.normal.z =	baryCoord.x * currentPrim.n0.z + 
-												baryCoord.y * currentPrim.n1.z + 
-												baryCoord.z * currentPrim.n2.z;
+							curFragment.normal.z =	baryCoord.x * (currentPrim.n0.z) + 
+												baryCoord.y * (currentPrim.n1.z) + 
+												baryCoord.z * (currentPrim.n2.z);
 
+							curFragment.normal = glm::normalize (curFragment.normal);
+//							curFragment.color = /*glm::abs (*/curFragment.normal;//);
 							curFragment.position.x = i;
 							curFragment.position.y = j;
 
@@ -473,15 +475,15 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 
 							if (depthbuffer [(int)(j*resolution.x) + i].position.z > curFragment.position.z)
 							{
-								curFragment.position.x =	baryCoord.x * currentPrim.p0_w.x + 
+								curFragment.position2.x =	baryCoord.x * currentPrim.p0_w.x + 
 												baryCoord.y * currentPrim.p1_w.x + 
 												baryCoord.z * currentPrim.p2_w.x;
 					  
-							curFragment.position.y =	baryCoord.x * currentPrim.p0_w.y + 
+							curFragment.position2.y =	baryCoord.x * currentPrim.p0_w.y + 
 												baryCoord.y * currentPrim.p1_w.y + 
 												baryCoord.z * currentPrim.p2_w.y;
 
-							curFragment.position.z =	baryCoord.x * currentPrim.p0_w.z + 
+							curFragment.position2.z =	baryCoord.x * currentPrim.p0_w.z + 
 												baryCoord.y * currentPrim.p1_w.z + 
 												baryCoord.z * currentPrim.p2_w.z;
 								depthbuffer [(int)(j*resolution.x) + i] = curFragment;
@@ -506,14 +508,14 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
-	  lightVec = glm::vec3 (2.5, -2.5, 2.5);
+	  lightVec = glm::vec3 (0, -10, 10);
   }
 
   __syncthreads ();
 
   if(x<resolution.x && y<resolution.y)
   {
-	  float dotPdt = glm::dot (curFragment.normal, (lightVec-curFragment.position));
+	  float dotPdt = /*1.0f;*/glm::dot (curFragment.normal, glm::normalize (lightVec-curFragment.position2));
 	  dotPdt = max (dotPdt, 0.0f);
 	  dotPdt = min (dotPdt, 1.0f);
 	  curFragment.color *= dotPdt;
@@ -585,7 +587,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&device_vboW, vbosize*sizeof(float));
   cudaMemcpy( device_vboW, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
-  device_nbo = NULL;
+  device_cbo = NULL;
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
   cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
 

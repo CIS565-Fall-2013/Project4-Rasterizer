@@ -53,7 +53,7 @@ int main(int argc, char** argv){
   seconds = time (NULL);
   fpstracker = 0;
 
-  constantBuffer.model = glm::translate (glm::mat4 (1.0f), glm::vec3 (0,0,2.5));
+  constantBuffer.model = glm::translate (glm::mat4 (1.0f), glm::vec3 (0,0,2.5))*glm::rotate (glm::mat4 (1.0f), 180.0f, glm::vec3 (1,0,0));
   constantBuffer.modelIT = glm::transpose (glm::inverse (constantBuffer.model));
 
   // Launch CUDA/GL
