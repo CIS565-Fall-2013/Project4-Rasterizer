@@ -44,7 +44,7 @@ Extra Features Impemented:
 * Correct Color Interpolation: Using barycentric coordinates to interpolate colors
 * Back Face Culling: Using thrust to remove faces with normals point away from the eye
 * Back Face Ignoring: After calculating fragment properties, do not perform depth test in rasterization stage
-* Dynamic Parallelization: use compute 3.5 to launch a kernel from within a kernel
+* Dynamic Parallelization: use compute 3.5 to launch a kernel from within a kernel (could not test on 7xx card, compilation and structures need to be changed, couldn't find any documentation).
 
 Basic features implemented:
 * Vertex Shading: Vertex transformations
@@ -63,9 +63,15 @@ I tried implementing locking by using a mutex per fragment (storing it in the fr
 Performance Analysis
 ---
 
+Let us first see a comparison of rasteriztion times versus number of triangles drawn on screen. This shows a comparison of rasterization with and without back face culling and back face ignoring.
+
 ![Perf](renders/perf.png)
 
-Note, that the total time is on the y axis of the left side.
+Now let us factor in the time required for vertex shading, primitive assembly and backface culling (if it is being done) and add that to get a total time.
+
+![Perf](renders/perf2.png)
+
+We notice that though the rasterization stage is faster with back-face-culling than back-face-ignoring or none, there is a large overhead  of streamcompaction which leads the back-face-ignoring to be the right balance between the two. We also should note that the fragment shader is constant across all these since it is bound by the number of fragments which is kept constant across this experiement (800x800).
 
 One curious thing we realize is that this problem lends itself to dynamic parallelism since we don't want to write a loop over the pixels in the bounding box but rather do that parallely as well.
 
@@ -77,5 +83,3 @@ Some small optimizations that I ended up doing were the following:
 * Not rasterizing on the line in case the current primitive has been crossed twice. In the worst case, this doesn't offer any speed up, in the best case, this speeds up one thread by 2x.
 
 None the less, because the above optimizations are divergent, the speedups do not linearly translate to lowering times.
-
-Back face culling seems to be just a tad bit faster than back face ignoring, but a combination of the two gives us the best result.
