@@ -150,7 +150,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, float *nbo, int nbosize, cbuffer constantBuffer)
+__global__ void vertexShadeKernel(float* vbo, int vbosize, float *nbo, int nbosize, cbuffer *constantBuffer)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 //  __shared__ glm::mat4 model;
@@ -159,16 +159,18 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float *nbo, int nbosi
   __shared__ glm::mat4	ModelViewProjection;
   __shared__ int	step;
   __shared__ int	normStep;
+  __shared__ cbuffer	constBuff;
 
   if ((threadIdx.x == 0) && (threadIdx.y == 0))
   {
 //	  model = glm::mat4 (1.0f);
 //	  view = glm::mat4 (1.0f);
 //	  projection = glm::mat4 (1.0f);
-
-	  ModelViewProjection = constantBuffer.projection * constantBuffer.view * constantBuffer.model;
+	  constBuff = *constantBuffer;
 	  step = vbosize/4;
 	  normStep = nbosize / 4;
+
+	  ModelViewProjection = constBuff.projection * constBuff.view * constBuff.model;
   }
 
   __syncthreads ();
@@ -191,7 +193,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, float *nbo, int nbosi
 	  cudaMat4 stupidMat;
 
 	  // Transform normal to world space.
-	  stupidMat.x = constantBuffer.modelIT [0];	stupidMat.y = constantBuffer.modelIT [1];	stupidMat.z = constantBuffer.modelIT [2];	stupidMat.w = constantBuffer.modelIT [3];
+	  stupidMat.x = constBuff.modelIT [0];	stupidMat.y = constBuff.modelIT [1];	stupidMat.z = constBuff.modelIT [2];	stupidMat.w = constBuff.modelIT [3];
 	  currentNormal = glm::normalize (multiplyMV (stupidMat, currentNormal));
 
 	  nbo [index] = currentNormal.x;	nbo [index+normStep] = currentNormal.y;	nbo [index+(2*normStep)] = currentNormal.z;	nbo [index+(3*normStep)] = currentNormal.w;
@@ -440,17 +442,17 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 
 							// We can interpolate the normals using barycentric coordinates because
 							// they are in world space and have not gone through the perspective warping.
-							curFragment.normal.x =	baryCoord.r * currentPrim.n0.x + 
-												baryCoord.b * currentPrim.n1.x + 
-												baryCoord.g * currentPrim.n2.x;
+							curFragment.normal.x =	baryCoord.x * currentPrim.n0.x + 
+												baryCoord.y * currentPrim.n1.x + 
+												baryCoord.z * currentPrim.n2.x;
 					  
-							curFragment.normal.y =	baryCoord.r * currentPrim.n0.y + 
-												baryCoord.b * currentPrim.n1.y + 
-												baryCoord.g * currentPrim.n2.y;
+							curFragment.normal.y =	baryCoord.x * currentPrim.n0.y + 
+												baryCoord.y * currentPrim.n1.y + 
+												baryCoord.z * currentPrim.n2.y;
 
-							curFragment.normal.z =	baryCoord.r * currentPrim.n0.z + 
-												baryCoord.b * currentPrim.n1.z + 
-												baryCoord.g * currentPrim.n2.z;
+							curFragment.normal.z =	baryCoord.x * currentPrim.n0.z + 
+												baryCoord.y * currentPrim.n1.z + 
+												baryCoord.z * currentPrim.n2.z;
 
 							curFragment.position.x = i;
 							curFragment.position.y = j;
@@ -514,6 +516,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
 
+  // set up constant buffer
+  cbuffer*	device_constantBuffer = NULL;
+  cudaMalloc((void**)&device_constantBuffer, sizeof(cbuffer));
+  cudaMemcpy (device_constantBuffer, &constantBuffer, sizeof (cbuffer), cudaMemcpyHostToDevice);
+
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
   
@@ -551,14 +558,16 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, constantBuffer);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_nbo, nbosize, device_constantBuffer);
   checkCUDAError("Vertex shader failed!");
   cudaDeviceSynchronize();
+  cudaFree (device_constantBuffer);
   //------------------------------
   //primitive assembly
   //------------------------------
   primitiveBlocks = ceil(((float)nPrims)/((float)tileSize));
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, 
+															device_nbo, nbosize, primitives);
   checkCUDAError("Primitive Assembly failed!");
   cudaDeviceSynchronize();
   //------------------------------
