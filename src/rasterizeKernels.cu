@@ -13,6 +13,7 @@ float* device_cbo;
 int* device_ibo;
 vertex* verticies;
 triangle* primitives;
+int* primitiveStageBuffer;
 uniforms* device_uniforms;
 
 void checkCUDAError(const char *msg) {
@@ -73,17 +74,15 @@ __host__ __device__ float getDepthFromDepthbuffer(int x, int y, fragment* depthb
 __device__ unsigned long long int fatomicMin(unsigned long long int  * addr, unsigned long long int value)
 {
 	unsigned long long ret = *addr;
-    while(value < ret)
-    {
-        unsigned long long old = ret;
-        if((ret = atomicCAS(addr, old, value)) == old)
-            break;
-    }
-    return ret;
+	while(value < ret)
+	{
+		unsigned long long old = ret;
+		if((ret = atomicCAS(addr, old, value)) == old)
+			break;
+	}
+	return ret;
 
 }
-
-
 
 //Writes a given pixel to a pixel buffer at a given location
 __host__ __device__ void writeToFramebuffer(int x, int y, glm::vec3 value, glm::vec3* framebuffer, glm::vec2 resolution){
@@ -207,7 +206,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize,  float* nbo, int nbos
 }
 
 //TODO: Implement primitive assembly
-__global__ void primitiveAssemblyKernel(vertex* verticies, int* ibo, int ibosize, triangle* primitives, 
+__global__ void primitiveAssemblyKernel(vertex* verticies, int* ibo, int ibosize, triangle* primitives, int* primitiveStageBuffer,
 										uniforms* u_variables, pipelineOpts opts)
 {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -226,67 +225,98 @@ __global__ void primitiveAssemblyKernel(vertex* verticies, int* ibo, int ibosize
 
 		//Write back primitive
 		primitives[index] = primitive;
+		primitiveStageBuffer[index] = index;//Throw triangle into buffer
+	}
+}
+
+
+__global__ void backfaceCulling(triangle* primitives, int* primitiveStageBuffer, int NPrimitives, pipelineOpts opts)
+{
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if(index < NPrimitives)
+	{
+		int primIndex = primitiveStageBuffer[index];
+		if(primIndex >= 0 && primIndex < NPrimitives){
+			triangle tri = primitives[primIndex];
+			float ux = tri.v1.pos.x-tri.v0.pos.x;
+			float uy = tri.v1.pos.y-tri.v0.pos.y;
+			float vx = tri.v2.pos.x-tri.v0.pos.x;
+			float vy = tri.v2.pos.y-tri.v0.pos.y;
+
+			float facing = ux*vy-uy*vx;
+
+			if(facing < 0.0)
+			{
+				//Backface. Cull it.
+				primitiveStageBuffer[index] = -1;
+			}
+		}
 	}
 }
 
 //TODO: Do this a lot more efficiently and in parallel
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, 
+__global__ void rasterizationKernel(triangle* primitives, int* primitiveStageBuffer, int primitivesCount, fragment* depthbuffer, 
 									glm::vec2 resolution, uniforms* u_variables, pipelineOpts opts)
 {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index<primitivesCount){
-		//For each primitive
-		//Load triangle localy
-		triangle tri = primitives[index];
-		transformTriToScreenSpace(tri, resolution);
-
-		//AABB for triangle
-		glm::vec3 minPoint;
-		glm::vec3 maxPoint;
-		getAABBForTriangle(tri, minPoint, maxPoint);
+		int triIndex = primitiveStageBuffer[index];
+		if(triIndex >= 0){
 
 
-		//Compute pixel range
-		//Do some per-fragment clipping and restrict to screen space
-		int minX = glm::max(glm::floor(minPoint.x),0.0f);
-		int maxX = glm::min(glm::ceil(maxPoint.x),resolution.x);
-		int minY = glm::max(glm::floor(minPoint.y),0.0f);
-		int maxY = glm::min(glm::ceil(maxPoint.y),resolution.y);
+			//For each primitive
+			//Load triangle localy
+			triangle tri = primitives[triIndex];
+			transformTriToScreenSpace(tri, resolution);
+
+			//AABB for triangle
+			glm::vec3 minPoint;
+			glm::vec3 maxPoint;
+			getAABBForTriangle(tri, minPoint, maxPoint);
 
 
-		fragment frag;
-		frag.primitiveIndex = index;
-		//TODO: Do something more efficient than this
-		for(int x = minX; x <= maxX; ++x)
-		{
-			for(int y = minY; y <= maxY; ++y)
+			//Compute pixel range
+			//Do some per-fragment clipping and restrict to screen space
+			int minX = glm::max(glm::floor(minPoint.x),0.0f);
+			int maxX = glm::min(glm::ceil(maxPoint.x),resolution.x);
+			int minY = glm::max(glm::floor(minPoint.y),0.0f);
+			int maxY = glm::min(glm::ceil(maxPoint.y),resolution.y);
+
+
+			fragment frag;
+			frag.primitiveIndex = index;
+			//TODO: Do something more efficient than this
+			for(int x = minX; x <= maxX; ++x)
 			{
-				int index = getDepthBufferIndex(x,y,resolution);
-				if(index < 0)
-					continue;
-
-				frag.position.x = x;
-				frag.position.y = y;
-
-				glm::vec3 bCoords = calculateBarycentricCoordinate(tri, glm::vec2(x,y));
-				if(isBarycentricCoordInBounds(bCoords))
+				for(int y = minY; y <= maxY; ++y)
 				{
-					//Blend values.
-					frag.depth = tri.v0.pos.z*bCoords.x+tri.v1.pos.z*bCoords.y+tri.v2.pos.z*bCoords.z;
-					if(frag.depth > 0.0f && frag.depth < 1.0f)
+					int dbindex = getDepthBufferIndex(x,y,resolution);
+					if(dbindex < 0)
+						continue;
+
+					frag.position.x = x;
+					frag.position.y = y;
+
+					glm::vec3 bCoords = calculateBarycentricCoordinate(tri, glm::vec2(x,y));
+					if(isBarycentricCoordInBounds(bCoords))
 					{
-						//Only continue if pixel is in screen.
-						frag.color = tri.v0.color*bCoords.x+tri.v1.color*bCoords.y+tri.v2.color*bCoords.z;
-						frag.normal = glm::normalize(tri.v0.eyeNormal*bCoords.x+tri.v1.eyeNormal*bCoords.y+tri.v2.eyeNormal*bCoords.z);
-						frag.lightDir = glm::normalize(tri.v0.eyeLightDirection*bCoords.x+tri.v1.eyeLightDirection*bCoords.y+tri.v2.eyeLightDirection*bCoords.z);
-						frag.halfVector = glm::normalize(tri.v0.eyeHalfVector*bCoords.x+tri.v1.eyeHalfVector*bCoords.y+tri.v2.eyeHalfVector*bCoords.z);
+						//Blend values.
+						frag.depth = tri.v0.pos.z*bCoords.x+tri.v1.pos.z*bCoords.y+tri.v2.pos.z*bCoords.z;
+						if(frag.depth > 0.0f && frag.depth < 1.0f)
+						{
+							//Only continue if pixel is in screen.
+							frag.color = tri.v0.color*bCoords.x+tri.v1.color*bCoords.y+tri.v2.color*bCoords.z;
+							frag.normal = glm::normalize(tri.v0.eyeNormal*bCoords.x+tri.v1.eyeNormal*bCoords.y+tri.v2.eyeNormal*bCoords.z);
+							frag.lightDir = glm::normalize(tri.v0.eyeLightDirection*bCoords.x+tri.v1.eyeLightDirection*bCoords.y+tri.v2.eyeLightDirection*bCoords.z);
+							frag.halfVector = glm::normalize(tri.v0.eyeHalfVector*bCoords.x+tri.v1.eyeHalfVector*bCoords.y+tri.v2.eyeHalfVector*bCoords.z);
 
 
-						fatomicMin(&(depthbuffer[index].depthPrimTag),frag.depthPrimTag);
+							fatomicMin(&(depthbuffer[dbindex].depthPrimTag),frag.depthPrimTag);
 
-						if(frag.depthPrimTag == depthbuffer[index].depthPrimTag)//If this is true, we won the race condition
-							writeToDepthbuffer(x,y,frag, depthbuffer,resolution);
+							if(frag.depthPrimTag == depthbuffer[dbindex].depthPrimTag)//If this is true, we won the race condition
+								writeToDepthbuffer(x,y,frag, depthbuffer,resolution);
 
+						}
 					}
 				}
 			}
@@ -422,6 +452,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	primitives = NULL;
 	cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
 
+	primitiveStageBuffer = NULL;
+	cudaMalloc((void**)&primitiveStageBuffer, (ibosize/3)*sizeof(int));
+
 	verticies = NULL;
 	cudaMalloc((void**)&verticies, (vbosize)*sizeof(vertex));
 
@@ -460,15 +493,23 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//primitive assembly
 	//------------------------------
 	primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
-	primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(verticies, device_ibo, ibosize, primitives, device_uniforms, opts);
+	primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(verticies,  device_ibo, ibosize, primitives, primitiveStageBuffer, device_uniforms, opts);
+
 
 	cudaDeviceSynchronize();
 	checkCUDAError("Kernel failed PA!");
+
+
+	int NPrimitives = ibosize/3;
+	if(opts.backfaceCulling)
+	{
+		backfaceCulling<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, opts);
+	}
+
 	//------------------------------
 	//rasterization
 	//------------------------------
-
-	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, device_uniforms, opts);
+	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, depthbuffer, resolution, device_uniforms, opts);
 
 
 

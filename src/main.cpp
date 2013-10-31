@@ -34,6 +34,7 @@ int main(int argc, char** argv){
 	//TODO: Camera movable
 	u_pipelineOpts.fShaderProgram = BLINN_PHONG_SHADING;
 	u_pipelineOpts.showTriangleColors = false;
+	u_pipelineOpts.backfaceCulling = false;
 
 	u_variables.blinnPhongParams  = glm::vec3(0.1,0.6,0.3);//Ambient, diffuse, specular.
 	u_variables.lightPos = glm::vec4(-1.0f,1.0f,10.0f,1.0f);
@@ -220,6 +221,9 @@ void keyboard(unsigned char key, int x, int y)
 	{
 	case(27)://ESC
 		shut_down(0);    
+		break;
+	case 'b':
+		u_pipelineOpts.backfaceCulling = !u_pipelineOpts.backfaceCulling;
 		break;
 	case '1':
 		u_pipelineOpts.fShaderProgram = AMBIENT_LIGHTING;

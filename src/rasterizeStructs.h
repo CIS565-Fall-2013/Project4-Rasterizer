@@ -49,5 +49,6 @@ enum FRAGMENT_SHADER {DEPTH_SHADING, AMBIENT_LIGHTING, BLINN_PHONG_SHADING, NORM
 struct pipelineOpts{
 	FRAGMENT_SHADER fShaderProgram;
 	bool showTriangleColors;
+	bool backfaceCulling;
 
 };
