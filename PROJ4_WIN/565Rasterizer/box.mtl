@@ -1,0 +1,25 @@
+# Max2Mtl Version 4.0 Mar 10th, 2001
+newmtl m1
+Ns 50
+d 1
+illum 2
+Kd 0.7 0.7 0.7
+Ks 1 1 1
+Ka 0.15 0.15 0.15
+map_Kd test.ppm
+
+newmtl m2
+Ka  0.1 0.1 0.1
+Kd  0.0 1 0.0
+Ks  0.3 0.3 0.3
+d  1.0
+Ns  2.2
+illum 2
+
+newmtl m3
+Ka  0.0 0.0 0.0
+Kd  0.0 0.0 1.0
+Ks  0.3 0.3 0.3
+d  1.0
+Ns  2.2
+illum 2
