@@ -22,13 +22,30 @@ PART 1:
 Vertex Shader & Perspective Transformation
 -------------------------------------------------------------------------------
 
-Vertex Shader Stuff
+Instead of having one VBO as is normal defined, my implementation had two VBO
+arrays. The first VBO stored the vertex position floats in model space, and the
+second stored them in projected screen space. The vertex shader received as 
+arguments the un-transformed VBO, along with the three viewing matrices: the model
+matrix from model to world space; the view matrix from world to camera space, and
+the projection matrix from camera to screen space. Each vertex from the VBO would
+be multiplied by these matrices, divided by the w coordinate to account for the
+perspective divide, and transformed from unit screen space to the screen space
+defined by the window height and width. 
 
 -------------------------------------------------------------------------------
 Primitive Assembly
 -------------------------------------------------------------------------------
 
-Primitive Assembly Stuff
+In this stage of the pipeline, I looked into the IBO to find each set of three
+consecutive vertices that form a triangle primitive. I stored these three vertices
+in the triangle struct in the primitives list at the correct index. However, I had
+to modify the traditional triangle struct for my implementation. Rather than simply
+storing 3 points and 3 colors, I changed the triangle to store 3 points and 3
+fragments (each fragment having a position, color, and normal). The first three points
+referred to the position vectors in screen space, while the fragment positions
+were in the world frame of reference. This way, the rasterizer kernel could simply 
+look into the triangle struct and determine the necessary values for interpolation 
+at any point (explained below).
 
 -------------------------------------------------------------------------------
 Rasterization
