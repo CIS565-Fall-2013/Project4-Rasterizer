@@ -33,7 +33,15 @@ I implemented the following extra features:
 Images:
 -------------------------------------------------------------------------------
 
+![alt text](./renders/cow_normal_diffuse.png "normal and diffuse")
 
+![alt text](./renders/cow_diffuse.png "diffuse cow")
+
+![alt text](./renders/cow_smooth_diffuse.png "diffuse cow with normal interpolation")
+
+![alt text](./renders/bunny_specular.png "specular bunny")
+
+![alt text](./renders/dragon_specular.png "specular dragon")
 
 [Here](https://vimeo.com/78320271) is a video of the cow and the Stanford dragon
 being rasterized. 
@@ -43,11 +51,8 @@ PERFORMANCE EVALUATION
 -------------------------------------------------------------------------------
 Rasterizing per primitive VS per fragment
 
-![alt text](./renders/cow_normal_diffuse.png "normal and diffuse")
 
-![alt text](./renders/ "diffuse")
 
-![alt text](./renders/dragon_specular.png "specular")
 
 Using backface culling
 
