@@ -53,7 +53,7 @@ The image on the right has the constant color value that is stored in the depthb
 for each fragment before the shader is called, while the image on the left
 reflects the color value at each pixel after diffuse lighting calculations.
 
-![Lambertian Fragment Shading] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/header.png)
+![Lambertian Fragment Shading] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/fragment_shader.png)
 
 -------------------------------------------------------------------------------
 Barycentric Color and Normal Interpolation
