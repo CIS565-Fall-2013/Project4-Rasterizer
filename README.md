@@ -34,47 +34,21 @@ Images:
 -------------------------------------------------------------------------------
 
 
--------------------------------------------------------------------------------
-README
--------------------------------------------------------------------------------
-All students must replace or augment the contents of this Readme.md in a clear 
-manner with the following:
 
-* A brief description of the project and the specific features you implemented.
-* At least one screenshot of your project running.
-* A 30 second or longer video of your project running.  To create the video you
-  can use http://www.microsoft.com/expression/products/Encoder4_Overview.aspx 
-* A performance evaluation (described in detail below).
+[Here](https://vimeo.com/78320271) is a video of the cow and the Stanford dragon
+being rasterized. 
 
 -------------------------------------------------------------------------------
 PERFORMANCE EVALUATION
 -------------------------------------------------------------------------------
-The performance evaluation is where you will investigate how to make your CUDA
-programs more efficient using the skills you've learned in class. You must have
-performed at least one experiment on your code to investigate the positive or
-negative effects on performance. 
+Rasterizing per primitive VS per fragment
 
-We encourage you to get creative with your tweaks. Consider places in your code
-that could be considered bottlenecks and try to improve them. 
+![alt text](./renders/cow_normal_diffuse.png "normal and diffuse")
 
-Each student should provide no more than a one page summary of their
-optimizations along with tables and or graphs to visually explain any
-performance differences.
+![alt text](./renders/ "diffuse")
 
----
-SUBMISSION
----
-As with the previous project, you should fork this project and work inside of
-your fork. Upon completion, commit your finished project back to your fork, and
-make a pull request to the master repository.  You should include a README.md
-file in the root directory detailing the following
+![alt text](./renders/dragon_specular.png "specular")
 
-* A brief description of the project and specific features you implemented
-* At least one screenshot of your project running.
-* A link to a video of your raytracer running.
-* Instructions for building and running your project if they differ from the
-  base code.
-* A performance writeup as detailed above.
-* A list of all third-party code used.
-* This Readme file edited as described above in the README section.
+Using backface culling
+
 
