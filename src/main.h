@@ -11,6 +11,7 @@
 	#include <GL/glut.h>
 #endif
 
+#include "colorReader.h"
 #include <stdlib.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
@@ -40,6 +41,8 @@ using namespace std;
 //-------------------------------
 //------------GL STUFF-----------
 //-------------------------------
+colorReader* myColorReader;
+
 bool rotateModel = false;
 bool drawLines = false;
 glm::vec3 camPos;

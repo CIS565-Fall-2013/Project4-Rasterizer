@@ -25,6 +25,9 @@
     <ClInclude Include="..\..\src\utilities.h">
       <Filter>headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\colorReader.h">
+      <Filter>headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\ObjCore\obj.cpp">
@@ -40,6 +43,9 @@
       <Filter>source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\main.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\colorReader.cpp">
       <Filter>source</Filter>
     </ClCompile>
   </ItemGroup>

@@ -3,6 +3,7 @@
 
 #include "main.h"
 
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -23,6 +24,8 @@ int main(int argc, char** argv){
       loadedScene = true;
     }
   }
+
+  myColorReader = new colorReader(mesh->getCBOsize(), "../../objs/colors_90_deg.ncolors");
 
   if(!loadedScene){
     cout << "Usage: mesh=[obj file]" << endl;
