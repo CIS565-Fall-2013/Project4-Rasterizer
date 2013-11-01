@@ -590,7 +590,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::mat4 trans = glm::translate(glm::mat4(1), -camPos); 
   //model = glm::rotate(model, angleDeg, glm::vec3(0,1,0));
   //glm::mat3 rot = glm::mat3(currRot);
-  glm::mat4 model = trans * glm::mat4_cast(currRot);
+  glm::mat4 model = trans * glm::mat4_cast(glm::inverse(currRot));
   glm::mat4 cameraMat = projection*view*model;
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, modelspace_vbo, device_nbo, vbosize, cameraMat, model, resolution);
   //float* transformedVerts = new float[vbosize];
