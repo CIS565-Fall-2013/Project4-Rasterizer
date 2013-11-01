@@ -32,8 +32,11 @@ I implemented the following extra features:
 -------------------------------------------------------------------------------
 Images:
 -------------------------------------------------------------------------------
+![alt text](./renders/normal.png "normals")
 
 ![alt text](./renders/cow_normal_diffuse.png "normal and diffuse")
+
+![alt text](./renders/cow_colorInterp.png "color interpolation with primitive vertices")
 
 ![alt text](./renders/cow_diffuse.png "diffuse cow")
 
@@ -43,7 +46,7 @@ Images:
 
 ![alt text](./renders/dragon_specular.png "specular dragon")
 
-[Here](https://vimeo.com/78320271) is a video of the cow and the Stanford dragon
+[Here](https://vimeo.com/78325264) is a video of the cow and the Stanford dragon
 being rasterized. 
 
 -------------------------------------------------------------------------------
@@ -51,8 +54,28 @@ PERFORMANCE EVALUATION
 -------------------------------------------------------------------------------
 Rasterizing per primitive VS per fragment
 
+| Number of Faces  | Primitive parallel (FPS) | Fragment parallel (FPS) |
+|------------------|--------------------------|-------------------------|
+| Triangle (1)     |                       60 | 60                      |
+| Cube (12)        |                       40 | 60                      |
+| Cow (4853)       |                       60 | 4                       |
+| Bunny (69630)    |                       30 | timed out               |
+| Dragon (100,000) |                       12 | timed out               |
+|------------------|--------------------------|-------------------------|
 
-
+For meshes with bigger and fewer triangles, rasterizing by fragment proved to be 
+more efficient than rasterizing by primitive. When meshes became more high-poly, 
+the performance of primitive parallel rasterization increased drastically, while
+fragment parallel rasterization's performance plumetted. In primitive parallel 
+rasterization, the bounding box of the primitive can be calculated before entering
+the loop that checks intersection per fragment. This saves a lot of time since a 
+large percentage of fragments can be thrown out simply by doing one test. This 
+property is extremely useful when meshes are dense (like the bunny and the dragon)
+with triangles that fill up only a few fragments each. However, rasterizing using
+the fragment parallel method is much slower for such meshes. Every fragment needs
+to be tested against every primitive, and this becomes prohibitively expensive as
+meshes denser. As shown above, the bunny and dragon models cannot be rasterized 
+this way. 
 
 Using backface culling
 
