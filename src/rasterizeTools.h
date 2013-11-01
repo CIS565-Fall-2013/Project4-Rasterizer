@@ -36,6 +36,7 @@ struct fragment{
   glm::vec3 normal;
   glm::vec3 position;
   glm::vec3 lightDir;
+  glm::vec3 wsPosition;
 };
 
 //Multiplies a cudaMat4 matrix and a vec4

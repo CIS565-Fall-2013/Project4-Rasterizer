@@ -269,8 +269,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 						  frag.position = glm::vec3(i,j,z);
 						  frag.normal = glm::normalize(baryCoord.x*tri.n0 + baryCoord.y*tri.n1 + baryCoord.z*tri.n2);
 						  frag.lightDir = glm::normalize(baryCoord.x*tri.L0 + baryCoord.y*tri.L1 + baryCoord.z*tri.L2);
-						  
-						  //frag.color = glm::vec3(1,1,1);
+						  frag.wsPosition = baryCoord.x*tri.p0 + baryCoord.y*tri.p1 + baryCoord.z*tri.p2;
+						  //frag.color = glm::vec3(163/255.0f, 116/255.0f, 235/255.0f);
+						  //frag.color = glm::vec3(163.0f/255.0f, 235.0f/255.0f, 116.0f/255.0f);
 						  //frag.color = baryCoord.x*tri.c0 + baryCoord.y*tri.c1 + baryCoord.z*tri.c2;
 						  frag.color = glm::vec3(abs(frag.normal.x), abs(frag.normal.y), abs(frag.normal.z));
 						  depthbuffer[fragIndex] = frag;
@@ -313,6 +314,7 @@ __global__ void rasterizationKernelFrag(triangle* primitives, int primitivesCoun
 
 				if(z > frag.position.z){
 					frag.position = glm::vec3(x,y,z);
+					frag.wsPosition = baryCoord.x*tri.p0 + baryCoord.y*tri.p1 + baryCoord.z*tri.p2;
 					frag.normal = glm::normalize(baryCoord.x*tri.n0 + baryCoord.y*tri.n1 + baryCoord.z*tri.n2);
 					frag.lightDir = glm::normalize(baryCoord.x*tri.L0 + baryCoord.y*tri.L1 + baryCoord.z*tri.L2);
 						  
@@ -329,7 +331,7 @@ __global__ void rasterizationKernelFrag(triangle* primitives, int primitivesCoun
 
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 eye){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
@@ -337,10 +339,17 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 
 	  fragment frag = depthbuffer[index];
 
-	  //diffuse shading assuming white light
-	  frag.color = glm::clamp(glm::dot(frag.lightDir, frag.normal), 0.0f, 1.0f)*frag.color;
+	  if(frag.position.z > -100000){
+		  //diffuse shading assuming white light
+		  //frag.color = glm::clamp(glm::dot(frag.lightDir, frag.normal), 0.0f, 1.0f)*frag.color;
 
-	  depthbuffer[index] = frag;
+		  //specular shading assuming white light
+		  //glm::vec3 R = glm::normalize(frag.lightDir - 2.0f*glm::dot(frag.lightDir, frag.normal)*frag.normal);
+		  //glm::vec3 V = glm::normalize(eye-frag.wsPosition);
+		  //frag.color += glm::vec3(1,1,1)*pow(glm::clamp(glm::dot(R, V), 0.0f, 1.0f), 40.0f);
+
+		  //depthbuffer[index] = frag;
+	  }
   }
 }
 
@@ -419,6 +428,14 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::vec4 lightTemp = view*model*glm::vec4(lightPos, 0.0);
   lightPos.x = lightTemp.x; lightPos.y = lightTemp.y, lightPos.z = lightTemp.z;
 
+  //performance analysis stuff
+  //time cuda call
+  float time;
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start,0);
+
   //------------------------------
   //vertex shader
   //------------------------------
@@ -447,7 +464,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, cam.eye);
   checkCUDAErrorWithLine("fragment failed!");
 
   cudaDeviceSynchronize();
@@ -458,6 +475,14 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
 
   cudaDeviceSynchronize();
+
+  //end time record
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+
+  cout<<time<<" has passed"<<endl;
+
 
   kernelCleanup();
 
