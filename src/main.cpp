@@ -10,7 +10,7 @@ bool leftMButtonDown = false;
 
 float camRadius = 3.5f;
 float scrollSpeed = 0.33f;
-
+bool outline = false;
 cbuffer constantBuffer;
 glm::mat4	cameraTransform;
 glm::vec3	currentLookAt =  glm::vec3 (0,0,1);
@@ -43,6 +43,11 @@ int main(int argc, char** argv){
 	{
       scrollSpeed = strtod (data.c_str(), NULL);
     }
+	else if (strcmp(header.c_str(), "outline")==0)
+	{
+		if (strcmp(data.c_str(), "true")==0)
+			outline = true;
+    }
   }
 
   if(!loadedScene){
@@ -55,7 +60,7 @@ int main(int argc, char** argv){
   seconds = time (NULL);
   fpstracker = 0;
 
-  constantBuffer.model = glm::translate (glm::mat4 (1.0f), glm::vec3 (0,0,2.5))*glm::rotate (glm::mat4 (1.0f), 180.0f, glm::vec3 (1,0,0));
+  constantBuffer.model = glm::translate (glm::mat4 (1.0f), glm::vec3 (0,0,1.0))*glm::rotate (glm::mat4 (1.0f), 180.0f, glm::vec3 (1,0,0));
   constantBuffer.modelIT = glm::transpose (glm::inverse (constantBuffer.model));
   constantBuffer.lightPos = glm::vec4 (0, 10, -10, 1);
   // Launch CUDA/GL
@@ -176,12 +181,12 @@ void runCuda(bool &isFirstTime){
   glm::vec4 center =  /*camOrigin + */(/*cameraTransform * */glm::vec4 (0,0,0,0));
   glm::vec4 up =  /*glm::normalize(cameraTransform * */glm::vec4 (0,1,0,0)/*)*/;
 
-  constantBuffer.view = glm::lookAt (glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), 
-									 glm::vec3 (center.x, center.y, center.z), 
-									 glm::vec3 (up.x, up.y, up.z));
-  //constantBuffer.view = glm::lookAt (/*glm::vec3 (0, 0, -2.5),*/glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), 
-		//								glm::vec3 (0,0,1), 
-		//								glm::vec3 (0,1,0));
+//  constantBuffer.view = glm::lookAt (glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), 
+									 /*glm::vec3 (center.x, center.y, center.z), 
+									 glm::vec3 (up.x, up.y, up.z));*/
+  constantBuffer.view = glm::lookAt (glm::vec3 (0.0f, 0.0f, 0.0f),/*glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z)*/ 
+										glm::vec3 (0.0f,0.0f,1.0f), 
+										glm::vec3 (0.0f,1.0f,0.0f));
   cudaGLMapBufferObject((void**)&dptr, pbo);
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, 
 					nbo, nbosize, isFirstTime, constantBuffer);
@@ -267,6 +272,10 @@ void runCuda(bool &isFirstTime){
        case(27):
          shut_down(1);    
          break;
+	   case 'o':
+	   case 'O':
+		   outline = !outline;
+		   break;
     }
   }
 

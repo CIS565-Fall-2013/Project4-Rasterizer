@@ -25,6 +25,8 @@ float* device_cbo;
 int* device_ibo;
 triangle* primitives;
 
+extern bool outline;
+
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
   if( cudaSuccess != err) {
@@ -411,7 +413,7 @@ __global__ void rasterizationKernel (triangle* primitive, int elementNo, fragmen
 }
 
 // Rast kernel for primitive parallelized rasterization.
-__global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fragment* depthbuffer, glm::vec2 resolution)
+__global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fragment* depthbuffer, glm::vec2 resolution, bool outline)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if (index < nPrimitives)
@@ -434,14 +436,25 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 					if ((j >= 0) && (j < resolution.y))
 					{
 						fragment	curFragment;
-						glm::vec3 baryCoord = calculateBarycentricCoordinate (currentPrim, glm::vec2 (i,j));
-						// Then, check if the pixel is inside tri.
-						if (isBarycentricCoordInBounds (baryCoord))
-						{  
-							curFragment.color = baryCoord.x * currentPrim.c0 + 
-												baryCoord.y * currentPrim.c1 + 
-												baryCoord.z * currentPrim.c2;
+						glm::vec3	baryCoord;
+						bool		pointFound = false;
+						
+						// Check for subpixel inside tri.
+						//baryCoord = calculateBarycentricCoordinate (currentPrim, glm::vec2 (i,j));
+						for (float a = -0.5f; a < 1.0f; a += 0.5f)
+							for (float b = -0.5f; b < 1.0f; b += 0.5f)
+							{
+								baryCoord = calculateBarycentricCoordinate (currentPrim, glm::vec2 (i+a,j+b));
+								if (isBarycentricCoordInBounds (baryCoord))
+								{
+									pointFound = true;
+									break;
+								}
+							}
 
+						// If yes, calculate attributes at this point.
+						if (/*isBarycentricCoordInBounds (baryCoord)*/pointFound)
+						{  
 							// We can interpolate the normals using barycentric coordinates because
 							// they are in world space and have not gone through the perspective warping.
 							curFragment.normal.x =	baryCoord.x * currentPrim.n0.x + 
@@ -478,6 +491,29 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 													baryCoord.y * (1/currentPrim.p1.z) + 
 													baryCoord.z * (1/currentPrim.p2.z);
 							curFragment.position.z = 1/curFragment.position.z;
+
+							// Compute antialiased colour.
+							for (int m = -1; m < 2; m ++)
+								for (int n = -1; n < 2; n ++)
+								{
+									baryCoord = calculateBarycentricCoordinate (currentPrim, glm::vec2 (i+(0.5f*m),j+(0.5f*n)));
+									if (outline)
+									{
+										if (isBarycentricCoordInBounds (baryCoord))
+											curFragment.color += baryCoord.x * currentPrim.c0 + 
+														baryCoord.y * currentPrim.c1 + 
+														baryCoord.z * currentPrim.c2;
+										else
+											curFragment.color += glm::vec3 (0);
+									}
+									else
+									{
+										curFragment.color += baryCoord.x * currentPrim.c0 + 
+														baryCoord.y * currentPrim.c1 + 
+														baryCoord.z * currentPrim.c2;	
+									}
+								}
+							curFragment.color /= 9.0f;
 
 							if (depthbuffer [(int)(j*resolution.x) + i].position.z > curFragment.position.z)
 							{
@@ -668,7 +704,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitiveBlocks = ceil(((float)nPrims)/((float)tileSize));
 //  for (int i = 0; i<(nPrims);  i++)
 //	rasterizationKernel<<<fullBlocksPerGrid, threadsPerBlock, threadsPerBlock.x*threadsPerBlock.y*sizeof(fragment)>>>(primitives, i, depthbuffer, resolution);
-  rasterizationKernelAlt<<<primitiveBlocks, tileSize>>>(primitives, nPrims, depthbuffer, resolution);
+  rasterizationKernelAlt<<<primitiveBlocks, tileSize>>>(primitives, nPrims, depthbuffer, resolution, outline);
   checkCUDAError("Rasterization failed!");
   cudaDeviceSynchronize();
   if (isFirstTime)
