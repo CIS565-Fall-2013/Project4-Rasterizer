@@ -59,4 +59,14 @@ PROBLEMS ENCOUNTERED:
 -------------------------------------------------------------------------------
 PERFORMANCE EVALUATION
 -------------------------------------------------------------------------------
+Here is a comparison of frame rate between different antialiasing and backface culling settings. The curve was generated with 5 models, which are Utah teapot, Stanford bunny, cow, Hebe and Buddha, with face number ranging from
+992 to 100k. Through manipulating camera position, they are roughly the same size in the viewport. 
+
 ![alt text](Performance_comparison.png)
+
+From the comparison, it is seen that frame rate is pretty low for low polycount models. My reason is that due to their similar size on screen, models with fewer faces tend to occupy more pixels per triangle on average, and since the rasterization core is parallelized for primitive and all pixels inside a primitive are rasterized in a for loop, the more pixels a primitive has on screen, the longer the time it takes to finish the for loop, thus increasing execution time for rasterization kernel. In fact, if I place camera too close to a model, the fps would drop so dramatically that almost freeze the program.
+
+Only 11 fps in a close view:
+![alt text](bunny_close.bmp)
+
+
