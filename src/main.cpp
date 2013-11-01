@@ -214,6 +214,9 @@ void runCuda(){
        case(27):
          shut_down(1);    
          break;
+
+	   case ('r'):
+		   camCtlr.reset();
     }
   }
 

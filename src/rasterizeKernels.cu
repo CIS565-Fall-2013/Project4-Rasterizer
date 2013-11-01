@@ -268,7 +268,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 
 	  glm::vec3 normalizedLP = glm::normalize(lightPos - f.position);
 	  float lighting = glm::dot(normalizedLP,f.normal);
-	  depthbuffer[index].color = glm::vec3(lighting);
+	  depthbuffer[index].color = f.color;
   }
 
 }

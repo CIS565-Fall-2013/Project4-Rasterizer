@@ -13,19 +13,30 @@ public:
 		:center(lookAt),
 		 radius( glm::length(lookAt-cameraPosition) ),
 		 resolution(res)
+		 
 	{
-		theta = atan2f(cameraPosition.z,cameraPosition.x);
-		phi = atan2f(cameraPosition.y, radius);
+		glm::vec3 relCameraPos = cameraPosition - center;
+
+
+		theta = atan2f(relCameraPos.z,relCameraPos.x);
+		if (theta < 0.0f)
+			theta = 2*PI+ theta;
+		phi = acosf( relCameraPos.y/radius);
+		originalPhi = phi;
+		originalTheta  = theta;
+		originalCenter = center;
+		originalRadius = radius;
+
 	}
 
 	glm::vec3 getCameraPosition()
 	{
-		float x = radius*sinf(theta)*sinf(phi);
-		float z = radius*cosf(phi);
-		float y = radius*cosf(theta)*sinf(phi);
+		float x = radius*sinf(phi)*cosf(theta);
+		float y = radius*cosf(phi);
+		float z = radius*sinf(theta)*sinf(phi);
 
-		//return glm::vec3(0,0,radius);
-		return glm::vec3(radius*cos(theta),y,radius*sin(theta));
+		return center + glm::vec3(x,y,z);
+		
 	}
 
 	glm::vec3 getLookAtPosition()
@@ -35,26 +46,25 @@ public:
 
 	void rotate (glm::vec2 delta)
 	{
+		const float epsilon = 0.0001f;
 		if ( abs(delta.x) > abs(delta.y))
 		{
-			theta-=delta.x/resolution.x;
+			theta-= float(delta.x)/resolution.x;
 		}
 		else
 		{
-			phi-=2.0f*delta.y/resolution.y;
+			phi-=2.0f*float(delta.y)/resolution.y;
+			if (phi > PI -epsilon )
+				phi = PI-epsilon;
+
+			else if (phi<epsilon)
+				phi = epsilon;
 		}
-
-		if ( phi>PI || phi<0.0f)
-			phi = 0.0f;
-
-		//if ( theta>2*PI || theta<0.0f)
-		//	theta = 0.0f;
-
 	}
 
 	void zoom( int delta)
 	{
-		radius= max(0.2f,radius+2*delta/resolution.y);
+		radius= max(0.2f,radius+2*(float)delta/resolution.y);
 	}
 
 	void pan( glm::vec2 delta)
@@ -74,21 +84,30 @@ public:
 
 	void mouseMove(int x, int y)
 	{
+
 		if(currentMouseBtn == GLUT_LEFT_BUTTON)
 		{
 			rotate(glm::vec2(x-currentMouseX,y-currentMouseY));
 		}
-		else if (currentMouseBtn == GLUT_MIDDLE_BUTTON)
+		else if (currentMouseBtn == GLUT_RIGHT_BUTTON)
 		{
 			int yDelta = y-currentMouseY;
 			zoom(yDelta);
 			
 		}
-		else if (currentMouseBtn == GLUT_RIGHT_BUTTON)
+		else if (currentMouseBtn == GLUT_MIDDLE_BUTTON)
 		{
 			pan(glm::vec2(x-currentMouseX,y-currentMouseY));
 			
 		}
+	}
+
+	void reset()
+	{
+		theta = originalTheta;
+		phi = originalPhi;
+		radius = originalRadius;
+		center = originalCenter;
 	}
 
 private:
@@ -96,6 +115,10 @@ private:
 	int currentMouseY;
 	int currentMouseBtn;
 	glm::vec3 center;
+	glm::vec3 originalCenter;
+	float originalTheta;
+	float originalPhi;
+	float originalRadius;
 	float phi;
 	float theta;
 	float radius;
