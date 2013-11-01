@@ -76,12 +76,37 @@ the viewport area.
 ##Discussion
 
 #### Rasterizing Method
+We investigated two methods of rasterizing : a per fragment/tiled method and a per primitive method.
+It is no suprise that we found the former to perform much better with few large triangles, the very case where
+the latter performs poorly.  Similarly, we found that the latter performs much better in large models that have many primitives.
+This is beacuse the per fragment method is linear in performance in comparison to the number of primitives in the model
+while the latter is linear in performance in comparison to the size of the triangles.  This means that the larger the triangle,
+the worse the latter method performs.  Conversely, the more triangles in the model, the worse the former performs
+
+The best way to remedy this would be to have a per primitive kernel that send off as many threads as each fragment that
+exists in its bounding box.  However, the draw back of this method is the overhead that is introduced when many kernels
+are started. We would expect that models with a large number of primitives that are small in size would not perform as 
+well as those rasterized on a per primitive scanline basis.
+
+It is also worth noting that we are currently using a Barycentric method that checks all pixels in the primitive's force-clipped
+tight bounding box.  We could seek to improve rasterization performance slightly if we use a modified Bresenham algorithm
+to fill the triangle starting at the calculated point the scanline intersects the left most edge.  This would avoid 
+checking useless space without more overhead.
+
 
 #### Back-Face Culling 
-
-#### Out-of-Viewport Ignoring
+Surprisingly, back-face culling is more expensive of an operation than back-face ignoring.  There is a possibility 
+that thrust is to blame for this performance difference; however, it is probable that the overhead of performing stream
+compaction outweighs the benefits of back-face culling altogether.  Similarly, back-face culling specifically requires 
+2 more mallocs of large portions of memory equal to the number of primitives.  If the models are large, this memory 
+is significant.
 
 #### Non-Geometric Clipping
+As seen here, we have seen slight improvements for non-geometric clipping.  This is mainly because we do not waste time
+rasterizing useless large triangles that are outside of the viewport or not facing the user.  However, we would like to pose
+a question : why is geometric clipping the standard?  While geometric clipping will ultimately have small triangles from 
+frustum clipping and splitting the resulting geometry into triangles, does this not add a considerable amount of geometry
+from the edges? If so, what are the biggest benefits that will come from geometric clipping?
 
 -----
 
