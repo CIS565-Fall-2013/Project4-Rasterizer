@@ -363,6 +363,7 @@ C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/no
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/normal_distribution_base.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\thrust/random/detail/normal_distribution.inl
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\math_constants.h
+C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\device_functions.h
 d:\dropbox\upenn\cis-565 (gpu programming)\assignments\project4-rasterizer\src\rasterizeKernels.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda.h
 d:\dropbox\upenn\cis-565 (gpu programming)\assignments\project4-rasterizer\src\rasterizeStructs.h

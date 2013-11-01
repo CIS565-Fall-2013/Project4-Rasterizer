@@ -37,7 +37,7 @@
     #define compat_getMaxGflopsDeviceId() cutGetMaxGflopsDeviceId()
 #endif
 
-#define RGBONLY 0 // used for determining whether the CBO should be equal to the size of VBO or just 9
+#define RGBONLY 1 // used for determining whether the CBO should be equal to the size of VBO or just 9
 
 using namespace std;
 using glm::vec2;

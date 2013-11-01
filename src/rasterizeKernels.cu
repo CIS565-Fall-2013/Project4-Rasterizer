@@ -5,6 +5,7 @@
 #include <cuda.h>
 #include <cmath>
 #include <thrust/random.h>
+#include <device_functions.h>
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
 
@@ -108,6 +109,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
       f.position.x = x;
       f.position.y = y;
 	  f.position.z = -1e6; // Look: Depth is initialized to some small number
+	  f.locked = 0;
       buffer[index] = f;
     }
 }
@@ -271,7 +273,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* wvbo, int vbosize, fl
 
 	  // build triangle
 	  triangle tri;
-
+	  tri.toDiscard = false;
 	  tri.p0 = vert1;
 	  tri.p1 = vert2;
 	  tri.p2 = vert3;
@@ -307,15 +309,31 @@ __global__ void backFaceCullingKernel(triangle* primitives, int primitivesCount,
 			tri.toDiscard = false;
 
 		// try out the signed area method
-		float sa = calculateSignedArea(tri);
+		//float sa = calculateSignedArea(tri);
 
-		if (sa > 0)
-			tri.toDiscard = true;
-		else
-			tri.toDiscard = false;
+		//if (sa > 0)
+		//	tri.toDiscard = true;
+		//else
+		//	tri.toDiscard = false;
 
 		primitives[index] = tri;
 	}
+}
+
+// following example found http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#atomic-functions
+__device__ float atomicDiff(float* address, float val)
+{
+	unsigned int* address_as_ull = (unsigned int*)address;
+	unsigned int old = *address_as_ull, assumed;
+
+	do 
+	{
+		assumed = old;
+		old = atomicCAS(address_as_ull, assumed, __float_as_int(val -__int_as_float(assumed)));
+
+	} while (assumed != old);
+
+	return old;
 }
 
 //TODO: Implement a rasterization method, such as scanline.
@@ -353,30 +371,38 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 				vec3 bc = calculateBarycentricCoordinate(tri, pointInTri);
 				if (isBarycentricCoordInBounds(bc))
 				{
-					// TODO: depth check
 					int depthBufferId = y * resolution.x + x;
-					float z = getZAtCoordinate(bc, tri);
 					
+					//float z = getZAtCoordinate(bc, tri);
+					float z = getZWorldAtCoordinate(bc, tri);
+					
+					// trying out atomicDiff version
 					if (z > depthbuffer[depthBufferId].position.z)
+					//if (atomicDiff(&(depthbuffer[depthBufferId].position.z), z) > 0)
 					{
 						depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z; // point in world space
 						depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
 						depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;		// normal in world space
-						
-						// depth test
-						//depthbuffer[depthBufferId].color = glm::normalize(vec3(-z,-z,-z));
 					}
 
-					// normal test 
-					//if (depthbuffer[depthBufferId].normal.z > 0)
-					//	depthbuffer[depthBufferId].color = depthbuffer[depthBufferId].normal;
-					//else
-					//	depthbuffer[depthBufferId].color = depthbuffer[depthBufferId].normal;
+					// trying out atomicExch version
+					//bool done = false;
+					//while(!done)
+					//{
+					//	int old = atomicExch(&(depthbuffer[depthBufferId].locked), 1); // put 1 in depthbuffer[depthBufferId].locked
+					//	if (old == 0) // if old was 0, then that means the buffer was unlocked before
+					//	{
+					//		if (z > depthbuffer[depthBufferId].position.z)
+					//		{
+					//			depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z;    // point in world space
+					//			depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
+					//			depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;		// normal in world space
+					//		}
 
-					// test
-					//fragment frag;
-					//frag.color = vec3(1,1,1);
-					//depthbuffer[depthBufferId] = frag;
+					//		depthbuffer[depthBufferId].locked = 0;
+					//		done = true;
+					//	}
+					//}
 				}
 			}
 		}
@@ -441,7 +467,6 @@ __global__ void supersampledRender(glm::vec2 resolution, fragment* depthbuffer, 
 		}
 
 		framebuffer[index] = totalColor * (1.f / count);
-		//framebuffer[index] = depthbuffer[index].color;
 	}
 }
 
@@ -498,7 +523,7 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 	//------------------------------
 	// turn table
 	mat4 modelMatrix(1);
-	modelMatrix = glm::scale(modelMatrix, vec3(3,3,3));
+	//modelMatrix = glm::scale(modelMatrix, vec3(3,3,3));
 #if TURN_TABLE == 1
 	float d = (int)frame % 361;
 	modelMatrix = glm::rotate(modelMatrix, -d, vec3(0,1,0));
@@ -536,6 +561,7 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 
 #if BACK_FACE_CULLING == 1
 	backFaceCullingKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, cam->position);
+	cudaDeviceSynchronize();
 #endif
 
 	//checkCUDAErrorWithLine("primitive assembly kernel failed");
@@ -549,8 +575,10 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 	//------------------------------
 	//fragment shader
 	//------------------------------
+#if ENABLE_FRAG_SHADER == 1
 	fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, device_lights, lightsize);
 	cudaDeviceSynchronize();
+#endif
 	//checkCUDAErrorWithLine("fragment shader kernel failed");
 
 	//------------------------------
