@@ -1,0 +1,26 @@
+#
+# Wavefront material file: c:\documents and settings\administrator\орн▒\buddha_new\buddha_new.mtl
+#
+# Converted by the PolyTrans geometry converter from Okino Computer Graphics, Inc.
+# Date/time of export: 07/10/2005 22:12:00
+#
+# Bounding box of geometry = (-72.2539,-113.165,-79.253) to (78.209,117.606,70.5918).
+
+newmtl default
+	Ns 32
+	d 1
+	illum 2
+	Kd 0.4 0.4 0.4
+	Ks 0.7 0.7 0.7
+	Ka 0.3 0.3 0.3
+
+newmtl mat1
+Ns 50
+d 1
+illum 2
+Kd 0.7 0.7 0.7
+Ks 1 1 1
+Ka 0.15 0.15 0.15
+map_Kd Buddha.ppm
+map_Ka Buddha.ppm
+

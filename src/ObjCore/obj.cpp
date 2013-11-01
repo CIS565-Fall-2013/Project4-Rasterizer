@@ -14,10 +14,15 @@ ObjModel::ObjModel()
 {
     vbo = 0;
     ibo = 0;
+    tibo = 0;
+    nibo = 0;
     cbo = 0;
     nbo = 0;
     tbo = 0;
     numVert = 0;
+
+    groups = 0;
+    numGroup = 0;
 }
 
 ObjModel::~ObjModel()
@@ -29,6 +34,12 @@ ObjModel::~ObjModel()
     if( ibo ) 
         delete [] ibo;
     ibo = 0;
+    if( nibo ) 
+        delete [] nibo;
+    nibo = 0;
+    if( tibo ) 
+        delete [] tibo;
+    tibo = 0;
 
     if( cbo )
         delete [] cbo;
@@ -39,6 +50,9 @@ ObjModel::~ObjModel()
     if( tbo )
         delete [] tbo;
     tbo = 0;
+
+    if( groups )
+        delete [] groups;
 }
 
 obj::obj(){

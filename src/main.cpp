@@ -8,6 +8,7 @@
 #include <GL/freeglut.h>
 #endif
 #include "variables.h"
+#include <GL/glui.h>
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -31,12 +32,20 @@ uchar4 *dptr;
 
 ObjModel* mesh;
 
-float* vbo;
-int vbosize;
-float* cbo;
-int cbosize;
-int* ibo;
-int ibosize;
+//float* vbo;
+//int vbosize;
+//float* cbo;
+//int cbosize;
+//float* nbo;
+//int nbosize;
+//float* tbo;
+//int tbosize;
+//int* ibo;
+//int* nibo;
+//int* tibo;
+//int ibosize;
+
+Param param;
 
 //CUDA Resources
 cudaGraphicsResource* cudaPboRc = 0;
@@ -44,8 +53,10 @@ size_t cudaRcSize;
 //-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------
-
+glm::mat4 cameraRotate;
 int width=800; int height=800;
+glm::vec4 lightPos( 2.0f, 2.0f, 2.0f, 1.0f );
+glm::vec4 lightPos2;
 
 glm::mat4 lookAt( glm::vec3 &eye, glm::vec3 &eyeLook, glm::vec3 &up )
 {
@@ -89,6 +100,7 @@ glm::mat4 perspective( float fov, float aspect, float zNear, float zFar )
 }
 
 objLoader meshloader;
+
 int main(int argc, char** argv)
 {
 
@@ -124,7 +136,7 @@ int main(int argc, char** argv)
   fpstracker = 0;
 
   //Setup variables for coordinate calculation
-  statVal.eyePos = glm::vec3( 0.0f, 0.0f, 4.0f );
+  statVal.eyePos = glm::vec3( 3.0f, 0.0f, 1.5f );
   statVal.eyeLook = glm::vec3( 0.0f, 0.0f, 0.0f );
   statVal.upDir = glm::vec3( 0.0f,1.0f, 0.0f );
   statVal.aspect = (float)width/(float)height;
@@ -133,6 +145,7 @@ int main(int argc, char** argv)
   statVal.FOV = 60.0f;
   vsUniform.viewingMat = glm::lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
   vsUniform.projMat = glm::perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
+
 
   // Launch CUDA/GL
   #ifdef __APPLE__
@@ -178,6 +191,7 @@ int main(int argc, char** argv)
     glutMainLoop();
   #endif
   kernelCleanup();
+  GLUI_Master.close_all();
   delete mesh;
   return 0;
 }
@@ -206,7 +220,7 @@ void runCuda()
 
   cudaGraphicsMapResources( 1, &cudaPboRc, 0 );
   cudaErrorCheck( cudaGraphicsResourceGetMappedPointer((void**) &dptr, &cudaRcSize, cudaPboRc ) );
-  cudaRasterizeCore(dptr, width, height, frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, vsUniform, fsUniform);
+  cudaRasterizeCore(dptr, width, height, frame, param, vsUniform, fsUniform);
   cudaGraphicsUnmapResources( 1, &cudaPboRc, 0 );
 
   //vbo = NULL;
@@ -255,12 +269,15 @@ void runCuda()
 
   void display()
   {
+      statVal.eyePos = glm::vec3(cameraRotate * statVal.initialEyePos );
     //uniform variables setting
       vsUniform.viewingMat = glm::lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
+      vsUniform.normalMat = glm::transpose( glm::inverse( vsUniform.viewingMat ) );
       //vsUniform.projMat = glm::perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
       //vsUniform.viewingMat = lookAt( statVal.eyePos, statVal.eyeLook, statVal.upDir );
       //vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
-      
+      lightPos2 = vsUniform.viewingMat * glm::vec4(lightPos);
+
     runCuda();
 	time_t seconds2 = time (NULL);
 
@@ -310,7 +327,12 @@ void reshape( int w, int h )
     statVal.aspect = (float)w/(float)h;
     //vsUniform.projMat = perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp );
     vsUniform.projMat = glm::perspective( statVal.FOV, statVal.aspect, statVal.nearp, statVal.farp);
-    initDeviceBuf( w, h, vbo, vbosize, cbo, cbosize, ibo, ibosize );
+    initDeviceBuf( w, h, 
+                   param.vbo, param.vbosize,
+                   param.cbo, param.cbosize, 
+                   param.nbo, param.nbosize,
+                   param.tbo, param.tbosize,
+                   param.ibo, param.nibo, param.tibo, param.ibosize );
     
     glViewport( 0, 0, w, h );
 }
@@ -334,8 +356,9 @@ void idle()
     glutInitContextProfile( GLUT_COMPATIBILITY_PROFILE );
 
     glutInitWindowSize(width, height);
-    glutCreateWindow("CIS565 Rasterizer");
+    int win_id = glutCreateWindow("CIS565 Rasterizer");
 
+    initGLUI( win_id );
     // Init GLEW
     glewInit();
     GLenum err = glewInit();
@@ -370,7 +393,9 @@ void initPBO(GLuint* pbo)
     cudaGraphicsGLRegisterBuffer( &cudaPboRc, *pbo, cudaGraphicsRegisterFlagsNone );
   }
 }
-
+  float newcbo[] = {1.0f, 1.0f, 1.0f, 
+                    1.0f, 1.0f, 1.0f, 
+                    1.0f, 1.0f, 1.0f};
 void initCuda()
 {
   // Use device with highest Gflops/s
@@ -378,19 +403,48 @@ void initCuda()
 
   initPBO(&pbo);
 
-  vbo = mesh->vbo;
-  vbosize = 3* mesh->numVert;
 
-  float newcbo[] = {0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
-  cbo = newcbo;
-  cbosize = 9;
 
-  ibo = mesh->ibo;
-  ibosize = mesh->numIdx;
+  memset( &param, 0, sizeof( Param ) );
 
-  initDeviceBuf( width, height, vbo, vbosize, cbo, cbosize, ibo, ibosize );
+  param.vbo = mesh->vbo;
+  param.vbosize = 3* mesh->numVert;
+
+  param.nbo = mesh->nbo;
+  param.nbosize = 3* mesh->numNrml;
+  param.tbo = mesh->tbo;
+  param.tbosize = 2 * mesh->numTxcoord;
+
+  param.cbo = newcbo;
+  param.cbosize = 9;
+
+  param.ibo = mesh->ibo;
+  param.nibo = mesh->nibo;
+  param.tibo = mesh->tibo;
+  param.ibosize = mesh->numIdx;
+
+  param.groups = mesh->groups;
+  param.numGroup = mesh->numGroup;
+
+    //upload textures to devices
+  for( int i = 0; i < mesh->numGroup; ++i )
+  {
+      if( mesh->groups[i].sampler2D )
+      {
+          initDeviceTexBuf( mesh->groups[i].sampler2D, mesh->groups[i].sampler_w,  mesh->groups[i].sampler_h );
+      }
+  }
+
+  //upload vertices attributes to devices
+  initDeviceBuf( width, height,
+                 mesh->vbo, param.vbosize,
+                 newcbo, param.cbosize,
+                 param.nbo, param.nbosize,
+                 mesh->tbo, param.tbosize, 
+                 param.ibo, param.nibo, param.tibo, param.ibosize
+                 );
+
+
 
   // Clean up on program exit
   atexit(cleanupCuda);
@@ -498,10 +552,34 @@ void deleteTexture(GLuint* tex)
  
 void shut_down(int return_code)
 {
+  
   kernelCleanup();
   //cudaDeviceReset();
   #ifdef __APPLE__
   glfwTerminate();
   #endif
   exit(return_code);
+}
+
+
+void initGLUI( int win_id )
+{
+    GLUI *glui_obj = GLUI_Master.create_glui( "glui" );
+    glui_obj->set_main_gfx_window( win_id );
+
+    GLUI_Master.set_glutIdleFunc( idle );
+    GLUI_Master.set_glutSpecialFunc( NULL );
+
+    GLUI_Rotation *view_rot = glui_obj->add_rotation( "Camera", &cameraRotate[0][0] );
+	view_rot->set_spin( 0 );
+	glui_obj->add_column( false );
+
+    GLUI_Rotation *obj_rot = glui_obj->add_rotation( "Camera", &cameraRotate[0][0] );
+	obj_rot->set_spin(0 );
+ 
+	glui_obj->add_column( false );
+
+    statVal.initialEyePos = glm::vec4( statVal.eyePos , 1.0f ) ;
+
+
 }

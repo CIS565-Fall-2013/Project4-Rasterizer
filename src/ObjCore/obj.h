@@ -11,13 +11,31 @@
 
 using namespace std;
 
+struct Group
+{
+    int ibo_offset;
+    int numTri;
+    glm::vec3 kd;
+    glm::vec3 ks;
+    glm::vec3 ka;
+    glm::vec3 em;
+    float shininess;
+    unsigned char* sampler2D;
+    int sampler_w;
+    int sampler_h;
+    int sampler_id;
+};
+
 class ObjModel{
 public:
     ObjModel();
     ~ObjModel();
 public:
     float* vbo;
-    int* ibo;
+    int* ibo;   //index array for vertices
+    int* tibo;  //index array for texture coordinate
+    int* nibo;  //index array for normal vector
+   
     float* nbo;
     float* cbo;
     float* tbo;
@@ -27,6 +45,9 @@ public:
     int numNrml;
     int numColor;
     int numTxcoord;
+
+    Group* groups;
+    int numGroup;
 };
 
 class obj{

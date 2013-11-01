@@ -11,6 +11,7 @@
 
 struct triangle {
   glm::vec3 p[3];
+  glm::vec3 pw[3];
   glm::vec3 c[3];
   glm::vec2 t[3];
   glm::vec3 n[3];
@@ -19,7 +20,9 @@ struct triangle {
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
-  glm::vec3 position;
+  glm::vec3 wpos;
+  glm::vec2 position;
+  unsigned long long int depth;
   glm::vec2 txcoord;
 };
 

@@ -17,11 +17,16 @@
     #include <cutil_math.h>
 #endif
 
-void initDeviceBuf(ushort width, ushort height, float* vbo, int vbosize, float* cbo, int cbosize, 
-                 int* ibo, int ibosize );
+void initDeviceBuf(ushort width, ushort height,
+                   float* vbo, int vbosize,
+                   float* cbo, int cbosize, 
+                   float* nbo, int nbosize,
+                   float* tbo, int tbosize,
+                   int* ibo, int* nibo, int* tibo, int ibosize );
+
+void initDeviceTexBuf( unsigned char* imageData, int w, int h );
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, ushort width, ushort height, float frame, float* vbo, int vbosize,
-                       float* cbo, int cbosize, int* ibo, int ibosize, VertUniform &vsUniform, FragUniform &fsUniform
-                       );
+
+void cudaRasterizeCore( uchar4* pos, ushort width, ushort height, float frame, Param &param, VertUniform &vsUniform, FragUniform &fsUniform );
 
 #endif //RASTERIZEKERNEL_H
