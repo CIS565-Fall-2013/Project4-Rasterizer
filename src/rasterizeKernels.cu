@@ -95,8 +95,8 @@ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthb
 		//	int leet = 1337;
 		//}
 		//printf("Frag z: %f\n", frag.position.z);
+		atomicAdd( &writeCount[index], 1 );
 		if(depthbuffer[index].position.z < frag.position.z){
-			atomicAdd( &writeCount[index], 1 );
 			depthbuffer[index] = frag;
 		}
 	}
@@ -362,8 +362,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  float maxY = max(max(currTri.p0.y, currTri.p1.y), currTri.p2.y) + 1;
 
 	  //loop through the AABB of the triangle, testing to see if point is in triangle. If yes, write it to depthbuffer. If no, don't.
-	  for(float y = minY; y <= maxY; y = y + 0.5){
-		  for(float x = minX; x <= maxX; x = x + 0.5){
+	  for(float y = minY; y <= maxY; y = y + 1){
+		  for(float x = minX; x <= maxX; x = x + 1){
 			  glm::vec2 currPoint(x, y);
 			  glm::vec3 baryCoords = calculateBarycentricCoordinate(currTri, currPoint);
 			  if(isBarycentricCoordInBounds(baryCoords)){ //we are inside
@@ -460,7 +460,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 eyePos, glm::vec3 lightPos, bool useShading){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 eyePos, glm::vec3 lightPos, bool useShading, int* write_count){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
@@ -480,6 +480,11 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 			  float diffuseCoeff = glm::clamp(glm::dot(currFrag.modelNormal, lightVec), 0.0f, 1.0f);
 			  currFrag.color = diffuseCoeff * currFrag.color;
 		  }
+
+		  if( write_count[index] > 1 ){ //yellow indicates overlap!
+			  currFrag.color = glm::vec3(1, 1, 0);
+		  }
+
 		  depthbuffer[index] = currFrag;
 	  }
   }
@@ -608,7 +613,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //fragment shader
   //------------------------------
   glm::vec3 lightPos(0, 0, 1);
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, eye, lightPos, useShading);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, eye, lightPos, useShading, framebuffer_writes);
 
   cudaDeviceSynchronize();
   //------------------------------
