@@ -144,8 +144,6 @@ void runCuda()
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&time, start, stop);
 	printf("runCuda runtime: %3.1f ms \n", time);
-
-
 }
 
 #ifdef __APPLE__

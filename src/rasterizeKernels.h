@@ -20,8 +20,8 @@
 
 #define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
 #define BACK_FACE_CULLING 1
-#define TURN_TABLE 0
-#define ANTIALIASING 0
+#define TURN_TABLE 1
+#define ANTIALIASING 1
 #define ENABLE_FRAG_SHADER 1
 
 using glm::mat4;
