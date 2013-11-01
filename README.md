@@ -107,10 +107,6 @@ For now, these values are hard-coded but I will definitely be working on a futur
 -------------------------------------------------------------------------------
 PERFORMANCE ANALYSIS
 -------------------------------------------------------------------------------
-* Use of any third-party code must be approved by asking on Piazza.  If it is approved, all students are welcome to use it.  Generally, we approve use of third-party code that is not a core part of the project.  For example, for the ray tracer, we would approve using a third-party library for loading models, but would not approve copying and pasting a CUDA function for doing refraction.
-* Third-party code must be credited in README.md.
-* Using third-party code without its approval, including using another student's code, is an academic integrity violation, and will result in you receiving an F for the semester.
-
 Performance tests were done on the following objs models
 
 Model| Number of Vertices| Number of Faces
