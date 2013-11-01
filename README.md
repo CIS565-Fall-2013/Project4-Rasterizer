@@ -1,4 +1,4 @@
-#CIS565: Project 4: CUDA Rasterizer
+# CUDA Rasterizer
 ### This project implements a rasterizer and parts of graphics pipeline using CUDA. 
 ### The pipeline stage implemented:
  * Vertex Shader
