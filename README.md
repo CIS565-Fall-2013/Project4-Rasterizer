@@ -88,7 +88,7 @@ Using backface culling
 | Number of Faces  | Primitive parallel (FPS) | Fragment parallel (FPS) |
 |------------------|--------------------------|-------------------------|
 | Triangle (1)     | 121.18                   | 121.11                  |
-| Cube (12)        | 5                        | 562.87                  |
+| Cube (12)        | 560.12                   | 562.87                  |
 | Cow (4853)       | 75.73                    | 81.56                   |
 | Bunny (69630)    | 88.67                    | 102.03                  |
 | Dragon (100,000) | 560.78                   | 687.83                  |
