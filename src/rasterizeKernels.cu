@@ -481,7 +481,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&time, start, stop);
 
-  cout<<time<<" has passed"<<endl;
+  std::cout<<time<<" has passed"<<std::endl;
 
 
   kernelCleanup();
