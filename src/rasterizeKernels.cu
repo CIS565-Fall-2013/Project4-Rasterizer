@@ -285,10 +285,11 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
     tri.p1.y = offs_y - scale_y*primitives[index].p1.y;
     tri.p2.y = offs_y - scale_y*primitives[index].p2.y;
 
-    // Normal does not point towards the camera
-    if ( calculateSignedArea( tri ) < 0.0f )
+    // Backface culling
+    if ( calculateSignedArea( primitives[index] ) > 0.0f )
       return;
-  
+ 
+    // Bounding box 
     getAABBForTriangle( tri, min_point, max_point );
 
     // Ensure window bounds are maintained
@@ -310,7 +311,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 		      + bary_coord[1]*primitives[index].n1 \
 		      + bary_coord[2]*primitives[index].n2;
 
-	  // Interpolate color on triangle ... cause this will look pretty
+	  // Correct color interpolation on triangle
 	  frag.color = bary_coord[0]*primitives[index].c0 \
 		     + bary_coord[1]*primitives[index].c1 \
 		     + bary_coord[2]*primitives[index].c2;

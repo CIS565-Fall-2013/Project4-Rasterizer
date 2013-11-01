@@ -16,6 +16,12 @@ glm::vec3 light( 1.0, 1.0, 1.0 );
 // Drawing mode
 int draw_mode = DRAW_COLOR;
 
+// Mouse interactivity 
+int mouse_left_down = false;
+int mouse_right_down = false;
+int mouse_in_down = false;
+glm::vec2 prev_xy;
+
 
 int main(int argc, char** argv){
 
@@ -84,6 +90,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+    glutMouseFunc(mouse);
+    glutMotionFunc(mouse_motion);
 
     glutMainLoop();
   #endif
@@ -198,6 +206,76 @@ void runCuda(){
     glutPostRedisplay();
     glutSwapBuffers();
   }
+
+  void mouse_motion( int x, int y ) {
+    glm::vec2 current_xy;
+    glm::vec2 dxy;
+    if ( mouse_left_down ) {
+      current_xy = glm::vec2(x,y);
+      dxy = current_xy - prev_xy;
+      prev_xy = current_xy;
+
+      printf(" dxy: [%f, %f] \n", dxy.x, dxy.y );
+      cam = glm::rotate( cam, -dxy.x/5.0f, glm::vec3(0.0, 1.0, 0.0));
+      cam = glm::rotate( cam, dxy.y/5.0f, glm::vec3(1.0, 0.0, 0.0));
+    }      
+    if ( mouse_right_down ) {
+      current_xy = glm::vec2(x,y);
+      dxy = current_xy - prev_xy;
+      prev_xy = current_xy;
+
+      printf(" dxy: [%f, %f] \n", dxy.x, dxy.y );
+      cam = glm::translate( cam, glm::vec3(-4.0*dxy.x/width, 0.0, 0.0));
+      cam = glm::translate( cam, glm::vec3(0.0, -4.0*dxy.y/height, 0.0));
+    }
+   if ( mouse_in_down ) {
+      current_xy = glm::vec2(x,y);
+      dxy = current_xy - prev_xy;
+      prev_xy = current_xy;
+
+      printf(" dxy: [%f, %f] \n", dxy.x, dxy.y );
+      cam = glm::translate( cam, glm::vec3(0.0, 0.0, 5.0*dxy.y/width));
+      cam = glm::rotate( cam, dxy.x/5.0f, glm::vec3(0.0, 0.0, 1.0));
+
+   }
+      
+  }
+      
+    
+
+  // Mouse interactive camera
+  void mouse( int button, int state, int x, int y ) {
+    int modifier = glutGetModifiers();
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN && modifier != GLUT_ACTIVE_SHIFT && modifier != GLUT_ACTIVE_CTRL) { 
+      printf( "mouse_down: true \n" );
+      mouse_left_down = true;
+      prev_xy = glm::vec2( x, y );
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_UP ) {
+      printf( "mouse_down: false \n" );
+      mouse_left_down = false;
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN && modifier == GLUT_ACTIVE_SHIFT && modifier != GLUT_ACTIVE_CTRL ) {
+      printf( "mouse_down: true \n" );
+      mouse_right_down = true;
+      prev_xy = glm::vec2( x, y );
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_UP ) {
+      printf( "mouse_down: false \n" );
+      mouse_right_down = false;
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN && modifier != GLUT_ACTIVE_SHIFT && modifier == GLUT_ACTIVE_CTRL ) {
+      printf( "mouse_down: true \n" );
+      mouse_in_down = true;
+      prev_xy = glm::vec2( x, y );
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_UP ) {
+      printf( "mouse_down: false \n" );
+      mouse_in_down = false;
+    }
+  }
+
+  
 
   void keyboard(unsigned char key, int x, int y)
   {
