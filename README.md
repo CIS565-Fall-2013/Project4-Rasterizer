@@ -38,8 +38,12 @@ Featureless fill:
 -------------------------------------------------------------------------------
 Video:
 -------------------------------------------------------------------------------
-Here is a video of me showing off the interactive camera
+Here is a video of me showing off the interactive camera and viewing modes
 
+The camera is a bit awkward to use, but its a nice start. 
+left-click: rotate-x/y
+left-click-shift: pan-x/y
+left-click-ctrl: zoom / rotate-z
 
 
 -------------------------------------------------------------------------------
@@ -52,12 +56,12 @@ Thanks:
 -------------------------------------------------------------------------------
 Thanks to Nathan Marshak for providing a cow.obj with smoothed normals
 
-![first_steps](renders/first_steps.png)
-
 
 -------------------------------------------------------------------------------
 First Steps
 -------------------------------------------------------------------------------
+![first_steps](renders/first_steps.png)
+
 I've implemented the first steps of the rasterizer and the above image shows
 the progress I've made so far
 - Vertex Shader with identity model-view-projection matrix and perspective division.
