@@ -53,6 +53,7 @@ Specular
 
 [Here](https://vimeo.com/78325264) is a video of the cow and the Stanford dragon
 being rasterized. 
+If vimeo is not loading, please see [here](./renders/rasterizer.wmv)
 
 -------------------------------------------------------------------------------
 PERFORMANCE EVALUATION
