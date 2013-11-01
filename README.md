@@ -37,8 +37,9 @@ Extra features:
 -------------------------------------------------------------------------------
 SCREENSHOTS:
 -------------------------------------------------------------------------------
-![alt text](renders/buddha.bmp)
 ![alt text](renders/cow.bmp)
+![alt text](renders/buddha.bmp)
+
 
 
 ### Antialiasing (Original, 4 samples, 9 samples)

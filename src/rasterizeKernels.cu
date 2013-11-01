@@ -17,8 +17,8 @@
     #include <cutil_math.h>
 #endif
 
-//#define backfaceCulling
-#define antialiasing 1
+#define backfaceCulling
+#define antialiasing 2
 
 glm::vec3 *sFramebuffer;
 glm::vec3* framebuffer;
