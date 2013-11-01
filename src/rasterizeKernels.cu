@@ -18,7 +18,7 @@
 #endif
 
 //#define backfaceCulling
-#define antialiasing 2
+#define antialiasing 1
 
 glm::vec3 *sFramebuffer;
 glm::vec3* framebuffer;
@@ -73,6 +73,14 @@ __host__ __device__ void printVec4(glm::vec4 m){
 __host__ __device__ void printVec3(glm::vec3 m){
 //    std::cout << m[0] << " " << m[1] << " " << m[2] << std::endl;
 	printf("%f, %f, %f;\n", m[0], m[1], m[2]);
+}
+
+
+__host__ __device__ void printMat4(glm::mat4 m){
+    printf("%f, %f, %f, %f;\n", m[0][0], m[1][0], m[2][0], m[3][0]);
+    printf("%f, %f, %f, %f;\n", m[0][1], m[1][1], m[2][1], m[3][1]);
+    printf("%f, %f, %f, %f;\n", m[0][2], m[1][2], m[2][2], m[3][2]);
+    printf("%f, %f, %f, %f;\n", m[0][3], m[1][3], m[2][3], m[3][3]);
 }
 
 __host__ __device__ glm::vec3 reflect(glm::vec3 I, glm::vec3 N)
@@ -145,6 +153,7 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, varying* buffer, float *d
     int index = x + (y * resolution.x);
     if(x<=resolution.x && y<=resolution.y){
       varying f = frag;
+	  f.normal = glm::vec3(0.0f);
       f.position.x = x;
       f.position.y = y;
       buffer[index] = f;
@@ -197,7 +206,11 @@ __global__ void vertexShadeKernel(glm::vec2 resolution, glm::mat4 projection, gl
 	  glm::vec4 vertex(vbo[3*index], vbo[3*index+1], vbo[3*index+2], 1.0f);
 	  glm::vec4 normal(nbo[3*index], nbo[3*index+1], nbo[3*index+2], 1.0f);
 	  // transform position to eye space
+	  /*printf("worldCoords: \n");
+	  printVec4(vertex);*/
 	  vertex = view*vertex;
+	  /*printf("eyeCoords: \n");
+	  printVec4(vertex);*/
 	  vbo_eye[3*index]   = vertex.x;
 	  vbo_eye[3*index+1] = vertex.y;
 	  vbo_eye[3*index+2] = vertex.z;
@@ -216,6 +229,10 @@ __global__ void vertexShadeKernel(glm::vec2 resolution, glm::mat4 projection, gl
 	  vbo[3*index]   = resolution.x * 0.5f * (vertex.x + 1.0f);
 	  vbo[3*index+1] = resolution.y * 0.5f * (vertex.y + 1.0f);
 	  vbo[3*index+2] = (zFar-zNear)*0.5f*vertex.z + (zFar+zNear)*0.5f;
+
+	  /*glm::vec3 screenVet(vbo[3*index], vbo[3*index+1], vbo[3*index+2]);
+	  printf("windowCoords: \n");
+	  printVec3(screenVet);*/
   }
 }
 
@@ -279,6 +296,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 		  }
 		  else 
 		  {
+			  /*printf("bounding box min: \n");
+			  printVec3(triMin);
+			  printf("bounding box max: \n");
+			  printVec3(triMax);*/
 			  glm::vec2 pixelCoords;
 			  float depth;
 			  glm::vec3 barycentricCoords;
@@ -301,7 +322,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 					  w = Q0 - glm::vec2(thisTriangle.p0.x, thisTriangle.p0.y);
 					  s = (v0.y*w.x - v0.x*w.y) / (v0.x*u.y - v0.y*u.x);
 					  t = (u.x*w.y  - u.y*w.x ) / (u.x*v0.y - u.y*v0.x);
-					  if(s > 0 && s < 1 && t > 0 && t < 1)
+					  if(s > -1e-6 && s < 1+1e-6 && t > -1e-6 && t < 1+1e-6)
 					  {
 						  minS = fminf(s, minS);
 						  maxS = fmaxf(s, maxS);
@@ -312,7 +333,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 					  w = Q0 - glm::vec2(thisTriangle.p1.x, thisTriangle.p1.y);
 					  s = (v1.y*w.x - v1.x*w.y) / (v1.x*u.y - v1.y*u.x);
 					  t = (u.x*w.y  - u.y*w.x ) / (u.x*v1.y - u.y*v1.x);
-					  if(s > 0 && s < 1 && t > 0 && t < 1)
+					  if(s > -1e-6 && s < 1+1e-6 && t > -1e-6 && t < 1+1e-6)
 					  {
 						  minS = fminf(s, minS);
 						  maxS = fmaxf(s, maxS);
@@ -323,7 +344,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, v
 					  w = Q0 - glm::vec2(thisTriangle.p2.x, thisTriangle.p2.y);
 					  s = (v2.y*w.x - v2.x*w.y) / (v2.x*u.y - v2.y*u.x);
 					  t = (u.x*w.y  - u.y*w.x ) / (u.x*v2.y - u.y*v2.x);
-					  if(s > 0 && s < 1 && t > 0 && t < 1)
+					  if(s > -1e-6 && s < 1+1e-6 && t > -1e-6 && t < 1+1e-6)
 					  {
 						  minS = fminf(s, minS);
 						  maxS = fmaxf(s, maxS);
@@ -411,6 +432,8 @@ __global__ void fragmentShadeKernel(varying* interpVariables, glm::vec2 resoluti
       float specularTerm = pow( fmaxf(glm::dot(R, V), 0.0f), specular );
 
 	  framebuffer[index] = ka*inVariables.color + glm::vec3(1.0f) * (kd*inVariables.color*diffuseTerm + ks*specularTerm);
+	  // framebuffer[index] = inVariables.normal;
+	  // framebuffer[index] = glm::vec3(1.0f) * inVariables;
   }
 }
 
@@ -496,7 +519,6 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
 
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize)); // launch for every vertex
-  //printf("primitiveBlocks = %d\n", primitiveBlocks);
   //------------------------------
   //vertex shader
   //------------------------------

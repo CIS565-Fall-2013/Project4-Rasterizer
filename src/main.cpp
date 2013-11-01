@@ -34,7 +34,7 @@ int main(int argc, char** argv){
   fpstracker = 0;
 
   projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);
-  view = glm::lookAt(cameraPosition, glm::vec3(0.0, 0.0, 0), glm::vec3(0,1,0));
+  view = glm::lookAt(cameraPosition, lookatPosition, glm::vec3(0,1,0));
 //  projection = projection * view;
 
   // Launch CUDA/GL
@@ -101,14 +101,14 @@ void runCuda(){
   nbo = mesh->getNBO();
   nbosize = mesh->getNBOsize();
 
+/*
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
+                    1.0, 0.0, 0.0};*/
 
-/*
   float newcbo[] = {0.5, 0.5, 0.5, 
 					0.5, 0.5, 0.5, 
-					0.5, 0.5, 0.5};*/
+					0.5, 0.5, 0.5};
   cbo = newcbo;
   cbosize = 9;
 
@@ -175,7 +175,7 @@ void runCuda(){
 
     }
 
-    string title = "CIS565 Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS";
+    string title = "CUDA Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS";
     glutSetWindowTitle(title.c_str());
 
     glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);
@@ -247,8 +247,6 @@ void runCuda(){
 		  viewTheta -= dy * 0.002f;
 		  viewTheta = glm::clamp(viewTheta, float(1e-6), float(PI-(1e-6)));
 		  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta) + lookatPosition.y, r*sin(viewTheta)*cos(viewPhi));
-		  //printf("viewPhi = %f, viewTheta = %f\n", viewPhi * 180 / PI, viewTheta * 180 / PI);
-		  //utilityCore::printVec3(cameraPosition);
 		  view = glm::lookAt(cameraPosition, lookatPosition, glm::vec3(0,1,0));
 	  } 
 	  if (button_mask & 0x02) 
@@ -256,8 +254,6 @@ void runCuda(){
 		  cameraPosition.y += 0.02f*dy;
 		  lookatPosition.y += 0.02f*dy;
 		  view = glm::lookAt(cameraPosition, lookatPosition, glm::vec3(0,1,0));
-		  //printf("viewPhi = %f, viewTheta = %f\n", viewPhi * 180 / PI, viewTheta * 180 / PI);
-		  //utilityCore::printVec3(cameraPosition);
 	  }
 
 	  mouse_old_x = x;
@@ -268,7 +264,6 @@ void runCuda(){
   {
 	  r -= dir>0 ? 0.1f : -0.1f;
 	  r = glm::clamp(r, zNear, zFar);
-	 // printf("r = %f\n", r);
 	  cameraPosition = glm::vec3(r*sin(viewTheta)*sin(viewPhi), r*cos(viewTheta) + lookatPosition.y, r*sin(viewTheta)*cos(viewPhi));
 	  view = glm::lookAt(cameraPosition, lookatPosition, glm::vec3(0,1,0));
   }
