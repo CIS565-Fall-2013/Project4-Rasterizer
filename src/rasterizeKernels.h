@@ -8,6 +8,9 @@
 #include <thrust/random.h>
 #include <cuda.h>
 #include <cmath>
+#include <time.h>
+
+#include <windows.h>
 #include "glm/glm.hpp"
 #include "rasterizeStructs.h"
 
@@ -22,6 +25,7 @@
 
 
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, float* cbo, int cbosize, int* ibo, int ibosize, uniforms viewMats, pipelineOpts opts);
+void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, 
+					   float* cbo, int cbosize, int* ibo, int ibosize, uniforms viewMats, pipelineOpts opts, PerformanceMetrics &metrics);
 
 #endif //RASTERIZEKERNEL_H

@@ -295,8 +295,9 @@ __global__ void rasterizationKernel(triangle* primitives, int* primitiveStageBuf
 
 			//For each primitive
 			//Load triangle localy
+			transformTriToScreenSpace(primitives[triIndex], resolution);
+			
 			triangle tri = primitives[triIndex];
-			transformTriToScreenSpace(tri, resolution);
 
 			//AABB for triangle
 			glm::vec3 minPoint;
@@ -503,7 +504,8 @@ __global__ void binRasterizationKernel(triangle* primitives,  int* primitiveStag
 									int binBufferIndex = bufLoc + binIndex*binBufferSize + blockIdx.x*(numBins*binBufferSize);
 									binBuffers[binBufferIndex] = triangleIndex;
 								}else{
-									//ERROR
+									//ERROR Overflow
+
 								}
 							}
 						}
@@ -572,6 +574,9 @@ __global__ void coarseRasterizationKernel(triangle* primitives, int NPrimitives,
 						if(tileBufferCounter < tileBufferSize){
 							tileBuffers[tileBufferOffset + tileBufferCounter] = sTriIndexBuffer[tri];
 							tileBufferCounter++;
+						}else{
+							//ERROR Overflow
+
 						}
 					}
 				}
@@ -618,7 +623,6 @@ __global__ void fineRasterizationKernel(triangle* primitives, int NPrimitives, g
 			if(triIndex >= 0 && triIndex < NPrimitives){
 				triangle tri = primitives[triIndex];
 
-
 				//Already in screen space (from bin rasterizer)
 				glm::vec3 minPoint;
 				glm::vec3 maxPoint;
@@ -662,7 +666,7 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 {
 	glm::vec2 binDims = glm::vec2(5,5);
 	//Tuning params
-	int binBufferSize = 2<<5;
+	int binBufferSize = 2<<6;
 	int batchSize = 32;//One batch per warp
 	int numBatches = ceil(NPrimitives/float(batchSize));
 	int numBlocks = max(ceil(numBatches*batchSize/float(1024)), ceil(numBatches*batchSize*26/float(8192)));//26 is number of registers for kernel
@@ -683,7 +687,7 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 
 	//==============COARSE RASTER===================
 	int tilesize = 8;//8x8
-	int tileBufferSize = 2<<5;
+	int tileBufferSize = 2<<6;
 	int numTilesX = ceil(resolution.x/float(tilesize));
 	int numTilesY = ceil(resolution.y/float(tilesize));
 	int numTilesPerBinX = ceil(numTilesX/float(binDims.x));
@@ -717,9 +721,105 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 	cudaFree(bufferCounters);
 }
 
+
+
+__global__ void countPixelsPerTri(triangle* primitives, int* primitiveStageBuffer, int primitivesCount, 
+								  glm::vec2 resolution, int* pixelsPerTri)
+{
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if(index<primitivesCount){
+
+		pixelsPerTri[index] = -1;
+		int triIndex = primitiveStageBuffer[index];
+		if(triIndex >= 0){
+
+			//For each primitive
+			//Load triangle localy
+			triangle tri = primitives[triIndex];
+			int pixelsInside=0;
+
+			//AABB for triangle
+			glm::vec3 minPoint;
+			glm::vec3 maxPoint;
+			//transformTriToScreenSpace(tri, resolution); // Already done
+			getAABBForTriangle(tri, minPoint, maxPoint);
+
+
+			//Compute pixel range
+			//Do some per-fragment clipping and restrict to screen space
+			int minX = glm::max(glm::floor(minPoint.x),0.0f);
+			int maxX = glm::min(glm::ceil(maxPoint.x),resolution.x);
+			int minY = glm::max(glm::floor(minPoint.y),0.0f);
+			int maxY = glm::min(glm::ceil(maxPoint.y),resolution.y);
+
+			for(int x = minX; x <= maxX; ++x)
+			{
+				for(int y = minY; y <= maxY; ++y)
+				{
+					int dbindex = getDepthBufferIndex(x,y,resolution);
+					if(dbindex < 0)
+						continue;
+
+
+					glm::vec3 bCoords = calculateBarycentricCoordinate(tri, glm::vec2(x,y));
+					if(isBarycentricCoordInBounds(bCoords))
+					{
+						pixelsInside++;	
+					}
+				}
+			}
+			pixelsPerTri[triIndex] = pixelsInside;
+		}
+	}
+}
+
+
+int* pixelsPerTri;
+void calculateMetrics(PerformanceMetrics &metrics, triangle* primitives, int* primitiveStageBuffer, int NPrimitives, glm::vec2 resolution, dim3 primitiveBlocks, dim3 tileSize, pipelineOpts opts)
+{
+
+
+	pixelsPerTri = NULL;
+	cudaMalloc((void**)&pixelsPerTri, NPrimitives*sizeof(int));
+	countPixelsPerTri<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, 
+		resolution, pixelsPerTri);
+
+	int* pixelCounts = new int[NPrimitives];
+
+	cudaMemcpy( pixelCounts, pixelsPerTri, NPrimitives*sizeof(int), cudaMemcpyDeviceToHost);
+	//TODO Assemble stats in CPU for simplicity.
+
+	
+	float avgPixelsPerTri = 0.0f;
+	int maxPixelsPerTri = 0;
+	int NPrimitivesRendered = NPrimitives;
+	for(int i = 0; i < NPrimitives; i++)
+	{
+
+		maxPixelsPerTri = max(maxPixelsPerTri, pixelCounts[i]);
+		if(pixelCounts[i] < 0)
+		{
+			NPrimitivesRendered--;
+		}else{
+			avgPixelsPerTri += pixelCounts[i];
+		}
+	}
+
+	metrics.NumTriangles = NPrimitives;
+	if(NPrimitives != 0){
+		metrics.avgPixelsPerTri = avgPixelsPerTri/NPrimitivesRendered;
+		metrics.maxPixelsPerTri = maxPixelsPerTri;//Record worst case
+	}
+	metrics.NumTrianglesRastered = NPrimitivesRendered;
+
+	delete pixelCounts;
+	cudaFree(pixelsPerTri);
+
+}
+
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, 
-					   float* cbo, int cbosize, int* ibo, int ibosize, uniforms u_variables, pipelineOpts opts)
+					   float* cbo, int cbosize, int* ibo, int ibosize, uniforms u_variables, pipelineOpts opts, PerformanceMetrics &metrics)
 {
 
 	// set up crucial magic
@@ -813,16 +913,39 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//------------------------------
 	//rasterization
 	//------------------------------
+
+
+	LARGE_INTEGER beginTime;
+	QueryPerformanceCounter( &beginTime );
+
+	// Code to measure ...
 	if(opts.rasterMode == NAIVE)
 	{
 		rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, depthbuffer, resolution, device_uniforms, opts);
 	}else if(opts.rasterMode == BIN){
 		binRasterizer(NPrimitives, resolution, opts);
 	}
-
-
+	
 	cudaDeviceSynchronize();
 	checkCUDAError("Kernel failed Raster!");
+
+	LARGE_INTEGER endTime;
+	QueryPerformanceCounter( &endTime );
+
+	LARGE_INTEGER timerFreq;
+	QueryPerformanceFrequency( &timerFreq );
+	const double freq = 1.0f / timerFreq.QuadPart;
+
+
+	const double timeSeconds = ( endTime.QuadPart - beginTime.QuadPart )* freq;;
+	metrics.rasterTimeSeconds = timeSeconds;
+	if(opts.recordMetrics){
+		//Calculate metrics
+		//TODO: Add more metrics
+		calculateMetrics(metrics, primitives, primitiveStageBuffer, NPrimitives, resolution, primitiveBlocks, tileSize, opts);
+
+	}
+
 	//------------------------------
 	//fragment shader
 	//------------------------------
@@ -853,5 +976,6 @@ void kernelCleanup(){
 	cudaFree( depthbuffer );
 	cudaFree( verticies );
 	cudaFree( device_uniforms);
+	cudaFree(primitiveStageBuffer);
 }
 

@@ -32,10 +32,15 @@ int main(int argc, char** argv){
 	//Setup uniform variables
 
 	//TODO: Camera movable
+
+
 	u_pipelineOpts.fShaderProgram = BLINN_PHONG_SHADING;
+	u_pipelineOpts.rasterMode = NAIVE;
 	u_pipelineOpts.showTriangleColors = false;
 	u_pipelineOpts.backfaceCulling = false;
 	u_pipelineOpts.totalClipping = false;
+	u_pipelineOpts.recordMetrics = true;
+	performanceMetrics.clear();
 
 	u_variables.blinnPhongParams  = glm::vec3(0.1,0.6,0.3);//Ambient, diffuse, specular.
 	u_variables.lightPos = glm::vec4(-1.0f,1.0f,10.0f,1.0f);
@@ -102,6 +107,18 @@ int main(int argc, char** argv){
 	return 0;
 }
 
+void savePerformanceMetrics()
+{
+	ofstream arrayData("\performance_log.csv"); 
+	arrayData << "rasterTimeSecs,NumTriangles,NumTrianglesRastered,AvgPixelsPerTri,MaxPixelsPerTri"<<endl;
+
+	for(vector<PerformanceMetrics>::iterator it = performanceMetrics.begin(); it != performanceMetrics.end(); ++it) {
+		PerformanceMetrics metrics = *it;
+		arrayData << metrics.rasterTimeSeconds << ',' << metrics.NumTriangles << ',' << metrics.NumTrianglesRastered<< ',';
+		arrayData << metrics.avgPixelsPerTri << ',' << metrics.maxPixelsPerTri << endl;
+	}
+}
+
 //-------------------------------
 //---------RUNTIME STUFF---------
 //-------------------------------
@@ -136,10 +153,13 @@ void runCuda(){
 	ibo = mesh->getIBO();
 	ibosize = mesh->getIBOsize();
 
-
+	PerformanceMetrics metrics;
 	cudaGLMapBufferObject((void**)&dptr, pbo);
-	cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize, u_variables, u_pipelineOpts);
+	cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize, u_variables, u_pipelineOpts, metrics);
 	cudaGLUnmapBufferObject(pbo);
+	if(u_pipelineOpts.recordMetrics){
+		performanceMetrics.push_back(metrics);
+	}
 
 	vbo = NULL;
 	cbo = NULL;
@@ -499,6 +519,10 @@ void deleteTexture(GLuint* tex){
 }
 
 void shut_down(int return_code){
+	if(performanceMetrics.size() > 0)
+	{
+		savePerformanceMetrics();
+	}
 	kernelCleanup();
 	cudaDeviceReset();
 #ifdef __APPLE__

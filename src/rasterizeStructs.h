@@ -53,4 +53,14 @@ struct pipelineOpts{
 	bool showTriangleColors;
 	bool backfaceCulling;
 	bool totalClipping;
+	bool recordMetrics;
+};
+
+
+struct PerformanceMetrics{
+	float rasterTimeSeconds;
+	int NumTriangles;
+	int NumTrianglesRastered;
+	float avgPixelsPerTri;
+	float maxPixelsPerTri;
 };

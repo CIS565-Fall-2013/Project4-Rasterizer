@@ -71,7 +71,7 @@ int ibosize;
 pipelineOpts u_pipelineOpts;
 uniforms u_variables;
 
-
+vector<PerformanceMetrics> performanceMetrics;
 
 //-------------------------------
 //----------CUDA STUFF-----------
