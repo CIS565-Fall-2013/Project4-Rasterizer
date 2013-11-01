@@ -9,19 +9,38 @@
 #include "utilities.h"
 #include "cudaMat4.h"
 
+struct vertex {
+  glm::vec3 point;
+  glm::vec3 normal;
+  glm::vec3 lightdir;
+  bool draw_flag;
+};
+
 struct triangle {
+  // points
   glm::vec3 p0;
   glm::vec3 p1;
   glm::vec3 p2;
+  // normals
+  glm::vec3 n0;
+  glm::vec3 n1;
+  glm::vec3 n2;
+  // colors
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
+  // light directions
+  glm::vec3 l0;
+  glm::vec3 l1;
+  glm::vec3 l2;
+  bool draw_flag;
 };
 
 struct fragment{
-  glm::vec3 color;
-  glm::vec3 normal;
   glm::vec3 position;
+  glm::vec3 normal;
+  glm::vec3 color;
+  glm::vec3 lightdir;
 };
 
 //Multiplies a cudaMat4 matrix and a vec4
@@ -75,4 +94,13 @@ __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle 
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
 }
 
+//LOOK: for a given barycentric coordinate, return the corresponding xyz positions on the triangle
+__host__ __device__ glm::vec3 getXYZAtCoordinate(glm::vec3 barycentricCoord, triangle tri){
+  glm::vec3 xs( tri.p0.x, tri.p1.x, tri.p2.x );
+  glm::vec3 ys( tri.p0.y, tri.p1.y, tri.p2.y );
+  glm::vec3 zs( tri.p0.z, tri.p1.z, tri.p2.z );
+  return glm::vec3( glm::dot(barycentricCoord,xs) \
+		  , glm::dot(barycentricCoord,ys) \
+		  ,-glm::dot(barycentricCoord,zs) );
+}
 #endif

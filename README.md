@@ -1,3 +1,130 @@
+![cow_shade_fill](renders/cow_shade_fill.png)
+
+-------------------------------------------------------------------------------
+CIS565: Project 4: CUDA Rasterizer
+-------------------------------------------------------------------------------
+Fall 2013
+
+For this project I've implemented the following features:
+* Vertex Shading
+* Primitive Assembly with support for triangle VBOs/IBOs
+* Perspective Transformation
+* Rasterization through either a scanline or a tiled approach
+* Fragment Shading
+* A depth buffer for storing and depth testing fragments
+* Fragment to framebuffer writing
+* Lambert shading in the fragment shader
+
+
+And the following additional features:
+* Correct color interpolation ( I don't expect this feature to add much computational effort since I'm already performing barycentric coordinate based computations for normals, depth, etc ... )
+* Mouse based interactive camera
+* Back-face culling
+
+Color interpolation ( shaded and non-shaded ):
+![cow_interp](renders/cow_interp.png)
+![cow_interp_fill](renders/cow_shade_interp.png)
+
+I also implemented some simple debugging modes:
+
+Normals:
+
+![cow_normals](renders/cow_smooth_normals.png)
+
+Featureless fill:
+
+![cow_fill](renders/cow_fill.png)
+
+
+-------------------------------------------------------------------------------
+Video:
+-------------------------------------------------------------------------------
+Here is a video of me showing off the interactive camera and viewing modes
+
+http://youtu.be/CzJuF8zyuok
+
+The camera is a bit awkward to use, but its a nice start. 
+* left-click: rotate-x/y
+* left-click-shift: pan-x/y
+* left-click-ctrl: zoom / rotate-z
+
+
+-------------------------------------------------------------------------------
+Performance:
+-------------------------------------------------------------------------------
+
+TileSize vs Framerate for cow_smooth2.obj:
+* 1   | 12
+* 2   | 14
+* 4   | 15
+* 8   | 16
+* 16  | 17
+* 32  | 18
+* 64  | 19
+* 128 | 18
+* 256 | 18
+* 512 | 17
+
+A tilesize of 64 is the sweeet spot leading to maximum framerate. It seems that
+the tilesize doesn't have a huge effect on framerate except towards the smaller
+end. In my implementation memory is allocated/freed every frame so I feel that
+a performance improvement can be gained there. 
+
+The greatest performance hit occurs as individual triangles take up larger 
+amounts of the screen size since my implementation has a single thread 
+per triangle bounding box. A performance improvement could be gained there
+by dividing that bounding box into smaller tiles and allocated a thread per 
+tile. 
+
+Finally, I just use flags to indicate if a primitive should be processed or not. 
+I think performance could be improved by not wasting threads by performing
+stream compaction on the primitives. 
+
+#### Color interpolation
+Removing all barycentric operations leads to the same 19fps for a tilesize of 64.
+When it comes down to it the barycentric coordinate computations cosist of a
+few multiplies.
+
+#### Back-face culling
+Without back-face culling the framerate drops to 17fps for a tilesize of 64. 
+This is expected, and awesome! 
+
+#### Interactive camera
+The primary losses with regards to the interactive camera come from the user
+being able to get too-close to the model triangles leading to large performance 
+losses as mentioned above
+
+
+-------------------------------------------------------------------------------
+Thanks:
+-------------------------------------------------------------------------------
+Thanks to Nathan Marshak for providing the cow_smoothed2.obj cow.obj with smoothed normals
+
+
+-------------------------------------------------------------------------------
+First Steps
+-------------------------------------------------------------------------------
+![first_steps](renders/first_steps.png)
+
+I've implemented the first steps of the rasterizer and the above image shows
+the progress I've made so far
+- Vertex Shader with identity model-view-projection matrix and perspective division.
+  I'm not sure if this should be done here but it works
+- Primitive Assembly
+- Rasterization, using the triangle AABB and barycentric coordinates to check
+  if the pixel is inside the triangle. I also added linear vertex color 
+  interpolation in window space using the barycentric coordinates because its 
+  pretty 
+
+
+Theres still a lot to do:
+- Actual model-view-project transformations, hopefully using interactive camera :)
+- Fragment Shading
+- Depth Buffer
+- Lighting
+
+I still haven't decided what additional features would be cool.
+
 -------------------------------------------------------------------------------
 CIS565: Project 4: CUDA Rasterizer
 -------------------------------------------------------------------------------

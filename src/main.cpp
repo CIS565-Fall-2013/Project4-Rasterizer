@@ -7,6 +7,22 @@
 //-------------MAIN--------------
 //-------------------------------
 
+// Camera 
+glm::mat4 cam = glm::mat4( 1.0 ); // eye
+// Projection matrix
+glm::mat4 projection = glm::perspective(60.0f, 1.0f, 0.1f, 100.0f);
+// Light 
+glm::vec3 light( 1.0, 1.0, 1.0 );
+// Drawing mode
+int draw_mode = DRAW_COLOR;
+
+// Mouse interactivity 
+int mouse_left_down = false;
+int mouse_right_down = false;
+int mouse_in_down = false;
+glm::vec2 prev_xy;
+
+
 int main(int argc, char** argv){
 
   bool loadedScene = false;
@@ -45,6 +61,9 @@ int main(int argc, char** argv){
   init(argc, argv);
   #endif
 
+  // Initialize camera position
+  cam = glm::translate( cam, glm::vec3( 0.0, 0.0, 2.0f ) );
+
   initCuda();
 
   initVAO();
@@ -71,6 +90,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+    glutMouseFunc(mouse);
+    glutMotionFunc(mouse_motion);
 
     glutMainLoop();
   #endif
@@ -99,8 +120,12 @@ void runCuda(){
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  // Invert camera to convert to view matrix
+  cudaRasterizeCore(glm::inverse(cam), projection, light, draw_mode, dptr, glm::vec2(width, height), frame, vbo, vbosize, nbo, nbosize, cbo, cbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -148,6 +173,12 @@ void runCuda(){
 #else
 
   void display(){
+
+    // DEBUG: display only one frame 
+    /*
+    if ( frame > 5 )
+      return;
+    */
     runCuda();
 	time_t seconds2 = time (NULL);
 
@@ -176,6 +207,76 @@ void runCuda(){
     glutSwapBuffers();
   }
 
+  void mouse_motion( int x, int y ) {
+    glm::vec2 current_xy;
+    glm::vec2 dxy;
+    if ( mouse_left_down ) {
+      current_xy = glm::vec2(x,y);
+      dxy = current_xy - prev_xy;
+      prev_xy = current_xy;
+
+      printf(" dxy: [%f, %f] \n", dxy.x, dxy.y );
+      cam = glm::rotate( cam, -dxy.x/5.0f, glm::vec3(0.0, 1.0, 0.0));
+      cam = glm::rotate( cam, dxy.y/5.0f, glm::vec3(1.0, 0.0, 0.0));
+    }      
+    if ( mouse_right_down ) {
+      current_xy = glm::vec2(x,y);
+      dxy = current_xy - prev_xy;
+      prev_xy = current_xy;
+
+      printf(" dxy: [%f, %f] \n", dxy.x, dxy.y );
+      cam = glm::translate( cam, glm::vec3(-4.0*dxy.x/width, 0.0, 0.0));
+      cam = glm::translate( cam, glm::vec3(0.0, -4.0*dxy.y/height, 0.0));
+    }
+   if ( mouse_in_down ) {
+      current_xy = glm::vec2(x,y);
+      dxy = current_xy - prev_xy;
+      prev_xy = current_xy;
+
+      printf(" dxy: [%f, %f] \n", dxy.x, dxy.y );
+      cam = glm::translate( cam, glm::vec3(0.0, 0.0, 5.0*dxy.y/width));
+      cam = glm::rotate( cam, dxy.x/5.0f, glm::vec3(0.0, 0.0, 1.0));
+
+   }
+      
+  }
+      
+    
+
+  // Mouse interactive camera
+  void mouse( int button, int state, int x, int y ) {
+    int modifier = glutGetModifiers();
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN && modifier != GLUT_ACTIVE_SHIFT && modifier != GLUT_ACTIVE_CTRL) { 
+      printf( "mouse_down: true \n" );
+      mouse_left_down = true;
+      prev_xy = glm::vec2( x, y );
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_UP ) {
+      printf( "mouse_down: false \n" );
+      mouse_left_down = false;
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN && modifier == GLUT_ACTIVE_SHIFT && modifier != GLUT_ACTIVE_CTRL ) {
+      printf( "mouse_down: true \n" );
+      mouse_right_down = true;
+      prev_xy = glm::vec2( x, y );
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_UP ) {
+      printf( "mouse_down: false \n" );
+      mouse_right_down = false;
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN && modifier != GLUT_ACTIVE_SHIFT && modifier == GLUT_ACTIVE_CTRL ) {
+      printf( "mouse_down: true \n" );
+      mouse_in_down = true;
+      prev_xy = glm::vec2( x, y );
+    }
+    if ( button == GLUT_LEFT_BUTTON && state == GLUT_UP ) {
+      printf( "mouse_down: false \n" );
+      mouse_in_down = false;
+    }
+  }
+
+  
+
   void keyboard(unsigned char key, int x, int y)
   {
     switch (key) 
@@ -183,6 +284,47 @@ void runCuda(){
        case(27):
          shut_down(1);    
          break;
+       // Rotate camera
+       case('i'):
+	 cam = glm::rotate( cam, 10.0f, glm::vec3( 1.0, 0.0, 0.0 ) );
+	 break;
+       case('k'):
+	 cam = glm::rotate( cam, -10.0f, glm::vec3( 1.0, 0.0, 0.0 ) );
+	 break;
+       case('j'):
+	 cam = glm::rotate( cam, 10.0f, glm::vec3( 0.0, 1.0, 0.0 ) );
+	 break;
+       case('l'):
+	 cam = glm::rotate( cam, -10.0f, glm::vec3( 0.0, 1.0, 0.0 ) );
+	 break;
+      // Translate camera
+      case('w'):
+	 cam = glm::translate( cam, glm::vec3( 0.0, 0.0, -0.1 ) ); 
+	 break;
+      case('s'):
+	 cam = glm::translate( cam, glm::vec3( 0.0, 0.0, 0.1) ); 
+	 break;
+      case('a'):
+	 cam = glm::translate( cam, glm::vec3( 0.1, 0.0, 0.0 ) ); 
+	 break;
+      case('d'):
+	 cam = glm::translate( cam, glm::vec3( -0.1, 0.0, 0.0 ) ); 
+	 break;
+      case('1'):
+	 draw_mode = DRAW_SOLID;
+	 break;
+      case('2'):
+	 draw_mode = DRAW_COLOR;
+	 break;
+      case('3'):
+	 draw_mode = DRAW_NORMAL;
+	 break;
+      case('4'):
+	 draw_mode = SHADE_SOLID;
+	 break;
+      case('5'):
+	 draw_mode = SHADE_COLOR;
+	 break;
     }
   }
 
