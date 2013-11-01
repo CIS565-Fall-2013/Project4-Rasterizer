@@ -90,11 +90,10 @@ In this code, y-axis is the up-axis.
 To correct this, you can simply, set the model matrix accordingly.
 
 ```
-//Control the number of bodies in the simulation
 //main.cpp (line 96)
-	glm::vec3 myRotationAxis(1.0f, 0.0f, 0.0f);
-	//Change the 0.0f to -90f incase you need to align with y-axis
-	glm::mat4 rotationMat = glm::rotate( 0.0f, myRotationAxis )
+glm::vec3 myRotationAxis(1.0f, 0.0f, 0.0f);
+//Change the 0.0f to -90f incase you need to align with y-axis
+glm::mat4 rotationMat = glm::rotate( 0.0f, myRotationAxis )
 ```
 
 If you need to render with a different color, you can alter,
@@ -111,6 +110,27 @@ PERFORMANCE ANALYSIS
 * Use of any third-party code must be approved by asking on Piazza.  If it is approved, all students are welcome to use it.  Generally, we approve use of third-party code that is not a core part of the project.  For example, for the ray tracer, we would approve using a third-party library for loading models, but would not approve copying and pasting a CUDA function for doing refraction.
 * Third-party code must be credited in README.md.
 * Using third-party code without its approval, including using another student's code, is an academic integrity violation, and will result in you receiving an F for the semester.
+
+Performance tests were done on the following objs models
+
+Model| Number of Vertices| Number of Faces
+---|---|---
+Bunny|4853|5804
+Cow| 2503|4968
+Budhda|49990| 100000
+Dragon| 50000|100000
+
+
+Backface culling:
+Time is measured in milliseconds and measure the cuda kernel time per frame
+
+Model|Without backface culling| Bckfce culling in primitive assembly|
+--|---|---
+Bunny|485|5804
+Cow| 2503|4968
+Budhda|49990| 100000
+Dragon| 50000|100000
+
 
 -------------------------------------------------------------------------------
 SELF-GRADING
