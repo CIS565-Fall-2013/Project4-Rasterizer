@@ -259,16 +259,33 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 lightPos){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 lightPos, int mode){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
 	  fragment f = depthbuffer[index];
 
-	  glm::vec3 normalizedLP = glm::normalize(lightPos - f.position);
-	  float lighting = glm::dot(normalizedLP,f.normal);
-	  depthbuffer[index].color = f.color;
+	  if(mode==LIGHTING)
+	  {
+		glm::vec3 normalizedLP = glm::normalize(lightPos - f.position);
+		float lighting = glm::dot(normalizedLP,f.normal);
+		depthbuffer[index].color = glm::vec3(lighting);
+	  }
+	  else if (mode == COLOR)
+	  {
+		depthbuffer[index].color = f.color;
+	  }
+	  else if (mode == NORMALS)
+	  {
+		depthbuffer[index].color = glm::abs(f.normal);
+	  }
+	  else if (mode == ZDEPTH)
+	  {
+	  float d = f.depth>9000?1:f.depth;
+	  depthbuffer[index].color = glm::vec3(1-d);
+	  }
+
   }
 
 }
@@ -296,7 +313,7 @@ struct is_backfacing
 
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize,const glm::mat4& modelMatrix,const glm::mat4& viewMatrix,const glm::mat4& projectionMatrix,const glm::vec2 zplanes){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize,const glm::mat4& modelMatrix,const glm::mat4& viewMatrix,const glm::mat4& projectionMatrix,const glm::vec2 zplanes, shadeMode sm){
 
   // set up crucial magic
   int tileSize = 8;
@@ -398,8 +415,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //for(int i=0; i <ibosize/3 ; i++)
   //{
 	 // triangle t = h_triangles[i];
-	 // glm::vec3 n = glm::normalize(glm::cross( (t.p1world - t.p0world), (t.p2world-t.p0world)));
-	 // std::cout<<n.x<<","<<n.y<<","<<n.z<<"  "<<t.backfacing<<std::endl;
+	 // int debug;
   //}
 
   cudaDeviceSynchronize();
@@ -408,9 +424,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   thrust::device_ptr<triangle> thrustPrimitivesArray = thrust::device_pointer_cast(primitives);
   unsigned int numberOfPrimitives = ceil((float)ibosize/3);
-  int numberOfFrontPrimitives = thrust::remove_if(thrustPrimitivesArray,thrustPrimitivesArray+numberOfPrimitives,is_backfacing()) - thrustPrimitivesArray ;
+  //int numberOfFrontPrimitives = thrust::remove_if(thrustPrimitivesArray,thrustPrimitivesArray+numberOfPrimitives,is_backfacing()) - thrustPrimitivesArray ;
   //std::cout<<numberOfPrimitives<<" "<<numberOfFrontPrimitives<<std::endl;
-  //int numberOfFrontPrimitives = numberOfPrimitives;
+  int numberOfFrontPrimitives = numberOfPrimitives;
   int rasterizationBlocks = ceil(((float)numberOfFrontPrimitives)/((float)tileSize));
   
   rasterizationKernel<<<rasterizationBlocks, tileSize>>>(primitives,numberOfFrontPrimitives, depthbuffer, resolution);
@@ -419,9 +435,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //fragment shader
   //------------------------------
-  glm::vec4 lightPos(2,2,2,1);
-  glm::vec4 lightPosModel = modelMatrix*lightPos;
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution,glm::vec3(lightPosModel.x,lightPosModel.y,lightPosModel.z));
+  glm::vec3 lightPosModel(2,2,2);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution,glm::vec3(lightPosModel.x,lightPosModel.y,lightPosModel.z),sm);
 
   cudaDeviceSynchronize();
   //------------------------------

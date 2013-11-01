@@ -49,11 +49,11 @@ public:
 		const float epsilon = 0.0001f;
 		if ( abs(delta.x) > abs(delta.y))
 		{
-			theta-= float(delta.x)/resolution.x;
+			theta+= float(delta.x)/resolution.x;
 		}
 		else
 		{
-			phi-=2.0f*float(delta.y)/resolution.y;
+			phi+=2.0f*float(delta.y)/resolution.y;
 			if (phi > PI -epsilon )
 				phi = PI-epsilon;
 

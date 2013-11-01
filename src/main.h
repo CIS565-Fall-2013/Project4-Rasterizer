@@ -66,14 +66,16 @@ float* nbo;
 int nbosize;
 
 float fovy = 60.0f;
-float zNear = 0.10;
-float zFar = 5.0;
+float zNear = 0.7f;
+float zFar = 0.9f;
 
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
-glm::vec3 cameraPosition(0.0,0.0,1.0);
-glm::vec3 cameraLookAt(0.0,0.0,0.0);
+glm::vec3 cameraPosition(0.0,0.2,1.2);
+glm::vec3 cameraLookAt(0.0,0.2,0.0);
+
+
 
 //-------------------------------
 //----------CUDA STUFF-----------
