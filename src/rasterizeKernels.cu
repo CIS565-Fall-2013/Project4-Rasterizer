@@ -19,6 +19,7 @@
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 //float* tmp_zbuffer;
+int* framebuffer_writes; //keeps track of how many writes to the framebuffer we've made.
 float* device_vbo;
 float* device_nbo;
 float* modelspace_vbo;
@@ -511,6 +512,10 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
+  framebuffer_writes = NULL;
+  cudaMalloc((void**)&framebuffer_writes, (int)resolution.x*(int)resolution.y*sizeof(int));
+  cudaMemset( framebuffer_writes, 0, (int)resolution.x*(int)resolution.y*sizeof(int));
+
   //NBO is the size of the VBO
   device_nbo = NULL;
   cudaMalloc((void**)&device_nbo, vbosize*sizeof(float));
@@ -603,5 +608,6 @@ void kernelCleanup(){
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
   cudaFree( modelspace_vbo );
+  cudaFree(framebuffer_writes);
 }
 
