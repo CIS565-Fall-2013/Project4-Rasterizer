@@ -374,12 +374,12 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 				{
 					int depthBufferId = y * resolution.x + x;
 					
-					//float z = getZAtCoordinate(bc, tri);
-					float z = getZWorldAtCoordinate(bcw, tri);
+					float z = getZAtCoordinate(bc, tri);
+					//float z = getZWorldAtCoordinate(bcw, tri);
 					
 					// trying out atomicDiff version
-					if (z > depthbuffer[depthBufferId].position.z)
-					//if (atomicDiff(&(depthbuffer[depthBufferId].position.z), z) > 0)
+					//if (z > depthbuffer[depthBufferId].position.z)
+					if (atomicDiff(&(depthbuffer[depthBufferId].position.z), z) > 0)
 					{
 						depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z; // point in world space
 						depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
@@ -505,7 +505,7 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 	//------------------------------
 	// turn table
 	mat4 modelMatrix(1);
-	//modelMatrix = glm::scale(modelMatrix, vec3(3,3,3));
+	//modelMatrix = glm::scale(modelMatrix, vec3(2,2,2));
 #if TURN_TABLE == 1
 	float d = (int)frame % 361;
 	modelMatrix = glm::rotate(modelMatrix, -d, vec3(0,1,0));

@@ -86,46 +86,66 @@ int main(int argc, char** argv){
 //---------RUNTIME STUFF---------
 //-------------------------------
 
-void runCuda(){
-  // Map OpenGL buffer object for writing from CUDA on a single GPU
-  // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
-  dptr=NULL;
+void runCuda()
+{
+	//////////////////////
+	// Timing cuda call //
+	//////////////////////
+	float time;
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	cudaEventRecord(start, 0);
 
-  vbo = mesh->getVBO();
-  vbosize = mesh->getVBOsize();
+	// Map OpenGL buffer object for writing from CUDA on a single GPU
+	// No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
+	dptr=NULL;
 
-  nbo = mesh->getNBO();
-  nbosize = mesh->getNBOsize();
+	vbo = mesh->getVBO();
+	vbosize = mesh->getVBOsize();
+
+	nbo = mesh->getNBO();
+	nbosize = mesh->getNBOsize();
 
 #if RGBONLY == 1
-  float newcbo[] = {0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
-  cbo = newcbo;
-  cbosize = 9;
+	float newcbo[] = {0.0, 1.0, 0.0, 
+					0.0, 0.0, 1.0, 
+					1.0, 0.0, 0.0};
+	cbo = newcbo;
+	cbosize = 9;
 #elif RGBONLY == 0
-  vec3 defaultColor(1.f, 1.f, 1.f);
-  mesh->setColor(defaultColor);
-  cbo = mesh->getCBO();
-  cbosize = mesh->getCBOsize();
+	vec3 defaultColor(0.5f, 0.5f, 0.5f);
+	mesh->setColor(defaultColor);
+	cbo = mesh->getCBO();
+	cbosize = mesh->getCBOsize();
 #endif
 
-  ibo = mesh->getIBO();
-  ibosize = mesh->getIBOsize();
+	ibo = mesh->getIBO();
+	ibosize = mesh->getIBOsize();
 
-  cudaGLMapBufferObject((void**)&dptr, pbo);
+	cudaGLMapBufferObject((void**)&dptr, pbo);
 
-  updateCamera();
+	updateCamera();
 
-  cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, lights, lightsize);
-  cudaGLUnmapBufferObject(pbo);
+	cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, lights, lightsize);
+	cudaGLUnmapBufferObject(pbo);
 
-  vbo = NULL;
-  cbo = NULL;
-  ibo = NULL;
+	vbo = NULL;
+	cbo = NULL;
+	ibo = NULL;
 
-  frame++;
-  fpstracker++;
+	frame++;
+	fpstracker++;
+
+	//////////////////////
+	// Timing cuda call //
+	//////////////////////
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&time, start, stop);
+	printf("runCuda runtime: %3.1f ms \n", time);
+
+
 }
 
 #ifdef __APPLE__
@@ -383,7 +403,7 @@ void initCamera()
 {
 	cam = new camera();
 	vec3 up = vec3(0,1,0);
-	vec3 cameraPosition = vec3(0, 0, 1);
+	vec3 cameraPosition = vec3(0, 0, 1.0);
 	mat4 projection = glm::perspective(-fovy, float(width)/float(height), zNear, zFar); // LOOK: Passed in -fovy to have the image rightside up
     mat4 view = glm::lookAt(cameraPosition, center, up);
 	cam->zFar = zFar;
@@ -416,6 +436,22 @@ void initLights()
 	// fourth light
 	lights[3].color = vec3(1,1,1);
 	lights[3].position = vec3(0.0f, 2.5f, 2.f);
+
+	//// first light
+	//lights[0].color = vec3(0,1,1);
+	//lights[0].position = vec3(0, 0.f, 2.f);
+
+	//// second light
+	//lights[1].color = vec3(0,1,0);
+	//lights[1].position = vec3(-3.f, 5.f, 1.f);
+
+	//// third light
+	//lights[2].color = vec3(0,0,1);
+	//lights[2].position = vec3(3.f, 5.f, 1.f);
+
+	//// fourth light
+	//lights[3].color = vec3(1,0,0);
+	//lights[3].position = vec3(0.0f, 2.5f, 2.f);
 }
 
 void initTextures(){
