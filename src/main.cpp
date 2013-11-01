@@ -94,7 +94,7 @@ void runCuda(){
     glm::mat4 translationMat = glm::translate(0.0f, 0.0f, 0.0f);
 	glm::mat4 scaleMat = glm::scale(1.0f,1.0f,1.0f);
 	glm::vec3 myRotationAxis(1.0f, 0.0f, 0.0f);
-	glm::mat4 rotationMat = glm::rotate( 0.0f, myRotationAxis );
+	glm::mat4 rotationMat = glm::rotate( -90.0f, myRotationAxis );
 	
 	model = translationMat*rotationMat*scaleMat;
 	projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);

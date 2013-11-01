@@ -221,8 +221,33 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
   triangle t = primitives[index];
-  if(t.backfacing)
-	  return;
+    /*FOR PERFORMANCE COMPARISON
+	  DOING THIS HERE INSTEAD OF VERTEX SHADER*/
+	//cudaMat4 viewport;
+	//viewport.x = glm::vec4(0.5f*resolution.x,0.0f,0.0f,0.5f*resolution.x);
+	//viewport.y = glm::vec4(0.0f,0.5f*resolution.y,0.0f,0.5f*resolution.y);
+	//viewport.z = glm::vec4(0.0f,0.0f,0.5f,0.5f);
+	//viewport.w = glm::vec4(0.0f,0.0f,0.0f,1.0f);
+	//
+	//glm::vec4 transformedVec(t.p0.x,t.p0.y,t.p0.z,1);	  
+	//transformedVec = multiplyMV(viewport,transformedVec);
+    //t.p0.x = transformedVec.x;
+	//t.p0.y = transformedVec.y;
+	//t.p0.z = transformedVec.z;
+
+ //   transformedVec = glm::vec4(t.p1.x,t.p1.y,t.p1.z,1);	  
+	//transformedVec = multiplyMV(viewport,transformedVec);
+ //   t.p1.x = transformedVec.x;
+	//t.p1.y = transformedVec.y;
+	//t.p1.z = transformedVec.z;	
+
+
+ //   transformedVec = glm::vec4(t.p2.x,t.p2.y,t.p2.z,1);	  
+	//transformedVec = multiplyMV(viewport,transformedVec);
+ //   t.p2.x = transformedVec.x;
+	//t.p2.y = transformedVec.y;
+	//t.p2.z = transformedVec.z;	
+
   glm::vec3 aabbMin;
   glm::vec3 aabbMax;
 
@@ -231,6 +256,55 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   int maxX = int(ceil(aabbMax.x));
   int minY = int(floor(aabbMin.y));
   int maxY = int(ceil(aabbMax.y));
+
+
+  ////ATTEMPTED SUPERSAMPLING BUT COULDNT FIGURE OUT A WAY TO ACTIVATE ALPHA IN GLUT
+  //int supersamplingFactor = 4;
+  //float step = 1.0f/supersamplingFactor;
+  //
+  // for(int j=minY; j<maxY; ++j)
+	 // for(int i=minX; i<maxX ; ++i)
+	 // {
+		//  fragment f;
+		//  glm::vec3 bCoords =  calculateBarycentricCoordinate(t,glm::vec2(i,j));
+		//  f.position = bCoords.x*t.p0world + bCoords.y*t.p1world + bCoords.z*t.p2world;
+		//  f.normal = bCoords.x*t.n0 + bCoords.y*t.n1 + bCoords.z*t.n2;
+		//  f.depth = bCoords.x*t.p0.z + bCoords.y*t.p1.z + bCoords.z*t.p2.z;
+		//  int pixelIndex = i + (j * resolution.x);
+		//  if ( f.depth > depthbuffer[pixelIndex].depth)
+		//  {
+		//	  continue;
+		//  }
+
+		//  int count = 0;
+		//  f.color = glm::vec3(0.0f);
+		//  for(int sx=0; sx<supersamplingFactor;sx++)
+		//	  for(int sy=0; sy<supersamplingFactor; sy++)
+		//	  {
+		//		  int xsign = sx<supersamplingFactor/2.0f?-1:1;
+		//		  int ysign = sy<supersamplingFactor/2.0f?-1:1;
+
+		//		  float pi = i+sx*step*xsign;
+		//		  float pj = j+sy*step*ysign;
+		//		  if ( pi>=resolution.x || pj >= resolution.y)
+		//			  continue;
+
+		//		  glm::vec3 bCoords =  calculateBarycentricCoordinate(t,glm::vec2(pi,pj));
+
+		//		  if (bCoords.x+bCoords.y+bCoords.z>1.00001f)
+		//			  continue;
+		//		  if (bCoords.x <0.00001f|| bCoords.y<0.00001f || bCoords.z<0.00001f)
+		//			  continue;
+		//
+		//		  f.color += bCoords.x*t.c0 + bCoords.y*t.c1 + bCoords.z*t.c2;
+		//		  count++;
+		//	  }
+
+		//	  float alpha = float(count)/supersamplingFactor*supersamplingFactor;
+		//	  f.color = 1.0f/count*f.color;
+		//	  depthbuffer[pixelIndex] = f;			
+		//  }
+	  
 
 	  for(int j=minY; j<maxY; ++j)
 		    for(int i=minX; i<maxX ; ++i)
