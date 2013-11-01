@@ -173,8 +173,8 @@ void runCuda(bool &isFirstTime){
   
   currentLookAt = target_lookat;	// Why? Because they're both in world space!
 
-  glm::vec4 center =  camOrigin + (cameraTransform * glm::vec4 (0,0,camRadius,0));
-  glm::vec4 up =  glm::normalize(cameraTransform * glm::vec4 (0,1,0,0));
+  glm::vec4 center =  /*camOrigin + */(/*cameraTransform * */glm::vec4 (0,0,0,0));
+  glm::vec4 up =  /*glm::normalize(cameraTransform * */glm::vec4 (0,1,0,0)/*)*/;
 
   constantBuffer.view = glm::lookAt (glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), 
 									 glm::vec3 (center.x, center.y, center.z), 
@@ -278,7 +278,11 @@ void runCuda(bool &isFirstTime){
 		  leftMButtonDown = true;
 	  }
 	  else
+	  {
 		  leftMButtonDown = false;
+		  dx = 0;
+		  dy = 0;
+	  }
   }
 
   void onMouseMove (int x, int y)
