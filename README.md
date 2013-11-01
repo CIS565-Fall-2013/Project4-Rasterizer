@@ -40,6 +40,19 @@ Rasterizer Stuff
 Lambertian Fragment Shading
 -------------------------------------------------------------------------------
 
+To achieve diffuse Lambertian shading within my fragment shader, I had to examine
+the fragment stored at each pixel in the depthbuffer. For each fragment, I knew the
+world-space position, the interpolated color, and the interpolated normal. From
+this data, I could easily calculated a diffuse lighting coefficient according
+to the following model:
+
+![Diffuse] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/lambert.png)
+
+This was combined with a hardcoded ambient coefficient to produce the following results.
+The image on the right has the constant color value that is stored in the depthbuffer
+for each fragment before the shader is called, while the image on the left
+reflects the color value at each pixel after diffuse lighting calculations.
+
 ![Lambertian Fragment Shading] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/header.png)
 
 -------------------------------------------------------------------------------
