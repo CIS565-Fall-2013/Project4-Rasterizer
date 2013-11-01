@@ -188,7 +188,7 @@ __device__ void writeColorPoint(triangle currTri, int triIdx, glm::vec2 xyCoords
 
 
 //"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
-__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution){
+__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution, bool interpColors){
 	fragment currFrag;
 	currFrag.triIdx = triIdx;
 	//currFrag.color = currTri.c0; //assume the tri is all one color for now.
@@ -197,7 +197,11 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 	currFrag.position = glm::vec3(xyCoords.x, xyCoords.y, fragZ);
 	currFrag.modelPosition = interpVec3(currBaryCoords, currTri.modelspace_p0, currTri.modelspace_p1, currTri.modelspace_p2);
 	currFrag.modelNormal = interpVec3(currBaryCoords, currTri.modelspace_n0, currTri.modelspace_n1, currTri.modelspace_n2);
-	currFrag.color = interpVec3(currBaryCoords, currTri.c0, currTri.c1, currTri.c2);
+	if(interpColors){
+		currFrag.color = interpVec3(currBaryCoords, currTri.c0, currTri.c1, currTri.c2);
+	} else { //average the colors. Each face will have a uniform color.
+		currFrag.color = (1.0f/3.0f)*(currTri.c0 + currTri.c1 + currTri.c2);
+	}
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
@@ -205,7 +209,7 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 }
 
 //rasterize between startX and endX, inclusive
-__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx){
+__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx, bool interpColors){
 	int Xinc = roundf(end.x) - roundf(start.x);
 	int sgnXinc = Xinc > 0 ? 1 : -1;
 	int numPixels = abs(Xinc) + 1; //+1 to be inclusive
@@ -213,9 +217,9 @@ __device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* dept
 	int Y = roundf(start.y); //Y should be the same for the whole line
 	int endY = roundf(end.y);
 	for(int i = 0; i < numPixels; i++){
-		writePointInTriangle(currTri, triIdx, glm::vec2(currX, Y), depthBuffer, resolution);
+		writePointInTriangle(currTri, triIdx, glm::vec2(currX, Y), depthBuffer, resolution, interpColors);
 		if( endY != Y ){
-			writePointInTriangle(currTri, triIdx, glm::vec2(currX, endY), depthBuffer, resolution);
+			writePointInTriangle(currTri, triIdx, glm::vec2(currX, endY), depthBuffer, resolution, interpColors);
 		}
 		currX += sgnXinc; //either increase or decrease currX depending on direction
 	}
@@ -315,7 +319,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, float* nbo
 //NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
 //for now the normal can just be the cross product of the vectors that make up the face (flat shading).
 //NATHAN: add early-z here.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 vdir, bool drawLines){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 vdir, bool drawLines, bool interpColors){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 	  //based on notes from here: http://sol.gfxile.net/tri/index.html
@@ -343,7 +347,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  glm::vec2 currPoint(x, y);
 			  glm::vec3 baryCoords = calculateBarycentricCoordinate(currTri, currPoint);
 			  if(isBarycentricCoordInBounds(baryCoords)){ //we are inside
-				  writePointInTriangle(currTri, index, currPoint, depthbuffer, resolution);
+				  writePointInTriangle(currTri, index, currPoint, depthbuffer, resolution, interpColors);
 			  }
 		  }
 	  }
@@ -474,7 +478,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, 
+	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors){
 
   // set up crucial magic
   int tileSize = 8;
@@ -571,7 +576,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //first draw the outlines of the triangle
   glm::vec3 vdir = center - eye;
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines, interpColors);
   cudaDeviceSynchronize();
   //next, march through all scanlines
   //int scanlineBlocks = ceil(resolution.y/(float)tileSize);

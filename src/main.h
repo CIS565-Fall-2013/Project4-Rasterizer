@@ -43,6 +43,7 @@ using namespace std;
 //-------------------------------
 //colorReader* myColorReader;
 
+bool interpColors = true; //else use avg. of colors per-face
 bool useShading = true;
 bool normalsAsColors = false;
 bool rotateModel = false;

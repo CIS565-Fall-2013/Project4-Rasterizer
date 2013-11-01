@@ -122,7 +122,7 @@ void runCuda(){
   else
 	angleDeg = 0;
 
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, camPos, drawLines, useShading);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, camPos, drawLines, useShading, interpColors);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -233,8 +233,11 @@ void runCuda(){
 	   case(110): //n
 		normalsAsColors = !normalsAsColors;
 		break;
-	   case(104):
+	   case(104): //h for sHade
 		useShading = !useShading;
+		break;
+	   case(99): //c for Color
+		interpColors = !interpColors;
 		break;
     }
   }
