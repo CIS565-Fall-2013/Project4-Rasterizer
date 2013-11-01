@@ -4,7 +4,7 @@ CIS565 Project 4: CUDA Rasterizer
 Ricky Arietta Fall 2013
 -------------------------------------------------------------------------------
 
-![NBody Simulation] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/normal_interpolation.png)
+![Header] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/header.png)
 
 -------------------------------------------------------------------------------
 INTRODUCTION:
@@ -25,40 +25,42 @@ Vertex Shader & Perspective Transformation
 Vertex Shader Stuff
 
 -------------------------------------------------------------------------------
-PART 2: Primitive Assembly
+Primitive Assembly
 -------------------------------------------------------------------------------
 
 Primitive Assembly Stuff
 
 -------------------------------------------------------------------------------
-PART 3: Rasterization
+Rasterization
 -------------------------------------------------------------------------------
 
 Rasterizer Stuff
 
 -------------------------------------------------------------------------------
-PART 4: Lambertian Fragment Shading
+Lambertian Fragment Shading
 -------------------------------------------------------------------------------
 
-Include why I added to fragment struct
+![Lambertian Fragment Shading] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/header.png)
 
 -------------------------------------------------------------------------------
-PART 5: Barycentric Color and Normal Interpolation
+Barycentric Color and Normal Interpolation
 -------------------------------------------------------------------------------
 
-Interp Stuff
+![Color Interpolation] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/color_interpolation.png)
+
+![Normal Interpolation] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/color_interpolation.png)
 
 -------------------------------------------------------------------------------
-PART 6: Optimization: Back Face Culling
+Optimization: Back Face Culling
 -------------------------------------------------------------------------------
 
-Video
+[![Back-Faced Culling](https://raw.github.com/rarietta/Project4_Rasterizer/master/README_images/video_shot_1.png)] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/mousebased.avi)
 
 -------------------------------------------------------------------------------
-PART 7: Mouse Based Window Interactivity
+Mouse Based Camera Interactivity
 -------------------------------------------------------------------------------
 
-Video
+[![Mouse-Based Interactive Camera](https://raw.github.com/rarietta/Project4_Rasterizer/master/README_images/video_shot_2.png)] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/mousebased.avi)
 
 -------------------------------------------------------------------------------
 PART 2: Performance Evaluation
