@@ -9,20 +9,42 @@
 #include "utilities.h"
 #include "cudaMat4.h"
 
-struct triangle {
-  glm::vec3 p0;
-  glm::vec3 p1;
-  glm::vec3 p2;
-  glm::vec3 c0;
-  glm::vec3 c1;
-  glm::vec3 c2;
-};
-
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
 };
+
+struct triangle {
+  glm::vec3 p0;
+  glm::vec3 p1;
+  glm::vec3 p2;
+  //glm::vec3 c0;
+  //glm::vec3 c1;
+  //glm::vec3 c2;
+  fragment f0;
+  fragment f1;
+  fragment f2;
+  bool visible;
+};
+
+struct edgeBlock{
+	int primitiveID;
+	int numScanLines;
+	float ys;
+	float xs;
+	float zs;
+	float delta_x;
+	float delta_z;
+};
+
+__host__ __device__ bool compareYs(const edgeBlock &a, const edgeBlock &b) {
+	return (a.ys > b.ys);
+}
+
+__host__ __device__ bool compareXs(const edgeBlock &a, const edgeBlock &b) {
+	return (a.xs < b.xs);
+}
 
 //Multiplies a cudaMat4 matrix and a vec4
 __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){

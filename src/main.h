@@ -21,6 +21,7 @@
 #include <time.h>
 #include "glslUtility.h"
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
@@ -37,6 +38,14 @@
 
 using namespace std;
 
+#define X_MAX 8
+#define Y_MAX 9
+#define Z_MAX 10
+#define X_MIN 16
+#define Y_MIN 17
+#define Z_MIN 18
+
+
 //-------------------------------
 //------------GL STUFF-----------
 //-------------------------------
@@ -51,7 +60,15 @@ GLuint pbo = (GLuint)NULL;
 GLuint displayImage;
 uchar4 *dptr;
 
+glm::vec3 camera_eye = glm::vec3(0,0,4);
+glm::vec3 camera_towards = glm::vec3(0,0,1);
+glm::vec3 camera_up = glm::vec3(0,-1,0);
+static double camera_yfov = 0.75;
+float camera_zoom;
+
 obj* mesh;
+float mesh_size;
+glm::vec3 mesh_center;
 
 float* vbo;
 int vbosize;
@@ -59,12 +76,25 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+float* nbo;
+int nbosize;
 
 //-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------
 
 int width=800; int height=800;
+
+//-------------------------------
+//----------GLUT STUFF-----------
+//-------------------------------
+
+static int GLUTwindow = 0;
+static int GLUTwindow_height = height;
+static int GLUTwindow_width = width;
+static int GLUTmouse[2] = { 0, 0 };
+static int GLUTbutton[3] = { 0, 0, 0 };
+static int GLUTmodifiers = 0;
 
 //-------------------------------
 //-------------MAIN--------------
@@ -99,6 +129,9 @@ void initPBO(GLuint* pbo);
 void initCuda();
 void initTextures();
 void initVAO();
+void initCamera();
+void GLUTMouse(int button, int state, int x, int y);
+void GLUTMotion(int x, int y);
 GLuint initShader(const char *vertexShaderPath, const char *fragmentShaderPath);
 
 //-------------------------------

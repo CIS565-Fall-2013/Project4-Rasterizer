@@ -2,6 +2,7 @@
 // Written by Yining Karl Li, Copyright (c) 2012 University of Pennsylvania
 
 #include "main.h"
+#include <GL/glut.h>
 
 //-------------------------------
 //-------------MAIN--------------
@@ -50,6 +51,8 @@ int main(int argc, char** argv){
   initVAO();
   initTextures();
 
+  initCamera();
+
   GLuint passthroughProgram;
   passthroughProgram = initShader("shaders/passthroughVS.glsl", "shaders/passthroughFS.glsl");
 
@@ -71,6 +74,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+	glutMouseFunc(GLUTMouse);
+	glutMotionFunc(GLUTMotion);
 
     glutMainLoop();
   #endif
@@ -83,32 +88,53 @@ int main(int argc, char** argv){
 //-------------------------------
 
 void runCuda(){
-  // Map OpenGL buffer object for writing from CUDA on a single GPU
-  // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
-  dptr=NULL;
+	// Map OpenGL buffer object for writing from CUDA on a single GPU
+	// No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
+	dptr=NULL;
 
-  vbo = mesh->getVBO();
-  vbosize = mesh->getVBOsize();
+	vbo = mesh->getVBO();
+	vbosize = mesh->getVBOsize();
 
-  float newcbo[] = {0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
-  cbo = newcbo;
-  cbosize = 9;
+	float newcbo[] = {0.0, 1.0, 0.0, 
+					0.0, 0.0, 1.0, 
+					1.0, 0.0, 0.0};
+	cbo = newcbo;
+	cbosize = 9;
 
-  ibo = mesh->getIBO();
-  ibosize = mesh->getIBOsize();
+	ibo = mesh->getIBO();
+	ibosize = mesh->getIBOsize();
 
-  cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
-  cudaGLUnmapBufferObject(pbo);
+	nbo = mesh->getNBO();
+	nbosize = mesh->getNBOsize();
 
-  vbo = NULL;
-  cbo = NULL;
-  ibo = NULL;
+	// set up model matrix
+	glm::mat4 modelMatrix(1.0f);
+	
+	// set up view matrix
+	glm::mat4 viewMatrix = glm::lookAt(camera_eye, mesh_center, camera_up);
 
-  frame++;
-  fpstracker++;
+	// set up perspective matrix
+	float fovY = 180.0*camera_yfov/PI;
+	float aspectRatio = width/height;
+	float near = 0.001f*mesh_size;
+	float far  = 100.0f*mesh_size;
+	glm::mat4 projectionMatrix = glm::perspective(fovY, aspectRatio, near, far);
+
+	// setup light rig
+	glm::vec3 light(mesh_center.x + 1.5f*mesh_size, mesh_center.y + 4.0f*mesh_size, mesh_center.z + 1.5f*mesh_size);
+
+	// run rasterizer
+	cudaGLMapBufferObject((void**)&dptr, pbo);
+	cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, 
+					  modelMatrix, viewMatrix, projectionMatrix, light);
+	cudaGLUnmapBufferObject(pbo);
+
+	vbo = NULL;
+	cbo = NULL;
+	ibo = NULL;
+
+	frame++;
+	fpstracker++;
 
 }
 
@@ -230,21 +256,120 @@ void runCuda(){
   }
 #endif
 
+glm::vec3 vecRotate(glm::vec3 vector, glm::vec3 axis, float theta)
+{
+  // Rotate vector counterclockwise around axis (looking at axis end-on) (rz(xaxis) = yaxis)
+  // From Goldstein: v' = v cos t + a (v . a) [1 - cos t] - (v x a) sin t 
+  const float cos_theta = cos(theta);
+  const float dot = glm::dot(vector,axis);
+  glm::vec3 return_vector(vector);
+  glm::vec3 cross = glm::cross(vector, axis);
+  return_vector *= cos_theta;
+  return_vector += axis * dot * (1.0f - cos_theta);
+  return_vector -= cross * sin(theta); 
+  return return_vector;
+}
+
+void GLUTMouse(int button, int state, int x, int y)
+{  
+	// Process mouse button event
+	if (state == GLUT_DOWN) {
+	if (button == GLUT_LEFT_BUTTON) {
+	}
+	else if (button == GLUT_MIDDLE_BUTTON) {
+	}
+	else if (button == GLUT_RIGHT_BUTTON) {
+	}
+	}
+
+	// Remember button state 
+	int b = (button == GLUT_LEFT_BUTTON) ? 0 : ((button == GLUT_MIDDLE_BUTTON) ? 1 : 2);
+	GLUTbutton[b] = (state == GLUT_DOWN) ? 1 : 0;
+
+	// Remember modifiers 
+	GLUTmodifiers = glutGetModifiers();
+
+	// Remember mouse position 
+	GLUTmouse[0] = x;
+	GLUTmouse[1] = y;
+
+	// Redraw
+	glutPostRedisplay();
+}
+
+void GLUTMotion(int x, int y) {
+  
+	// Compute mouse movement
+	int dx = x - GLUTmouse[0];
+	int dy = y - GLUTmouse[1];
+  
+	// Process mouse motion event
+	if ((dx != 0) || (dy != 0)) {
+		if ((GLUTbutton[0] && (GLUTmodifiers & GLUT_ACTIVE_SHIFT)) || GLUTbutton[1]) {
+			// Scale world 
+			float factor = (float) dx / GLUTwindow_width;
+			factor += (float) dy / GLUTwindow_height;
+			factor = exp(2.0 * factor);
+			factor = (factor - 1.0) / factor;
+			glm::vec3 translation = (mesh_center - camera_eye) * factor;
+			camera_eye += translation;
+			camera_zoom = glm::length(camera_eye);
+			glutPostRedisplay();
+		}
+		else if (GLUTbutton[0]) {
+			// Rotate world
+			dx = -dx;
+			float length = glm::distance(mesh_center, camera_eye) * 2.0f * tan(camera_yfov);
+			float vx = length * (float) dx / GLUTwindow_width;
+			float vy = length * (float) dy / GLUTwindow_height;
+			glm::vec3 camera_right = glm::cross(camera_up, camera_towards);
+			glm::vec3 translation = -((camera_right * vx) + (camera_up * vy));
+			camera_eye += translation;
+			camera_eye = glm::normalize(camera_eye) * camera_zoom;
+			camera_towards = glm::normalize(camera_eye - mesh_center);
+			camera_up -= glm::dot(camera_up, camera_towards)*camera_towards;
+			glutPostRedisplay();
+		}
+	}
+
+	// Remember mouse position 
+	GLUTmouse[0] = x;
+	GLUTmouse[1] = y;
+}
+
+void initCamera(void) {
+	
+	// set up view matrix
+	float *bbox = mesh->getBoundingBox();
+	float xmin = bbox[X_MIN]; float xmax = bbox[X_MAX];
+	float ymin = bbox[Y_MIN]; float ymax = bbox[Y_MAX];
+	float zmin = bbox[Z_MIN]; float zmax = bbox[Z_MAX];
+	float xcenter = (xmax-xmin)/2.0f;
+	float ycenter = (ymax-ymin)/2.0f;
+	float zcenter = (zmax-zmin)/2.0f;
+	
+	mesh_size = glm::sqrt(pow(xmax-xmin, 2) + pow(xmax-xmin, 2) + pow(xmax-xmin, 2));
+	mesh_center = glm::vec3(0,ycenter,0);
+	camera_eye = glm::vec3(0,ycenter,2*mesh_size);
+	camera_towards = glm::normalize(glm::vec3(0,ycenter,0) - camera_eye);
+	camera_zoom = 2.0f*mesh_size;
+}
+
 void initPBO(GLuint* pbo){
-  if (pbo) {
-    // set up vertex data parameter
-    int num_texels = width*height;
-    int num_values = num_texels * 4;
-    int size_tex_data = sizeof(GLubyte) * num_values;
+	if (pbo) {
+		// set up vertex data parameter
+		int num_texels = width*height;
+		int num_values = num_texels * 4;
+		int size_tex_data = sizeof(GLubyte) * num_values;
     
-    // Generate a buffer ID called a PBO (Pixel Buffer Object)
-    glGenBuffers(1,pbo);
-    // Make this the current UNPACK buffer (OpenGL is state-based)
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, *pbo);
-    // Allocate data for the buffer. 4-channel 8-bit image
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, size_tex_data, NULL, GL_DYNAMIC_COPY);
-    cudaGLRegisterBufferObject( *pbo );
-  }
+		// Generate a buffer ID called a PBO (Pixel Buffer Object)
+		glGenBuffers(1,pbo);
+		// Make this the current UNPACK buffer (OpenGL is state-based)
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, *pbo);
+		// Allocate data for the buffer. 4-channel 8-bit image
+		glBufferData(GL_PIXEL_UNPACK_BUFFER, size_tex_data, NULL, GL_DYNAMIC_COPY);
+		cudaGLRegisterBufferObject( *pbo );
+	}
 }
 
 void initCuda(){
