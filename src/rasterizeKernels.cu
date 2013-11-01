@@ -153,9 +153,7 @@ __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* 
 __global__ void vertexShadeKernel(float* vbo, float *vbo2, int vbosize, float *nbo, int nbosize, cbuffer *constantBuffer)
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-//  __shared__ glm::mat4 model;
-//  __shared__ glm::mat4 view;
-//  __shared__ glm::mat4 projection;
+
   __shared__ glm::mat4	ModelViewProjection;
   __shared__ int	step;
   __shared__ int	normStep;
@@ -175,18 +173,17 @@ __global__ void vertexShadeKernel(float* vbo, float *vbo2, int vbosize, float *n
   if(index<step)
   {
 	  glm::vec4 currentVertex (vbo [index], vbo [index+step], vbo [index+(2*step)], vbo [index+(3*step)]);
-	  cudaMat4 stupidMat, stupidMat2;
-	  glm::vec4 currVertex2 = currentVertex;
+	  cudaMat4 stupidMat;
+
+	  // Transform to world space for light vector calculation.
+	  stupidMat.x = constBuff.model [0];	stupidMat.y = constBuff.model [1];	stupidMat.z = constBuff.model [2];	stupidMat.w = constBuff.model [3];
+	  currentVertex = multiplyMV (stupidMat, currentVertex);
+ 	  vbo2 [index] = constBuff.lightPos [0] - currentVertex.x;	vbo2 [index+step] = constBuff.lightPos [1] - currentVertex.y;	vbo2 [index+(2*step)] = constBuff.lightPos [2] - currentVertex.z;	vbo2 [index+(3*step)] = 0;
 
 	  // Transform vertex to clip space.
 	  stupidMat.x = ModelViewProjection [0];	stupidMat.y = ModelViewProjection [1];	stupidMat.z = ModelViewProjection [2];	stupidMat.w = ModelViewProjection [3];
-	  stupidMat2.x = constBuff.model [0];	stupidMat2.y = constBuff.model [1];	stupidMat2.z = constBuff.model [2];	stupidMat2.w = constBuff.model [3];
 	  currentVertex = multiplyMV (stupidMat, currentVertex);
-	  currVertex2 = multiplyMV (stupidMat2, currVertex2);
-	  
 	  vbo [index] = currentVertex.x;	vbo [index+step] = currentVertex.y;	vbo [index+(2*step)] = currentVertex.z;	vbo [index+(3*step)] = currentVertex.w;
-	  vbo2 [index] = currVertex2.x;	vbo2 [index+step] = currVertex2.y;	vbo2 [index+(2*step)] = currVertex2.z;	vbo2 [index+(3*step)] = currVertex2.w;
-
   }
 
   if (index < normStep)
@@ -344,7 +341,7 @@ __global__ void	compactStream (triangle *primitives, triangle *tempPrims, int *s
 	}
 }
 
-// Core rasterization.
+// Pixel-parallelized rasterization.
 __global__ void rasterizationKernel (triangle* primitive, int elementNo, fragment* depthbuffer, glm::vec2 resolution)
 {
   extern __shared__ fragment zBufferShared [];
@@ -460,10 +457,22 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 												baryCoord.z * (currentPrim.n2.z);
 
 							curFragment.normal = glm::normalize (curFragment.normal);
-//							curFragment.color = /*glm::abs (*/curFragment.normal;//);
+
+							curFragment.lightVec.x =	baryCoord.x * currentPrim.p0_w.x + 
+												baryCoord.y * currentPrim.p1_w.x + 
+												baryCoord.z * currentPrim.p2_w.x;
+					  
+							curFragment.lightVec.y =	baryCoord.x * currentPrim.p0_w.y + 
+												baryCoord.y * currentPrim.p1_w.y + 
+												baryCoord.z * currentPrim.p2_w.y;
+
+							curFragment.lightVec.z =	baryCoord.x * currentPrim.p0_w.z + 
+												baryCoord.y * currentPrim.p1_w.z + 
+												baryCoord.z * currentPrim.p2_w.z;
+							curFragment.lightVec = glm::normalize (curFragment.lightVec);
+
 							curFragment.position.x = i;
 							curFragment.position.y = j;
-
 							// Perspective correct interpolation for Z
 							curFragment.position.z =	baryCoord.x * (1/currentPrim.p0.z) + 
 													baryCoord.y * (1/currentPrim.p1.z) + 
@@ -472,17 +481,6 @@ __global__ void rasterizationKernelAlt (triangle* primitive, int nPrimitives, fr
 
 							if (depthbuffer [(int)(j*resolution.x) + i].position.z > curFragment.position.z)
 							{
-								curFragment.position2.x =	baryCoord.x * currentPrim.p0_w.x + 
-												baryCoord.y * currentPrim.p1_w.x + 
-												baryCoord.z * currentPrim.p2_w.x;
-					  
-							curFragment.position2.y =	baryCoord.x * currentPrim.p0_w.y + 
-												baryCoord.y * currentPrim.p1_w.y + 
-												baryCoord.z * currentPrim.p2_w.y;
-
-							curFragment.position2.z =	baryCoord.x * currentPrim.p0_w.z + 
-												baryCoord.y * currentPrim.p1_w.z + 
-												baryCoord.z * currentPrim.p2_w.z;
 								depthbuffer [(int)(j*resolution.x) + i] = curFragment;
 							}
 						}
@@ -497,22 +495,16 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
-  __shared__ glm::vec3	lightVec;
 
   fragment curFragment;
   if (index < resolution.x*resolution.y)
 	  curFragment = depthbuffer [index];
 
-  if ((threadIdx.x == 0) && (threadIdx.y == 0))
-  {
-	  lightVec = glm::vec3 (0, -10, 10);
-  }
-
   __syncthreads ();
 
   if(x<resolution.x && y<resolution.y)
   {
-	  float dotPdt = /*1.0f;*/glm::dot (curFragment.normal, glm::normalize (lightVec-curFragment.position2));
+	  float dotPdt = glm::dot (curFragment.normal, curFragment.lightVec);
 	  dotPdt = max (dotPdt, 0.0f);
 	  dotPdt = min (dotPdt, 1.0f);
 	  curFragment.color *= dotPdt;
@@ -582,7 +574,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
   float * device_vboW = NULL;
   cudaMalloc((void**)&device_vboW, vbosize*sizeof(float));
-  cudaMemcpy( device_vboW, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+//  cudaMemcpy( device_vboW, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
 
   device_cbo = NULL;
   cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
@@ -602,6 +594,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   checkCUDAError("Vertex shader failed!");
   cudaDeviceSynchronize();
   cudaFree (device_constantBuffer);
+  device_constantBuffer = NULL;
   //------------------------------
   //primitive assembly
   //------------------------------

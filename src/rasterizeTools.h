@@ -10,25 +10,25 @@
 #include "cudaMat4.h"
 
 struct triangle {
-  glm::vec4 p0;
-  glm::vec4 p1;
-  glm::vec4 p2;
-  glm::vec4 p0_w;
-  glm::vec4 p1_w;
-  glm::vec4 p2_w;
-  glm::vec3 c0;
-  glm::vec3 c1;
-  glm::vec3 c2;
-  glm::vec4 n0;
-  glm::vec4 n1;
-  glm::vec4 n2;
+  glm::vec4 p0;		// Clip space position of point 1
+  glm::vec4 p1;		// Clip space position of point 2
+  glm::vec4 p2;		// Clip space position of point 3
+  glm::vec4 p0_w;	// Point 1's World space light vector
+  glm::vec4 p1_w;	// Point 2's World space light vector
+  glm::vec4 p2_w;	// Point 3's World space light vector
+  glm::vec3 c0;		// Colour of point 1
+  glm::vec3 c1;		// Colour of point 2		
+  glm::vec3 c2;		// Colour of point 3
+  glm::vec4 n0;		// Normal of point 1
+  glm::vec4 n1;		// Normal of point 2
+  glm::vec4 n2;		// Normal of point 3
 };
 
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
-  glm::vec3 position2;
+  glm::vec3 lightVec;
 };
 
 //Multiplies a cudaMat4 matrix and a vec4

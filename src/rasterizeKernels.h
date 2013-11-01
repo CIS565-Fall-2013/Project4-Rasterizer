@@ -25,6 +25,7 @@ struct	cbuffer
 	glm::mat4	view;
 	glm::mat4	projection;
 	glm::mat4	modelIT;
+	glm::vec4	lightPos;
 };
 
 void kernelCleanup();
