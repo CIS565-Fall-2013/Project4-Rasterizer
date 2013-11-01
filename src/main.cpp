@@ -29,6 +29,7 @@ glm::mat4 View ;
 glm::mat4 Model ;
 glm::mat4 MVP ;
 glm::mat4 MV ;
+glm::mat4 ITMV;
 
 
 
@@ -119,6 +120,13 @@ void runCuda(){
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
 
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
+
+  float chk[100];
+  for(int i=0; i < 100 ; i++)
+	  chk[i] = nbo[i];
+
   float newcbo[] = {0.0, 1.0, 0.0, 
                     0.0, 0.0, 1.0, 
                     1.0, 0.0, 0.0};
@@ -138,16 +146,17 @@ View       = glm::lookAt(
     up  // Head is up (set to 0,-1,0 to look upside-down)
 );
 // Model matrix : an identity matrix (model will be at the origin)
-Model      = glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0,0,0), glm::vec3(0,180,0), glm::vec3(5,5,5)));//glm::mat4(1.0f);  // Changes for each model !
+Model      = glm::mat4(utilityCore::buildTransformationMatrix(glm::vec3(0,-2,0), glm::vec3(0,180,0), glm::vec3(5,5,5)));//glm::mat4(1.0f);  // Changes for each model !
 //Model      = glm::mat4((1.0));//utilityCore::buildTransformationMatrix(glm::vec3(0,0,0), glm::vec3(0,0,0), glm::vec3(1,1,1)));
   //glm::mat4 buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale);
 // Our ModelViewProjection : multiplication of our 3 matrices
  MVP        = Projection * View * Model; // Remember, matrix multiplication is the other way around
  MV         = View * Model; 
+ ITMV  =  glm::transpose(glm::inverse(Model));
 //cudaMat4* MVPc = &utilityCore::glmMat4ToCudaMat4(MVP);
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,MVP,MV,eye);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,nbo, nbosize,MVP,MV,eye,ITMV);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
