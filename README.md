@@ -32,16 +32,21 @@ I implemented the following extra features:
 -------------------------------------------------------------------------------
 Images:
 -------------------------------------------------------------------------------
+Normals
 ![alt text](./renders/normal.png "normals")
 
 ![alt text](./renders/cow_normal_diffuse.png "normal and diffuse")
 
+Color interpolation
 ![alt text](./renders/cow_colorInterp.png "color interpolation with primitive vertices")
 
+Diffuse
 ![alt text](./renders/cow_diffuse.png "diffuse cow")
 
+Smooth normals
 ![alt text](./renders/cow_smooth_diffuse.png "diffuse cow with normal interpolation")
 
+Specular
 ![alt text](./renders/bunny_specular.png "specular bunny")
 
 ![alt text](./renders/dragon_specular.png "specular dragon")
@@ -61,7 +66,7 @@ Rasterizing per primitive VS per fragment
 | Cow (4853)       |                       60 | 4                       |
 | Bunny (69630)    |                       30 | timed out               |
 | Dragon (100,000) |                       12 | timed out               |
-|------------------|--------------------------|-------------------------|
+
 
 For meshes with bigger and fewer triangles, rasterizing by fragment proved to be 
 more efficient than rasterizing by primitive. When meshes became more high-poly, 
@@ -79,4 +84,15 @@ this way.
 
 Using backface culling
 
+| Number of Faces  | Primitive parallel (FPS) | Fragment parallel (FPS) |
+|------------------|--------------------------|-------------------------|
+| Triangle (1)     | 121.18                   | 121.11                  |
+| Cube (12)        | 5                        | 562.87                  |
+| Cow (4853)       | 75.73                    | 81.56                   |
+| Bunny (69630)    | 88.67                    | 102.03                  |
+| Dragon (100,000) | 560.78                   | 687.83                  |
 
+![alt text](./renders/chart_1.png "backface culling")
+
+Backface culling provides a noticeable performance boost when there are a lot of 
+primitives in the mesh, as expected. 
