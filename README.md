@@ -45,6 +45,8 @@ Cow colored with just normals
 
 Diffuse Skull
 
+Here's a video: http://www.youtube.com/watch?v=WD7VULD4eeU
+
 -------------------------------------------------------------------------------
 <center>BUG RENDERS:
 -------------------------------------------------------------------------------
