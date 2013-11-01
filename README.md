@@ -25,6 +25,8 @@
    Pixel shader is implemented by a CUDA kernel function. It calculates lighting effects using Bling-Phong shading model, and performs texture mapping with bilinear filtering.
    
 ## Result:  
+  Video Demo: http://www.youtube.com/watch?v=3w-srifDQwk
+  
   Lighting  
   
  ![Cow with lighting](snapshot01.jpg)  
