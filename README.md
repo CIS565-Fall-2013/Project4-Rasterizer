@@ -95,5 +95,8 @@ Using backface culling
 
 ![alt text](./renders/chart_1.png "backface culling")
 
+The red bar represents rendering with no backface culling. The blue bar represents
+renders with backface culling. 
+
 Backface culling provides a noticeable performance boost when there are a lot of 
 primitives in the mesh, as expected. 
