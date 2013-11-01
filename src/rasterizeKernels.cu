@@ -221,6 +221,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
   triangle t = primitives[index];
+  if(t.backfacing)
+	  return;
   glm::vec3 aabbMin;
   glm::vec3 aabbMax;
 
@@ -378,7 +380,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
-
+  //PERFORMANCE TESTS
+  cudaEvent_t start,stop;
+  float elapsedTime = 0.0f;
+  cudaEventCreate(&start);
+  cudaEventRecord(start,0);
   //------------------------------
   //vertex shader
   //------------------------------
@@ -407,7 +413,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   thrust::device_ptr<triangle> thrustPrimitivesArray = thrust::device_pointer_cast(primitives);
   unsigned int numberOfPrimitives = ceil((float)ibosize/3);
-  int numberOfFrontPrimitives = numberOfPrimitives;
+  int numberOfFrontPrimitives = thrust::remove_if(thrustPrimitivesArray,thrustPrimitivesArray+numberOfPrimitives,is_backfacing()) - thrustPrimitivesArray;
+  //int numberOfFrontPrimitives = numberOfPrimitives;
   int rasterizationBlocks = ceil(((float)numberOfFrontPrimitives)/((float)tileSize));
   
   rasterizationKernel<<<rasterizationBlocks, tileSize>>>(primitives,numberOfFrontPrimitives, depthbuffer, resolution);
@@ -425,8 +432,13 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer);
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
-
-  cudaDeviceSynchronize();
+  
+  //PERFORMANCE TESTS
+  cudaEventCreate(&stop);
+  cudaEventRecord(stop,0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&elapsedTime,start,stop);
+  //std::cout<<"Elapsed Time: "<< elapsedTime<<std::endl;
 
   kernelCleanup();
 
