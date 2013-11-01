@@ -56,7 +56,8 @@ SCREENSHOTS:
 PROBLEMS ENCOUNTERED:
 -------------------------------------------------------------------------------
 The biggest problem I was having with this project is getting atomics to work for depth test. Compare the following code snippet:
-    ```
+
+
      do{} while(atomicExch(&dBufferLocked[pixelIndex], 1)); 
 	
 	 if(depth < depthBuffer[pixelIndex])
@@ -68,9 +69,13 @@ The biggest problem I was having with this project is getting atomics to work fo
 	     interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
      }
 	 dBufferLocked[pixelIndex] = 0;
-   ```
+
+
 And this one:
-```
+
+
+
+
     bool wait = true;
 	while(wait)
 	{
@@ -89,7 +94,7 @@ And this one:
 			wait = false;
 		}
 	}
-```
+
 
 They do absolutely the same thing in terms of constructing a critical section that only allows entrance when dBufferLocked[pixelIndex] is 0. However, the second one works for me but the first one would give me deadlock.
 It seems the only explaination is that the compiler does some optimization under the hood and generated different machine instructions. I actually have another 3 implementations of critical sections, all of which failed me...
