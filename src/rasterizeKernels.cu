@@ -512,7 +512,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, 
-	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount, bool backfaceCull){
+	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount, bool backfaceCull, glm::quat currRot){
 
   // set up crucial magic
   int tileSize = 8;
@@ -579,14 +579,18 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   float zFar = 100.0f;
   float aspectRatio = resolution.x / resolution.y;
   glm::vec3 up(0,1,0);
+  //glm::vec3 up = currUp;
   glm::vec3 center(0,0,0);
   //glm::vec3 eye = camPos;
   glm::vec3 eye(0, 0, 1);
+  //glm::vec3 eye = center - currView;
   glm::mat4 projection = glm::perspective(fovy, aspectRatio, zNear, zFar);
   glm::mat4 view = glm::lookAt(eye, center, up);
   //float angleRad = angleDeg * PI/180;
-  glm::mat4 model = glm::translate(glm::mat4(1), -camPos); 
-  model = glm::rotate(model, angleDeg, glm::vec3(0,1,0));
+  glm::mat4 trans = glm::translate(glm::mat4(1), -camPos); 
+  //model = glm::rotate(model, angleDeg, glm::vec3(0,1,0));
+  //glm::mat3 rot = glm::mat3(currRot);
+  glm::mat4 model = trans * glm::mat4_cast(currRot);
   glm::mat4 cameraMat = projection*view*model;
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, modelspace_vbo, device_nbo, vbosize, cameraMat, model, resolution);
   //float* transformedVerts = new float[vbosize];

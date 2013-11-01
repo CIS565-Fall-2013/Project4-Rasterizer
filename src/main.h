@@ -74,13 +74,21 @@ int cbosize;
 int* ibo;
 int ibosize;
 
+glm::vec3 position; 
+glm::vec3 currView(0, 0, -1); 
+glm::vec3 currUp(0,1,0); 
+glm::vec3 startView;
+glm::vec3 startUp;
+
 //P0 and P1 are for Arcball camera
 glm::vec3 startP0;
 glm::vec3 endP1;
 glm::quat qstart; //starting rotation for camera 
+glm::quat currRot;
 
 bool arcballRotOn = false;
 bool firstRun = true;
+bool interactiveCamera = true; //false for multi-frame animation rendering
 
 //-------------------------------
 //----------CUDA STUFF-----------

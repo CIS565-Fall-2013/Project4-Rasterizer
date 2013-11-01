@@ -9,6 +9,7 @@
 #include <cuda.h>
 #include <cmath>
 #include "glm/glm.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 #if CUDA_VERSION >= 5000
     #include <helper_math.h>
@@ -18,6 +19,6 @@
 
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, 
-	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount, bool backfaceCull);
+	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount, bool backfaceCull, glm::quat currRot);
 
 #endif //RASTERIZEKERNEL_H

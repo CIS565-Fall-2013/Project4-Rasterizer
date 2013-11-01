@@ -488,6 +488,14 @@ c:\users\nathan\cuda-rasterizer\src\glm\core\_vectorize.hpp
 c:\users\nathan\cuda-rasterizer\src\glm\./core/func_noise.hpp
 c:\users\nathan\cuda-rasterizer\src\glm\core\func_noise.inl
 c:\users\nathan\cuda-rasterizer\src\glm\./core/_swizzle.hpp
+c:\users\nathan\cuda-rasterizer\src\glm/gtc/quaternion.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\gtc\../glm.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\core/_fixes.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\gtc\../gtc/half_float.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\gtc\../glm.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\core/_fixes.hpp
+c:\users\nathan\cuda-rasterizer\src\glm\gtc\half_float.inl
+c:\users\nathan\cuda-rasterizer\src\glm\gtc\quaternion.inl
 C:\ProgramData\NVIDIA Corporation\CUDA Samples\v5.5\common\inc\helper_math.h
 C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v5.5\include\cuda_runtime.h
 c:\users\nathan\cuda-rasterizer\src\rasterizeTools.h

@@ -3,6 +3,60 @@
 
 #include "main.h"
 
+glm::fquat computeArcballRot(glm::vec3 point0, glm::vec3 point1)
+{
+	glm::fquat rotQuat = glm::fquat();
+	glm::vec3 crossProduct = glm::cross(startP0, endP1);
+	rotQuat.x = crossProduct.x;
+	rotQuat.y = crossProduct.y;
+	rotQuat.z = crossProduct.z;
+	rotQuat.w = glm::dot(startP0, endP1);
+	return rotQuat;
+}
+
+glm::vec3 computeSphereCoords(int screenX, int screenY, int screenWidth, int screenHeight)
+{
+  glm::vec2 center = glm::vec2(screenWidth/2, screenHeight/2);
+	float radius = min(screenWidth/2, screenHeight/2);
+	glm::vec3 pt = glm::vec3(0.0f); //point that we are returning
+
+	pt.x = (screenX - center.x)/radius;
+	pt.y = (screenY - center.y)/radius;
+	float r = pt.x*pt.x + pt.y*pt.y;
+	if(r > 1.0){
+		float s = 1.0/sqrt(r);
+		pt.x = s*pt.x;
+		pt.y = s*pt.y;
+		pt.z = 0.0;
+	}
+	else
+		pt.z = sqrt(1.0 - r);
+
+	return pt;
+}
+
+void mousePress(int button, int state, int x, int y)
+{
+	if(button == 3){
+		position += 0.1f*currView;  
+	} else if (button == 4){
+		position -= 0.1f*currView;
+	}
+	if(state == GLUT_DOWN){ //pressed
+		startP0 = computeSphereCoords(x, y, width, height);
+		endP1 = startP0; 
+		arcballRotOn = true;
+	} else{ //released
+		qstart = computeArcballRot(startP0, endP1)*qstart; 
+		arcballRotOn = false;
+	}
+}
+
+void mouseMove(int x, int y)
+{
+    endP1 = computeSphereCoords(x, y, width, height);
+}
+
 
 //-------------------------------
 //-------------MAIN--------------
@@ -10,6 +64,10 @@
 
 int main(int argc, char** argv){
 
+	 qstart.x = 0;
+	qstart.y = 0;
+	qstart.z = 0;
+	qstart.w = 1;
   bool loadedScene = false;
   for(int i=1; i<argc; i++){
     string header; string data;
@@ -74,6 +132,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+	glutMouseFunc(mousePress);
+	glutMotionFunc(mouseMove);
 
     glutMainLoop();
   #endif
@@ -122,8 +182,19 @@ void runCuda(){
   else
 	angleDeg = 0;
 
+  if(firstRun){
+      startView = currView;
+      startUp = currUp;
+    } 
+
+    if(arcballRotOn){
+      //currView = computeArcballRot(startP0, endP1) * qstart * startView;  
+      //currUp = computeArcballRot(startP0, endP1) * qstart * startUp;  
+		currRot = computeArcballRot(startP0, endP1) * qstart;
+    }
+
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, 
-	  camPos, drawLines, useShading, interpColors, useLargeStep, checkWriteCount, backfaceCull);
+	  camPos, drawLines, useShading, interpColors, useLargeStep, checkWriteCount, backfaceCull, currRot);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
