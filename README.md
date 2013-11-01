@@ -41,6 +41,8 @@ Video:
 -------------------------------------------------------------------------------
 Here is a video of me showing off the interactive camera and viewing modes
 
+http://youtu.be/CzJuF8zyuok
+
 The camera is a bit awkward to use, but its a nice start. 
 * left-click: rotate-x/y
 * left-click-shift: pan-x/y
