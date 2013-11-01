@@ -49,7 +49,7 @@
  
  ![filtering comparison](snapshot05.jpg) 
  
- The sample highlights perspective-correct texture mapping  
+ The following sample highlights perspective-correct texture mapping  
  
  ![Perspective correct texture coordinate](snapshot06.jpg)
  
