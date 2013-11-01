@@ -17,6 +17,7 @@ mesh, mathematical helper functions and so on).
 
 ##Screenshots
 <img src="https://raw.github.com/rohith10/RasterMaster/master/renders/OnePsychedelicCow.png" height="350" width="350"/><br />
+<img src="https://raw.github.com/rohith10/RasterMaster/master/renders/WithOutlines.png" height="350" width="350"/><br />
 
 ##The Graphics Pipeline
 
@@ -57,8 +58,10 @@ The following *required* stages and features of the graphics pipeline were imple
 * Anti-aliasing
 
 In addition, I also implemented the following *extra* features:
-* Order-independent translucency using a k-buffer
-* MOUSE BASED interactive camera support. Interactive camera support based only on the keyboard is not acceptable for this feature.
+* MOUSE BASED interactive camera support. Although, this is glitchy in that the model of the cow is being displayed  
+as a billboard or something. To view this feature, one must supply the following command line argument: "cameraControl=true".  
+* Outlining all the triangles that make up the model. Press 'o' while running or set a command line parameter 
+"outline=true", to view the model with such an effect.  
 
 ## Performance Evaluation
 ### Impact of Back-face culling on performance
