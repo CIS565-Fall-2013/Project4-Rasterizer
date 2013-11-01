@@ -127,4 +127,16 @@ __host__ __device__ bool isAABBInBin(glm::vec3 minpoint, glm::vec3 maxpoint, int
 	 return true;
 }
 
+
+__host__ __device__ bool isPixelInAABB(int x, int y, glm::vec3 minpoint, glm::vec3 maxpoint)
+{
+	if (minpoint.x > x || x > maxpoint.x)
+		 return false;
+	 if (minpoint.y > y || y > maxpoint.y)
+		 return false;
+
+	 return true;
+}
+
+
 #endif

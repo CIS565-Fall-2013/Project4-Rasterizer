@@ -19,6 +19,7 @@ uniforms* device_uniforms;
 int* binBuffers;
 int* bufferCounters;
 int* tileBuffers;
+int* tileBufferCounters;
 
 void checkCUDAError(const char *msg) {
 	cudaError_t err = cudaGetLastError();
@@ -518,18 +519,18 @@ __global__ void binRasterizationKernel(triangle* primitives,  int* primitiveStag
 }
 
 __global__ void coarseRasterizationKernel(triangle* primitives, int NPrimitives, glm::vec2 resolution, int* binBufferCounters, 
-										  int* binBuffers, int binBufferSize, int* tileBuffers, int tileBufferSize,
+										  int* binBuffers, int binBufferSize, int* tileBuffers, int tileBufferSize, int* tileBufferCounters,
 										  int numTilesX, int numTilesY, int tileSize, int numBinBlocks)
 {
 	extern __shared__ int s[];
 	int* sTriIndexBuffer = s;
-	
+
 	int numTilesInBin = blockDim.x*blockDim.y;
 	glm::vec4* sAABBBuffer = (glm::vec4*) &sTriIndexBuffer[numTilesInBin];
 
 	int binIndex = blockIdx.x + blockIdx.y*gridDim.x;
-	int tileXIndex = threadIdx.x;
-	int tileYIndex = threadIdx.y;
+	int tileXIndex = blockIdx.x*blockDim.x+threadIdx.x;//Bin.X*tilesPerBin.x+tileXInBinIndex
+	int tileYIndex = blockIdx.y*blockDim.y+threadIdx.y;//Bin.Y*tilesPerBin.y+tileYInBinIndex
 	int numBins = gridDim.x*gridDim.y;
 	int indexInBin = threadIdx.x+threadIdx.y*blockDim.x;
 
@@ -556,12 +557,12 @@ __global__ void coarseRasterizationKernel(triangle* primitives, int NPrimitives,
 			}else{
 				sTriIndexBuffer[indexInBin]  = -1;
 			}
-			
+
 			//TODO: Do this more safely in shared memory.
 			bufferOffset = bufferOffset + numTilesInBin;
 			bufferSize = bufferSize - numTilesInBin;
 			__syncthreads();//Prefetch complete, wait for everyone else to catch up
-			
+
 			//For each triangle, put in correct tile
 			for(int tri = 0; tri < numTilesInBin; ++tri)
 			{
@@ -575,16 +576,84 @@ __global__ void coarseRasterizationKernel(triangle* primitives, int NPrimitives,
 					}
 				}
 			}
-			
+
 			__syncthreads();
 
 		}while(bufferSize > 0);
 	}
 
+	//Write out tile counts
+	tileBufferCounters[tileXIndex+tileYIndex*numTilesX] = tileBufferCounter;
+
 
 
 }
 
+
+
+//TODO: Do this a lot more efficiently and in parallel
+__global__ void fineRasterizationKernel(triangle* primitives, int NPrimitives, glm::vec2 resolution, 
+										int* tileBuffers, int tileBufferSize, int* tileBufferCounters, fragment* depthbuffer)
+{
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	int tileIndex = blockIdx.x+blockIdx.y*gridDim.x;
+	int pixelX = blockIdx.x*blockDim.x+threadIdx.x;//TileX*tilesize+threadIdx.x
+	int pixelY = blockIdx.y*blockDim.y+threadIdx.y;//TileY*tilesize+threadIdx.y
+	if(pixelX >= 0 && pixelX < resolution.x &&
+		pixelY >= 0 && pixelY < resolution.y)
+	{
+		//Pixel is on screen.
+		//Each thread has exclusive access to this location in the depth buffer so no complex atomics needed.
+		int dbIndex = pixelX+pixelY*resolution.x;//Depth buffer location
+
+		//tileXIndex+tileYIndex*numTilesX
+		int tileIndex = blockIdx.x+blockIdx.y*gridDim.x;
+		int triCount = tileBufferCounters[tileIndex];
+
+		//For each triangle in queue
+		for(int t = 0; t < triCount; ++t)
+		{
+			//(tileIndex)*tileBufferSize+tri;
+			int triIndex = tileBuffers[tileIndex*tileBufferSize+t];
+			if(triIndex >= 0 && triIndex < NPrimitives){
+				triangle tri = primitives[triIndex];
+
+
+				//Already in screen space (from bin rasterizer)
+				glm::vec3 minPoint;
+				glm::vec3 maxPoint;
+				getAABBForTriangle(tri, minPoint, maxPoint);
+				if(isPixelInAABB(pixelX, pixelY, minPoint, maxPoint))
+				{
+					fragment frag;
+					frag.primitiveIndex = index;
+
+					frag.position.x = pixelX;
+					frag.position.y = pixelY;
+
+					glm::vec3 bCoords = calculateBarycentricCoordinate(tri, glm::vec2(pixelX,pixelY));
+					frag.depth = tri.v0.pos.z*bCoords.x+tri.v1.pos.z*bCoords.y+tri.v2.pos.z*bCoords.z;
+					frag.primitiveIndex = triIndex;
+					if(frag.depth > 0.0f && frag.depth < 1.0f)
+					{
+						//Depth test
+						if(frag.depth < depthbuffer[dbIndex].depth)
+						{
+							//Only continue if depth test passes.
+							frag.color = tri.v0.color*bCoords.x+tri.v1.color*bCoords.y+tri.v2.color*bCoords.z;
+							frag.normal = glm::normalize(tri.v0.eyeNormal*bCoords.x+tri.v1.eyeNormal*bCoords.y+tri.v2.eyeNormal*bCoords.z);
+							frag.lightDir = glm::normalize(tri.v0.eyeLightDirection*bCoords.x+tri.v1.eyeLightDirection*bCoords.y+tri.v2.eyeLightDirection*bCoords.z);
+							frag.halfVector = glm::normalize(tri.v0.eyeHalfVector*bCoords.x+tri.v1.eyeHalfVector*bCoords.y+tri.v2.eyeHalfVector*bCoords.z);
+
+							writeToDepthbuffer(pixelX,pixelY, frag, depthbuffer,resolution);
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
 
 void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 {
@@ -608,10 +677,7 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 		primitives, primitiveStageBuffer, NPrimitives,
 		bufferCounters, binBuffers, binBufferSize,
 		resolution, binDims, opts);
-	int* debug = (int *) malloc( numBlocks*binDims.x*binDims.y*sizeof(int));
 
-	cudaMemcpy( debug, bufferCounters,  numBlocks*binDims.x*binDims.y*sizeof(int), cudaMemcpyDeviceToHost);
-	free(debug);
 	//==============COARSE RASTER===================
 	int tilesize = 8;//8x8
 	int tileBufferSize = 2<<5;
@@ -621,19 +687,29 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 	int numTilesPerBinY = ceil(numTilesY/float(binDims.y));
 
 	cudaMalloc((void**) &tileBuffers, numTilesX*numTilesY*tileBufferSize*sizeof(int));
+	cudaMalloc((void**) &tileBufferCounters, numTilesX*numTilesY*sizeof(int));
 
 	dim3 coarseGridDims(binDims.x, binDims.y);
 	dim3 coarseBlockDims(numTilesPerBinX,numTilesPerBinY);
 	Ns = (sizeof(glm::vec4)+sizeof(int))*numTilesPerBinX*numTilesPerBinY;
 	coarseRasterizationKernel<<<coarseGridDims,coarseBlockDims,Ns>>>(primitives, NPrimitives, resolution, bufferCounters, 
-		binBuffers, binBufferSize, tileBuffers, tileBufferSize, 
+		binBuffers, binBufferSize, tileBuffers, tileBufferSize, tileBufferCounters,
 		numTilesX, numTilesY, tilesize, numBlocks); 
 
 	cudaFree(binBuffers);//Free previous buffer
 
+	//int* debug = (int*)malloc(numTilesX*numTilesY*sizeof(int));
+	//cudaMemcpy( debug, tileBufferCounters, numTilesX*numTilesY*sizeof(int), cudaMemcpyDeviceToHost);
+
+	//free(debug);
 	//==============FINE RASTER=====================
+	dim3 tileDims(tilesize,tilesize);
+	dim3 numTiles(numTilesX,numTilesY);
+	Ns = 0;
+	fineRasterizationKernel<<<numTiles,tileDims,Ns>>>(primitives, NPrimitives, resolution, 
+		tileBuffers, tileBufferSize, tileBufferCounters, depthbuffer);
 
-
+	cudaFree(tileBufferCounters);
 	cudaFree(tileBuffers);
 	cudaFree(bufferCounters);
 }
