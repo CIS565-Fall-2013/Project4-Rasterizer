@@ -153,7 +153,7 @@ __global__ void vertexShadeKernel(float* vbo,float* vboWorldSpace, int vbosize, 
 	  cudaMat4 viewport;
 	  viewport.x = glm::vec4(0.5f*resolution.x,0.0f,0.0f,0.5f*resolution.x);
 	  viewport.y = glm::vec4(0.0f,0.5f*resolution.y,0.0f,0.5f*resolution.y);
-	  viewport.z = glm::vec4(0.0f,0.0f,0.5f*(zplanes.y-zplanes.x),0.5f*(zplanes.y-zplanes.x));
+	  viewport.z = glm::vec4(0.0f,0.0f,0.5f,0.5f);
 	  viewport.w = glm::vec4(0.0f,0.0f,0.0f,1.0f);
 	  
 	  transformedVec.w = 1;
@@ -259,18 +259,31 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 lightPos, int mode){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 lightPos,int mode, glm::vec3 camPos){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
 	  fragment f = depthbuffer[index];
 
+	  glm::vec3 col = glm::vec3(0.42f,0.35f,0.80f);
 	  if(mode==LIGHTING)
 	  {
 		glm::vec3 normalizedLP = glm::normalize(lightPos - f.position);
 		float lighting = glm::dot(normalizedLP,f.normal);
-		depthbuffer[index].color = glm::vec3(lighting);
+		depthbuffer[index].color = lighting*col;
+	  }
+	  if(mode==SLIGHTING)
+	  {
+		float exponent = 4.0f;
+		glm::vec3 normalizedLP = glm::normalize(lightPos - f.position);
+		glm::vec3 R = 2*glm::dot(normalizedLP,f.normal)*f.normal - normalizedLP;
+		glm::vec3 V = glm::normalize( camPos - f.position);
+		float rdotV = max(glm::dot(R,V),0.0f);
+		rdotV = min(1.0f, rdotV);
+		float difLighting = glm::dot(normalizedLP,f.normal);
+		if (f.depth < 10000)
+			depthbuffer[index].color = difLighting*col + powf(rdotV,exponent);
 	  }
 	  else if (mode == COLOR)
 	  {
@@ -313,7 +326,7 @@ struct is_backfacing
 
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize,const glm::mat4& modelMatrix,const glm::mat4& viewMatrix,const glm::mat4& projectionMatrix,const glm::vec2 zplanes, shadeMode sm){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize,const glm::mat4& modelMatrix,const glm::mat4& viewMatrix,const glm::mat4& projectionMatrix,const glm::vec2 zplanes, shadeMode sm, const glm::vec3 camPos){
 
   // set up crucial magic
   int tileSize = 8;
@@ -378,27 +391,6 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   
   vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo,device_vbo_worldspace, vbosize,device_nbo, nbosize,mMatrix, mvpMatrix, mInvTranMatrix,resolution,zplanes);
   
-  ///*TEST VERTEX SHADER*/
-  //float* h_vertices = new float[vbosize];
-  //cudaMemcpy(h_vertices,device_vbo_worldspace,vbosize*sizeof(float),cudaMemcpyDeviceToHost);
-  //for(int i=0; i<vbosize/3;i++)
-  //{
-	 // std::cout << vbo[3*i] <<","<<vbo[3*i+1]<<","<<vbo[3*i+2]<<std::endl;
-	 // //std::cout << [3*i] <<","<<vbo[3*i+1]<<","<<vbo[3*i+2]<<std::endl;
-	 // std::cout << h_vertices[3*i] <<","<<h_vertices[3*i+1]<<","<<h_vertices[3*i+2]<<std::endl<<std::endl;
-  //}
-
-  //std::cout<<std::endl;
-	 //float* h_normals = new float[nbosize];
-	 //  cudaMemcpy(h_normals,device_nbo,nbosize*sizeof(float),cudaMemcpyDeviceToHost);
-
-  //for(int i=0; i<nbosize/3;i++)
-  //{
-	 //std::cout << vbo[3*i] <<","<<vbo[3*i+1]<<","<<vbo[3*i+2]<<std::endl;
-	 // std::cout << nbo[3*i] <<","<<nbo[3*i+1]<<","<<nbo[3*i+2]<<std::endl;
-	 // std::cout << h_normals[3*i] <<","<<h_normals[3*i+1]<<","<<h_normals[3*i+2]<<std::endl<<std::endl;
-  //}
-  //std::cout<<std::endl<<std::endl;
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -408,15 +400,6 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_vbo_worldspace, vbosize, device_cbo, cbosize, device_ibo, ibosize,device_nbo,nbosize, primitives,vMatrix);
 
-  /*TEST PRIMITIVE ASSEMBLY*/
-  //triangle* h_triangles = new triangle[ibosize/3];
-  //cudaMemcpy(h_triangles,primitives,ibosize/3*sizeof(triangle),cudaMemcpyDeviceToHost);
-  //
-  //for(int i=0; i <ibosize/3 ; i++)
-  //{
-	 // triangle t = h_triangles[i];
-	 // int debug;
-  //}
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -424,8 +407,6 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   thrust::device_ptr<triangle> thrustPrimitivesArray = thrust::device_pointer_cast(primitives);
   unsigned int numberOfPrimitives = ceil((float)ibosize/3);
-  //int numberOfFrontPrimitives = thrust::remove_if(thrustPrimitivesArray,thrustPrimitivesArray+numberOfPrimitives,is_backfacing()) - thrustPrimitivesArray ;
-  //std::cout<<numberOfPrimitives<<" "<<numberOfFrontPrimitives<<std::endl;
   int numberOfFrontPrimitives = numberOfPrimitives;
   int rasterizationBlocks = ceil(((float)numberOfFrontPrimitives)/((float)tileSize));
   
@@ -436,7 +417,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //fragment shader
   //------------------------------
   glm::vec3 lightPosModel(2,2,2);
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution,glm::vec3(lightPosModel.x,lightPosModel.y,lightPosModel.z),sm);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution,glm::vec3(lightPosModel.x,lightPosModel.y,lightPosModel.z),sm,camPos);
 
   cudaDeviceSynchronize();
   //------------------------------
@@ -456,6 +437,7 @@ void kernelCleanup(){
   cudaFree( primitives );
   cudaFree( device_vbo );
   cudaFree( device_vbo_worldspace);
+  cudaFree(device_nbo);
   cudaFree( device_cbo );
   cudaFree( device_ibo );
   cudaFree( framebuffer );

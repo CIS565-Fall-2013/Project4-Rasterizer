@@ -65,9 +65,9 @@ int ibosize;
 float* nbo;
 int nbosize;
 
-float fovy = 60.0f;
-float zNear = 0.7f;
-float zFar = 0.9f;
+float fovy = 40.0f;
+float zNear = 0.5f;
+float zFar = 5.0f;
 
 glm::mat4 model;
 glm::mat4 view;
@@ -81,7 +81,7 @@ glm::vec3 cameraLookAt(0.0,0.2,0.0);
 //----------CUDA STUFF-----------
 //-------------------------------
 
-int width=800; int height=800;
+int width=1280; int height=960;
 
 //-------------------------------
 //-------------MAIN--------------

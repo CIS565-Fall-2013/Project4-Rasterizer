@@ -93,8 +93,8 @@ void runCuda(){
   
     glm::mat4 translationMat = glm::translate(0.0f, 0.0f, 0.0f);
 	glm::mat4 scaleMat = glm::scale(1.0f,1.0f,1.0f);
-	glm::vec3 myRotationAxis(0.0f, 1.0f, 0.0f);
-	glm::mat4 rotationMat = glm::rotate( frame*1.5f, myRotationAxis );
+	glm::vec3 myRotationAxis(1.0f, 0.0f, 0.0f);
+	glm::mat4 rotationMat = glm::rotate( 0.0f, myRotationAxis );
 	
 	model = translationMat*rotationMat*scaleMat;
 	projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);
@@ -120,7 +120,7 @@ void runCuda(){
   nbosize = mesh->getNBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,nbo, nbosize,model,view,projection,glm::vec2(zNear,zFar),sm);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize,nbo, nbosize,model,view,projection,glm::vec2(zNear,zFar),sm,cameraPosition);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -225,6 +225,9 @@ void runCuda(){
 
 	   case ('l'):
 		   sm = LIGHTING;
+		   break;
+	   case ('s'):
+		   sm = SLIGHTING;
 		   break;
 	   case ('n'):
 		   sm = NORMALS;
