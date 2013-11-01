@@ -116,6 +116,17 @@ __global__ void clearStencilBuffer(glm::vec2 resolution, int* stencilbuffer, int
 	}
 }
 
+//just clear z buffer
+__global__ void clearZbuffer(glm::vec2 resolution, fragment* buffer)
+{
+	 int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+    int index = x + (y * resolution.x);
+    if(x<=resolution.x && y<=resolution.y){
+		buffer[index].position.z = 10000;
+	}
+}
+
 //Kernel that writes the image to the OpenGL PBO directly. 
 __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* image){
   
@@ -195,7 +206,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  primitives[index].c2 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);*/
 
 
-	  /*primitives[index].c0 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);
+	 /* primitives[index].c0 = glm::vec3(cbo[index%3 + 0], cbo[index%3 + 1], cbo[index%3 + 2]);
 	  primitives[index].c1 = glm::vec3(cbo[index%3 + 3], cbo[index%3 + 4], cbo[index%3 + 5]);
 	  primitives[index].c2 = glm::vec3(cbo[index%3 + 6], cbo[index%3 + 7], cbo[index%3 + 8]);*/
 
@@ -317,8 +328,8 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
   }
 }
 
-__global__ void rasterizationKernelStencil(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 cameraPos, glm::vec3 lookAt,
-										  int* stencilbuffer, int start, int end, int stencilValue){
+__global__ void rasterizationKernelStencil(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 cameraPos, glm::vec3 lookAt, 
+										   int* stencilbuffer, int start, int end, int stencilValue, int colorRepresent){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<end && index>=start){
 	  
@@ -349,7 +360,7 @@ __global__ void rasterizationKernelStencil(triangle* primitives, int primitivesC
 			  float triArea = (calculateSignedArea(primitives[index]));
 			  glm::vec3 bCoordinate = calculateBarycentricCoordinate(primitives[index], glm::vec2((int)minP.x,(int)minP.y));	
 			  	 
-
+			  //if(triArea < 0){
 			for(int j = minP.y; j <= maxP.y; j++)
 			{		
 				//glm::vec3 temp = bCoordinate;
@@ -362,9 +373,18 @@ __global__ void rasterizationKernelStencil(triangle* primitives, int primitivesC
 					{			
 						int depthIndex = i + j*resolution.x;							
 						if(stencilValue == stencilbuffer[depthIndex] + 1){
-							depthbuffer[depthIndex].color = /*glm::vec3(1,1,1) * interpolateZ * 10.f;*/Evalue.x * primitives[index].c0 + Evalue.y * primitives[index].c1 + Evalue.z * primitives[index].c2;	
-							depthbuffer[depthIndex].normal = primitives[index].n0;
-							stencilbuffer[depthIndex] = stencilValue;
+							float interpolateZ = -getZAtCoordinate(Evalue, primitives[index]);							
+							if(fAtomicMin(&depthbuffer[depthIndex].position.z, interpolateZ))
+							{							
+								depthbuffer[depthIndex].normal = Evalue.x * primitives[index].n0 + Evalue.y * primitives[index].n1 + Evalue.z * primitives[index].n2;	
+								if(colorRepresent == 0)
+									depthbuffer[depthIndex].color = glm::vec3(1,1,1) * (1-interpolateZ) * 10.f;
+								else if(colorRepresent == 1)
+									depthbuffer[depthIndex].color = glm::abs(depthbuffer[depthIndex].normal);
+								else 
+									depthbuffer[depthIndex].color = Evalue.x * primitives[index].c0 + Evalue.y * primitives[index].c1 + Evalue.z * primitives[index].c2;
+								stencilbuffer[depthIndex] = 1;
+							}						
 						}						
 					}
 					Evalue.x -= (0.5f * y12) / triArea; Evalue.y -= (0.5f * y20) / triArea; Evalue.z -= (0.5f * y01) / triArea;	
@@ -375,6 +395,7 @@ __global__ void rasterizationKernelStencil(triangle* primitives, int primitivesC
 				bCoordinate = Tvalue;	
 			}
 		 }
+	  //}
 	}
   }
 }
@@ -390,8 +411,9 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	glm::vec4 posWorld = inverseModelViewProjection * inverseViewPort * glm::vec4(depthbuffer[index].position, 1);	  
 	float diffuse = max(glm::dot(depthbuffer[index].normal, glm::vec3(lightPos - posWorld)), 0.0f);	
 	
-	if(colorRepresent != 0)
-		depthbuffer[index].color *= diffuse * glm::vec3(1,1,1) * 0.2f;	
+	if(colorRepresent != 0){
+		depthbuffer[index].color = depthbuffer[index].color * diffuse * glm::vec3(1,1,1) * 0.2f + depthbuffer[index].color * 0.2f;		
+	}
   }
 }
 
@@ -530,12 +552,19 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   if(!isStencil)
 	  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, colorRepresent, lockbuffer);
   else{
+
 	int start = first;
 	int end = second;
-	rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, stencilbuffer, start, second, ++stencilValue);
+	rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, stencilbuffer, start, end, ++stencilValue, colorRepresent);
+	cudaDeviceSynchronize();
+	//clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, frag, lockbuffer);
+	clearZbuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer);
+	cudaDeviceSynchronize();
+
 	start = second;
 	end = ibosize/3;
-	rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, stencilbuffer, start, end, ++stencilValue);
+	rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, stencilbuffer, start, end, ++stencilValue, colorRepresent);
+	cudaDeviceSynchronize();
   }
   cudaDeviceSynchronize();
   //------------------------------

@@ -16,17 +16,25 @@ int main(int argc, char** argv){
     //getline(liness, header, '='); getline(liness, data, '=');
     //if(strcmp(header.c_str(), "mesh")==0){
       //renderScene = new scene(data);
+
+	//laoding file for obj
 	  data = "../../objs/bunny.obj";
       mesh = new obj();
       objLoader* loader = new objLoader(data, mesh);
       mesh->buildVBOs();
       delete loader;
-      loadedScene = true;
-	  
+      loadedScene = true;	  
     //}
   //}
 
+#if STENCIL == 1
+	  isStencil = true;
+#else
 	  isStencil = false;
+#endif
+
+	  firstObj = 0;
+	  secondObj = FIRST;
 
   if(!loadedScene){
     cout << "Usage: mesh=[obj file]" << endl;
@@ -123,15 +131,8 @@ void runCuda(){
   cudaEventCreate(&stop);
   cudaEventRecord( start, 0);
 
-  /* for(int i = 0; i < vbosize/3; i++)
-  {
-	  cout<<vbo[i*3]<<" "<<vbo[i*3+1]<<" "<<vbo[i*3+2]<<endl;
-  }*/
-  firstObj = 0;
-  secondObj = 2;
 
-
-  rRotx += (0.5f/180.f) * PI;
+  rRotx += (1.f/180.f) * PI;
   rRoty = (50.f/180.f) * PI;
 
   cameraPosition.x = lookat.x + eyeDis * glm::cos(rRoty) * glm::cos(rRotx);
@@ -156,7 +157,7 @@ void runCuda(){
   float seconds = 0.0f;
   cudaEventElapsedTime( &seconds, start, stop);
   
- // printf("time %f \n", seconds);
+  printf("time %f \n", seconds);
 
   frame++;
   fpstracker++;
