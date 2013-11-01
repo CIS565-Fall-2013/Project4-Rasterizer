@@ -1,3 +1,57 @@
+![cow_shade_fill](renders/cow_shade_fill.png)
+
+-------------------------------------------------------------------------------
+CIS565: Project 4: CUDA Rasterizer
+-------------------------------------------------------------------------------
+Fall 2013
+
+For this project I've implemented the following features:
+* Vertex Shading
+* Primitive Assembly with support for triangle VBOs/IBOs
+* Perspective Transformation
+* Rasterization through either a scanline or a tiled approach
+* Fragment Shading
+* A depth buffer for storing and depth testing fragments
+* Fragment to framebuffer writing
+* Lambert shading in the fragment shader
+* 
+And the following additional features:
+* Correct color interpolation ( I don't expect this feature to add much computational effort since I'm already performing barycentric coordinate based computations for normals, depth, etc ... )
+* Mouse based interactive camera
+* Back-face culling
+
+Color interpolation ( shaded and non-shaded ):
+![cow_interp](renders/cow_interp.png)
+![cow_interp_fill](renders/cow_shade_interp.png)
+
+I also implemented some simple debugging modes:
+
+Normals:
+
+![cow_normals](renders/cow_smooth_normals.png)
+
+Featureless fill:
+
+![cow_fill](renders/cow_fill.png)
+
+
+-------------------------------------------------------------------------------
+Video:
+-------------------------------------------------------------------------------
+Here is a video of me showing off the interactive camera
+
+
+
+-------------------------------------------------------------------------------
+Performance:
+-------------------------------------------------------------------------------
+...
+
+-------------------------------------------------------------------------------
+Thanks:
+-------------------------------------------------------------------------------
+Thanks to Nathan Marshak for providing a cow.obj with smoothed normals
+
 ![first_steps](renders/first_steps.png)
 
 
