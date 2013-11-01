@@ -44,6 +44,7 @@ using namespace std;
 //-------------------------------
 //colorReader* myColorReader;
 
+bool nineteen_eighty_four = false;
 bool backfaceCull = true;
 bool checkWriteCount = false; //draw yellow if we write twice
 bool useLargeStep = false;

@@ -194,7 +194,7 @@ void runCuda(){
     }
 
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, 
-	  camPos, drawLines, useShading, interpColors, useLargeStep, checkWriteCount, backfaceCull, currRot);
+	  camPos, drawLines, useShading, interpColors, useLargeStep, checkWriteCount, backfaceCull, currRot, nineteen_eighty_four);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -320,6 +320,8 @@ void runCuda(){
 	   case(98): //B for backface cull
 		   backfaceCull = !backfaceCull;
 		   break;
+	   case(56): //8 for 1984 mode
+		   nineteen_eighty_four = !nineteen_eighty_four;
     }
   }
 

@@ -249,7 +249,7 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
 //returns the number of pixels drawn
-__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx){
+__device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx, glm::vec3 lineColor){
 	float X, Y, Xinc, Yinc, LENGTH;
 	Xinc = finish.x - start.x;
 	Yinc = finish.y - start.y;
@@ -260,7 +260,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 	glm::vec3 LINE_COLOR(0, 0, 0);
 	//if both zero, then we just draw a point.
 	if( (abs(Xinc) < NATHANS_EPSILON) && (abs(Yinc) < NATHANS_EPSILON) ){
-		writeColorPoint(currTri, triIdx, glm::vec2(start.x, start.y), depthBuffer, resolution, LINE_COLOR);
+		writeColorPoint(currTri, triIdx, glm::vec2(start.x, start.y), depthBuffer, resolution, lineColor);
 		pixelsDrawn++;
 	} else { //this is a line segment
 		//LENGTH is the greater of Xinc, Yinc
@@ -276,7 +276,7 @@ __device__ int rasterizeLine(glm::vec3 start, glm::vec3 finish, fragment* depthB
 		X = start.x;
 		Y = start.y;
 		for(int i = 0; i <= roundf(LENGTH); i++){ //do this at least once
-			writeColorPoint(currTri, triIdx, glm::vec2(X, Y), depthBuffer, resolution, LINE_COLOR);
+			writeColorPoint(currTri, triIdx, glm::vec2(X, Y), depthBuffer, resolution, lineColor);
 			pixelsDrawn++;
 			X += Xinc;
 			Y += Yinc;
@@ -333,6 +333,28 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, float* nbo
 	  currTri.modelspace_n2 = glm::vec3(nbo[3*ind2], nbo[3*ind2 + 1], nbo[3*ind2 + 2]);
 	  currTri.c2 = glm::vec3(cbo[3*ind2], cbo[3*ind2 + 1], cbo[3*ind2 + 2]);
 	  primitives[index] = currTri;
+  }
+}
+
+__global__ void wireRasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, 
+	glm::vec3 vdir, bool drawLines, bool interpColors, int* writeCount, bool useLargeStep, bool checkWriteCount, bool backfaceCull){
+
+		int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index<primitivesCount){
+			  triangle currTri = primitives[index];
+	  glm::vec3 v1 = currTri.p1 - currTri.p0;
+	  glm::vec3 v2 = currTri.p2 - currTri.p0;
+	  glm::vec3 normal = glm::cross(v1, v2);
+	  currTri.n0 = normal;
+
+	  if( backfaceCull && glm::dot(normal, vdir) > 0 ){
+		  return; //cull face, it's facing away.
+	  }
+
+		glm::vec3 lineColor(0, 1, 0);
+	  	rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index, lineColor);
+		rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index, lineColor);
+		rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index, lineColor);
   }
 }
 
@@ -414,9 +436,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	  //rasterizeHorizLine(glm::vec2(p1), glm::vec2(p2), depthbuffer, tmp_depthbuffer, resolution, currTri, index);
 	  
 	  if(drawLines){
-		rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index);
-		rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index);
-		rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index);
+		glm::vec3 lineColor(0, 0, 0);
+		rasterizeLine(currTri.p0, currTri.p1, depthbuffer, resolution, currTri, index, lineColor);
+		rasterizeLine(currTri.p1, currTri.p2, depthbuffer, resolution, currTri, index, lineColor);
+		rasterizeLine(currTri.p2, currTri.p0, depthbuffer, resolution, currTri, index, lineColor);
 	  }
 
 	  //float d0 = (p1.x - p0.x) / (p1.y - p0.y);
@@ -512,7 +535,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, 
-	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount, bool backfaceCull, glm::quat currRot){
+	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount, bool backfaceCull, glm::quat currRot, bool wireframe){
 
   // set up crucial magic
   int tileSize = 8;
@@ -613,7 +636,12 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //first draw the outlines of the triangle
   glm::vec3 vdir = center - eye;
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines, interpColors, framebuffer_writes, useLargeStep, checkWriteCount, backfaceCull);
+
+  if(wireframe){
+	  wireRasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines, interpColors, framebuffer_writes, useLargeStep, checkWriteCount, backfaceCull);
+  } else {
+	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines, interpColors, framebuffer_writes, useLargeStep, checkWriteCount, backfaceCull);
+  }
   cudaDeviceSynchronize();
   //next, march through all scanlines
   //int scanlineBlocks = ceil(resolution.y/(float)tileSize);
