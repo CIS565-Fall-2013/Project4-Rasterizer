@@ -95,9 +95,9 @@ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthb
 		//	int leet = 1337;
 		//}
 		//printf("Frag z: %f\n", frag.position.z);
-		if(checkWriteCount){
-			atomicAdd( &writeCount[index], 1 );
-		}
+		//if(checkWriteCount){
+		atomicAdd( &writeCount[index], 1 );
+		//}
 		if(depthbuffer[index].position.z < frag.position.z){
 			depthbuffer[index] = frag;
 		}
