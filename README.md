@@ -54,13 +54,13 @@ Barycentric Color and Normal Interpolation
 Optimization: Back Face Culling
 -------------------------------------------------------------------------------
 
-[![Back-Faced Culling](https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/video_shot_1.png)] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/mousebased.avi)
+[![Back-Faced Culling](https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/video_shot_2.png)] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/mousebased.avi)
 
 -------------------------------------------------------------------------------
 Mouse Based Camera Interactivity
 -------------------------------------------------------------------------------
 
-[![Mouse-Based Interactive Camera](https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/video_shot_2.png)] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/mousebased.avi)
+[![Mouse-Based Interactive Camera](https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/video_shot_1.png)] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/mousebased.avi)
 
 -------------------------------------------------------------------------------
 PART 2: Performance Evaluation
