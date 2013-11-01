@@ -66,7 +66,8 @@ the viewport area.
 ##### Back-face Culling && Out-of-Viewport Ignoring
 30 ms | 32 FPS
 
- | 13 FPS
+##### Back-face Culling
+300 ms | 1 FPS
  
  
 ###Graphs
