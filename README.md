@@ -31,7 +31,6 @@ MY PIPELINE IMPLEMENTATION:
 -------------------------------------------------------------------------------
 FEATURES:
 -------------------------------------------------------------------------------
-The following resources may be useful for this project:
 
 * A basic rasterization pipeline from start to finish for obj models
 * Parallel rasterization of each primitive
@@ -58,34 +57,56 @@ RESULTS:
 ![alt tag](https://raw.github.com/vimanyu/Project4-Rasterizer/master/renders/buddha_spec.png)
 
 -------------------------------------------------------------------------------
-README
+VIDEO
 -------------------------------------------------------------------------------
-All students must replace or augment the contents of this Readme.md in a clear 
-manner with the following:
+The following is a video of the rasterizer tool in action
 
-* A brief description of the project and the specific features you implemented.
-* At least one screenshot of your project running.
-* A 30 second or longer video of your project running.  To create the video you
-  can use http://www.microsoft.com/expression/products/Encoder4_Overview.aspx 
-* A performance evaluation (described in detail below).
+[![ScreenShot](https://raw.github.com/vimanyu/Project4-Rasterizer/master/doc_images/rasterizer_video_screenshot.png)](http://www.youtube.com/watch?v=s8ehsuIoL_U)
 
 -------------------------------------------------------------------------------
-PERFORMANCE EVALUATION
+BUILDING AND RUNNING CODE
 -------------------------------------------------------------------------------
-The performance evaluation is where you will investigate how to make your CUDA
-programs more efficient using the skills you've learned in class. You must have
-performed at least one experiment on your code to investigate the positive or
-negative effects on performance. 
+The code has been tested on Visual Studio 2012/2010 and cuda 5.5 on a laptop with compute capability 1.0 as well as 3.0.
 
-We encourage you to get creative with your tweaks. Consider places in your code
-that could be considered bottlenecks and try to improve them. 
+Keyboard bindings for interactivity:
 
-Each student should provide no more than a one page summary of their
-optimizations along with tables and or graphs to visually explain any
-performance differences.
+Key|Action
+---|---
+'c'| View color interpolation
+'n'| View world space normals
+'z'| View z-depth
+'l'| Diffuse lighting
+'s'| Specular lighting
+'r'| Reset camera
+
+Mouse button| Action
+LMB| Rotate 
+MMB| Pan
+RMB| Zoom
+
+Apart from this you might encounter objs which have been built assuming z-axis as the up axis.
+In this code, y-axis is the up-axis.
+
+To correct this, you can simply, set the model matrix accordingly.
+
+```
+//Control the number of bodies in the simulation
+//main.cpp (line 96)
+	glm::vec3 myRotationAxis(1.0f, 0.0f, 0.0f);
+	//Change the 0.0f to -90f incase you need to align with y-axis
+	glm::mat4 rotationMat = glm::rotate( 0.0f, myRotationAxis )
+```
+
+If you need to render with a different color, you can alter,
+```
+//Control the number of bodies in the simulation
+//rasterize_kernels.cu (line 345)
+glm::vec3 col = glm::vec3(0.42f,0.35f,0.80f);
+```
+For now, these values are hard-coded but I will definitely be working on a future version that can read in a config file.
 
 -------------------------------------------------------------------------------
-THIRD PARTY CODE POLICY
+PERFORMANCE ANALYSIS
 -------------------------------------------------------------------------------
 * Use of any third-party code must be approved by asking on Piazza.  If it is approved, all students are welcome to use it.  Generally, we approve use of third-party code that is not a core part of the project.  For example, for the ray tracer, we would approve using a third-party library for loading models, but would not approve copying and pasting a CUDA function for doing refraction.
 * Third-party code must be credited in README.md.
