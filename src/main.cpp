@@ -141,9 +141,14 @@ void rotateX(float x){
         glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), x, up);
 
         //find new camera position
-        glm::vec4 tempPos (pos.x, pos.y, pos.z, 0.0f);
-        tempPos= rotation*tempPos;
+        glm::vec4 tempPos (pos.x, pos.y, pos.z, 0.0f);		
+		tempPos= rotation*tempPos;
 		cam.eye = glm::vec3(tempPos.x, tempPos.y, tempPos.z);
+
+		tempPos = glm::vec4(up, 0.0f);
+		tempPos = rotation*tempPos;
+		cam.up = glm::vec3(tempPos.x, tempPos.y, tempPos.z);
+		
 }
 
 void rotateY(float y){
@@ -156,6 +161,10 @@ void rotateY(float y){
         glm::vec4 tempPos (pos.x, pos.y, pos.z, 0.0f);
         tempPos= rotation*tempPos;
         cam.eye = glm::vec3(tempPos.x, tempPos.y, tempPos.z);
+
+		tempPos = glm::vec4(up, 0.0f);
+		tempPos = rotation*tempPos;
+		cam.up = glm::vec3(tempPos.x, tempPos.y, tempPos.z);
         
 }
 

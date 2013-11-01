@@ -270,8 +270,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 						  frag.normal = glm::normalize(baryCoord.x*tri.n0 + baryCoord.y*tri.n1 + baryCoord.z*tri.n2);
 						  frag.lightDir = glm::normalize(baryCoord.x*tri.L0 + baryCoord.y*tri.L1 + baryCoord.z*tri.L2);
 						  
-						  frag.color = glm::vec3(1,1,1);
+						  //frag.color = glm::vec3(1,1,1);
 						  //frag.color = baryCoord.x*tri.c0 + baryCoord.y*tri.c1 + baryCoord.z*tri.c2;
+						  frag.color = glm::vec3(abs(frag.normal.x), abs(frag.normal.y), abs(frag.normal.z));
 						  depthbuffer[fragIndex] = frag;
 					  }
 				  }
@@ -438,8 +439,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  //rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cam.eye-cam.center);
-  rasterizationKernelFrag<<<fullBlocksPerGrid, threadsPerBlock>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cam.eye-cam.center);
+  //rasterizationKernelFrag<<<fullBlocksPerGrid, threadsPerBlock>>>(primitives, ibosize/3, depthbuffer, resolution);
   checkCUDAErrorWithLine("rasterize kernel failed!");
 
   cudaDeviceSynchronize();
