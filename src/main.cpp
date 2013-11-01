@@ -102,7 +102,7 @@ void runCuda(){
   //cbo = newcbo;
   //cbosize = 9;
   mesh->setColor(glm::vec3(0, 1, 0));
-  cbo = mesh->getCBO();
+  cbo = mesh->getNBO();//mesh->getCBO();
   //cbo = myColorReader->getCBO();
   cbosize = mesh->getCBOsize();
 

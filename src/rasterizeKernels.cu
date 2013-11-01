@@ -448,7 +448,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 	  //depthbuffer[index] = currFrag;
 
 	  if( currFrag.triIdx >= 0){
-		  currFrag.color = currFrag.modelNormal;
+		  //currFrag.color = currFrag.modelNormal;
 		  //glm::vec3 lightVec = glm::normalize(lightPos - currFrag.modelPosition);
 		  //float diffuseCoeff = glm::clamp(glm::dot(currFrag.modelNormal, lightVec), 0.0f, 1.0f);
 		  //currFrag.color = diffuseCoeff * currFrag.color;
