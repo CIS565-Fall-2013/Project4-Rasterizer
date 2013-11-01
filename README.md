@@ -51,7 +51,16 @@ at any point (explained below).
 Rasterization
 -------------------------------------------------------------------------------
 
-Rasterizer Stuff
+This is the crucial step in the pipeline. Taking in the primitives list, the rasterizer
+kernel performed the scanline algorithm. This algorithm was parallelized by primitive,
+so each kernel processed one triangle and rendered it to the screen.
+
+Traditionally, with each fragment of a triangle primitive, the fragment would be
+atomically compared to the depthbuffer to see if the primitive were occluded
+or visible. UNFORTUNATELY, in my implementation, the atomic compare and exchange 
+functions caused a CUDA timeout for any model other than tri.obj. As such, I have
+commented the code out and my renders suffer from depth test issues. All other required
+features, as well as the additional features, however, work perfectly fine.
 
 -------------------------------------------------------------------------------
 Lambertian Fragment Shading
