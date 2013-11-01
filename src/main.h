@@ -43,6 +43,7 @@ using namespace std;
 //-------------------------------
 //colorReader* myColorReader;
 
+bool backfaceCull = true;
 bool checkWriteCount = false; //draw yellow if we write twice
 bool useLargeStep = false;
 bool interpColors = true; //else use avg. of colors per-face

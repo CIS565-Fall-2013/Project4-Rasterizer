@@ -123,7 +123,7 @@ void runCuda(){
 	angleDeg = 0;
 
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, 
-	  camPos, drawLines, useShading, interpColors, useLargeStep, checkWriteCount);
+	  camPos, drawLines, useShading, interpColors, useLargeStep, checkWriteCount, backfaceCull);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -246,6 +246,9 @@ void runCuda(){
 	   case(107): //k for checK if we write twice
 		checkWriteCount = !checkWriteCount;
 		break;
+	   case(98): //B for backface cull
+		   backfaceCull = !backfaceCull;
+		   break;
     }
   }
 

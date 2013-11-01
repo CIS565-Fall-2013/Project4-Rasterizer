@@ -18,6 +18,6 @@
 
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, 
-	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount);
+	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount, bool backfaceCull);
 
 #endif //RASTERIZEKERNEL_H
