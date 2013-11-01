@@ -54,28 +54,40 @@ Barycentric Color and Normal Interpolation
 Optimization: Back Face Culling
 -------------------------------------------------------------------------------
 
+To implement this optimization to the rasterizer, I examined each face within the
+primitive assembly step. I determined whether or not the vertices of the face
+were listed in clockwise or counterclockwise order in screen space. If they appear
+in counterclockwise orientation, then the primitive is facing away from the camera
+eye. In this case, the triangle's visibility field (which I added to the struct)
+was marked false. When the triangle was sent through the rasterizing kernel,
+the visibility field was checked before any calculations were performed and
+any invisible primitive was ignored. Below is a video demonstrating this feature.
+The triangle mesh has uniform normals initially facing towards the camera. As the
+triangle is turned past 90 degrees, the normals begin to point away from the
+camera and the triangle is no longer rendered.
+
 [![Back-Faced Culling](https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/video_shot_2.png)] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/mousebased.avi)
+
+An analysis of the benefits of the back face culling implementation on the
+rasterizer at runtime is included as a performance analysis below.
 
 -------------------------------------------------------------------------------
 Mouse Based Camera Interactivity
 -------------------------------------------------------------------------------
+
+I also implemented mouse-based interactivity for the camera. By holding and dragging
+the left mouse button, you can rotate the camera in any direction about the focal
+point of the scene. By holding and dragging the right mouse button (or by holding
+down SHIFT and the left mouse button again), you can zoom in or out. Below is a 
+simple video demonstrating the mouse-based interactive camera feature:
 
 [![Mouse-Based Interactive Camera](https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/video_shot_1.png)] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/mousebased.avi)
 
 -------------------------------------------------------------------------------
 PART 2: Performance Evaluation
 ===============================================================================
-The performance evaluation is where you will investigate how to make your CUDA
-programs more efficient using the skills you've learned in class. You must have
-performed at least one experiment on your code to investigate the positive or
-negative effects on performance. 
 
-We encourage you to get creative with your tweaks. Consider places in your code
-that could be considered bottlenecks and try to improve them. 
 
-Each student should provide no more than a one page summary of their
-optimizations along with tables and or graphs to visually explain any
-performance differences.
 
 -------------------------------------------------------------------------------
 NOTES:
