@@ -25,10 +25,11 @@ Extra features:
 * Super-sampled Antialiasing
 * Backface culling during primitive assembly
 * Color interpolation with Barycentric coordinates
-* Mouse interaction:
+* Interactive camera:
   * Rotation around model: Move mouse cursor while holding left mouse button
   * Vertical panning: Move mouse cursor up and down while holding middle mouse button
   * Zoom-in/out: Mouse wheel
+  * Reset camera: space bar
 
 
 [Click here for project video](http://youtu.be/e5DsuHbJe00 )
@@ -58,16 +59,4 @@ PROBLEMS ENCOUNTERED:
 -------------------------------------------------------------------------------
 PERFORMANCE EVALUATION
 -------------------------------------------------------------------------------
-The performance evaluation is where you will investigate how to make your CUDA
-programs more efficient using the skills you've learned in class. You must have
-performed at least one experiment on your code to investigate the positive or
-negative effects on performance. 
-
-We encourage you to get creative with your tweaks. Consider places in your code
-that could be considered bottlenecks and try to improve them. 
-
-Each student should provide no more than a one page summary of their
-optimizations along with tables and or graphs to visually explain any
-performance differences.
-
-
+![alt text](Performance_comparison.png)
