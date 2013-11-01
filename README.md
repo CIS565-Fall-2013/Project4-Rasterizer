@@ -34,6 +34,8 @@ The following stages of the graphics pipeline and features have been implemented
 * Correct color interpretation between points on a primitive
   While implementing proper color interpretation, the smooth normals of the OBJ are obtained and then a new NBO is created and passed onto the cudarasterizecore() 
   similar to the VBO and then these normals are multiplied by the model matrix and stored in the primitive. Later these are interpolated using the barycentric co-ordinates to get the proper color at that point. 
+
+
 -------------------------------------------------------------------------------
 VIDEO:
 -------------------------------------------------------------------------------
