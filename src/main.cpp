@@ -30,7 +30,7 @@ int main(int argc, char** argv){
   }
 
   //set up camera
-  cam.eye = glm::vec3(0,0,4);
+  cam.eye = glm::vec3(0,0,8);
   cam.up = glm::vec3(0,1,0);
   cam.center = glm::vec3(0,0,0);
   cam.fov = 45;
@@ -265,15 +265,16 @@ void rotateY(float y){
 				cam.eye -= 0.2f*(cam.eye - cam.center);
 		}
         else if(startRotate){
+			//flip the rotations cos of gl crap
 			if(oldMousePos.x > x)
-				rotateX(2.0f);
+				rotateY(5.0f);
             else if(oldMousePos.x < x)
-                rotateX(-2.0f);
+                rotateY(-5.0f);
                         
             if(oldMousePos.y > y)
-                rotateY(2.0f);
+                rotateX(5.0f);
             else if(oldMousePos.y < y)
-                rotateY(-2.0f);
+                rotateX(-5.0f);
             }
 
             oldMousePos.x = x;

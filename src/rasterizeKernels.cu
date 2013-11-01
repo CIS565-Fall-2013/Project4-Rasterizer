@@ -221,13 +221,9 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* vbo_ws, int vbosize, 
 
 	  //do backface cull
 	  glm::vec3 normal = glm::normalize(glm::cross(tri.L0-tri.L1, tri.L0-tri.L2));
-
-	  if(normal.z < 0)
-		  tri.draw = false;
-	  
-	  //if(glm::dot(normal, viewDir) < 0)
-		//  tri.draw = false;
-	  //else
+	  if(normal.z <= 0)
+		tri.draw = false;
+	  else
 		  tri.draw = true;
 
 	  //find vector from ws point to light
@@ -273,13 +269,10 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 						  frag.position = glm::vec3(i,j,z);
 						  frag.normal = glm::normalize(baryCoord.x*tri.n0 + baryCoord.y*tri.n1 + baryCoord.z*tri.n2);
 						  frag.lightDir = glm::normalize(baryCoord.x*tri.L0 + baryCoord.y*tri.L1 + baryCoord.z*tri.L2);
-
-						  //if(frag.normal.z > 0){
-							  frag.color = glm::vec3(1,1,1);
-							  //frag.color = glm::normalize(viewDir);
-							  //frag.color = baryCoord.x*tri.c0 + baryCoord.y*tri.c1 + baryCoord.z*tri.c2;
-							depthbuffer[fragIndex] = frag;
-						  //}
+						  
+						  frag.color = glm::vec3(1,1,1);
+						  //frag.color = baryCoord.x*tri.c0 + baryCoord.y*tri.c1 + baryCoord.z*tri.c2;
+						  depthbuffer[fragIndex] = frag;
 					  }
 				  }
 			  }
@@ -317,12 +310,17 @@ __global__ void rasterizationKernelFrag(triangle* primitives, int primitivesCoun
 			if(isBarycentricCoordInBounds(baryCoord)){
 				float z = getZAtCoordinate(baryCoord, tri);
 
-				frag.position = glm::vec3(x,y,z);
-				frag.normal = glm::normalize(glm::cross((tri.p0-tri.p1), (tri.p0-tri.p2)));
-				frag.color = glm::normalize(glm::vec3(abs(z/1000.0f)));
-				//frag.color = frag.normal;
+				if(z > frag.position.z){
+					frag.position = glm::vec3(x,y,z);
+					frag.normal = glm::normalize(baryCoord.x*tri.n0 + baryCoord.y*tri.n1 + baryCoord.z*tri.n2);
+					frag.lightDir = glm::normalize(baryCoord.x*tri.L0 + baryCoord.y*tri.L1 + baryCoord.z*tri.L2);
+						  
+					frag.color = glm::vec3(1,1,1);				
+					depthbuffer[index] = frag;
+				
+				}
+
 			}
-			depthbuffer[index] = frag;
 		}
 	
 	}
@@ -417,10 +415,13 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   glm::mat4 view = glm::lookAt(cam.eye, cam.center, cam.up);
   glm::mat4 projection = glm::perspective(cam.fov, 1.0f, cam.zNear, cam.zFar);
 
+  glm::vec4 lightTemp = view*model*glm::vec4(lightPos, 0.0);
+  lightPos.x = lightTemp.x; lightPos.y = lightTemp.y, lightPos.z = lightTemp.z;
+
   //------------------------------
   //vertex shader
   //------------------------------
-  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_vbo_ws, vbosize, device_nbo, utilityCore::glmMat4ToCudaMat4(model*view), 
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_vbo_ws, vbosize, device_nbo, utilityCore::glmMat4ToCudaMat4(view*model), 
 												utilityCore::glmMat4ToCudaMat4(projection), resolution, cam.zNear, cam.zFar);
   checkCUDAErrorWithLine("vertex shade failed!");
 
@@ -437,8 +438,8 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cam.eye-cam.center);
-  //rasterizationKernelFrag<<<fullBlocksPerGrid, threadsPerBlock>>>(primitives, ibosize/3, depthbuffer, resolution);
+  //rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cam.eye-cam.center);
+  rasterizationKernelFrag<<<fullBlocksPerGrid, threadsPerBlock>>>(primitives, ibosize/3, depthbuffer, resolution);
   checkCUDAErrorWithLine("rasterize kernel failed!");
 
   cudaDeviceSynchronize();
