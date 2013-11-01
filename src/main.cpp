@@ -71,7 +71,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
-
+	glutMouseFunc(mouse);
+	glutMotionFunc(motion);
     glutMainLoop();
   #endif
   kernelCleanup();
@@ -82,7 +83,16 @@ int main(int argc, char** argv){
 //---------RUNTIME STUFF---------
 //-------------------------------
 
+
 void runCuda(){
+  int mouseDeltaX = mouseX - mousePrevX;
+  int mouseDeltaY = mouseY - mousePrevY;
+  mousePrevX = mouseX;
+  mousePrevY = mouseY;
+
+  cameraAngleA -= (float)mouseDeltaX / 100.0f;
+  cameraAngleB += (float)mouseDeltaY / 100.0f;
+
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
   dptr=NULL;
@@ -100,7 +110,7 @@ void runCuda(){
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, cameraAngleA, cameraAngleB);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -184,6 +194,28 @@ void runCuda(){
          shut_down(1);    
          break;
     }
+  }
+
+  void mouse(int button, int state, int x, int y)
+  {
+	  if (button == GLUT_LEFT_BUTTON)
+	  {
+		  if (state == GLUT_DOWN)
+		  {
+			  mouseStartX = x;
+			  mouseStartY = y;
+			  mouseX = 0;
+			  mouseY = 0;
+			  mousePrevX = 0;
+			  mousePrevY = 0;
+		  }
+	  }
+  }
+
+  void motion(int x, int y)
+  {
+	  mouseX = x - mouseStartX;
+	  mouseY = y - mouseStartY;
   }
 
 #endif

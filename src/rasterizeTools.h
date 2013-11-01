@@ -16,6 +16,9 @@ struct triangle {
   glm::vec3 c0;
   glm::vec3 c1;
   glm::vec3 c2;
+  glm::vec3 q0;
+  glm::vec3 q1;
+  glm::vec3 q2;
 };
 
 struct fragment{
@@ -73,6 +76,22 @@ __host__ __device__ bool isBarycentricCoordInBounds(glm::vec3 barycentricCoord){
 //LOOK: for a given barycentric coordinate, return the corresponding z position on the triangle
 __host__ __device__ float getZAtCoordinate(glm::vec3 barycentricCoord, triangle tri){
   return -(barycentricCoord.x*tri.p0.z + barycentricCoord.y*tri.p1.z + barycentricCoord.z*tri.p2.z);
+}
+
+__host__ __device__ glm::vec3 getColorAtCoordinate(glm::vec3 barycentricCoord, triangle& tri){
+  glm::vec3 color;
+  color.x = barycentricCoord.x*tri.c0.x + barycentricCoord.y*tri.c1.x + barycentricCoord.z*tri.c2.x;
+  color.y = barycentricCoord.x*tri.c0.y + barycentricCoord.y*tri.c1.y + barycentricCoord.z*tri.c2.y;
+  color.z = barycentricCoord.x*tri.c0.z + barycentricCoord.y*tri.c1.z + barycentricCoord.z*tri.c2.z;
+  return color;
+}
+
+__host__ __device__ glm::vec3 getPositionAtCoordinate(glm::vec3 barycentricCoord, triangle& tri){
+  glm::vec3 pos;
+  pos.x = barycentricCoord.x*tri.q0.x + barycentricCoord.y*tri.q1.x + barycentricCoord.z*tri.q2.x;
+  pos.y = barycentricCoord.x*tri.q0.y + barycentricCoord.y*tri.q1.y + barycentricCoord.z*tri.q2.y;
+  pos.z = barycentricCoord.x*tri.q0.z + barycentricCoord.y*tri.q1.z + barycentricCoord.z*tri.q2.z;
+  return pos;
 }
 
 #endif

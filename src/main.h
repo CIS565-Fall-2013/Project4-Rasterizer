@@ -64,7 +64,7 @@ int ibosize;
 //----------CUDA STUFF-----------
 //-------------------------------
 
-int width=800; int height=800;
+int width=200; int height=200;
 
 //-------------------------------
 //-------------MAIN--------------
@@ -76,6 +76,15 @@ int main(int argc, char** argv);
 //---------RUNTIME STUFF---------
 //-------------------------------
 
+int mouseStartX;
+int mouseStartY;
+int mouseX;
+int mouseY;
+int mousePrevX;
+int mousePrevY;
+float cameraAngleA;
+float cameraAngleB;
+
 void runCuda();
 
 #ifdef __APPLE__
@@ -83,6 +92,8 @@ void runCuda();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void mouse(int button, int state, int x, int y);
+	void motion(int x, int y);
 #endif
 
 //-------------------------------
