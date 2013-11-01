@@ -26,6 +26,7 @@
 #include "rasterizeKernels.h"
 #include "utilities.h"
 #include "ObjCore/objloader.h"
+#include "camera.h"
 
 #if CUDA_VERSION >= 5000
     #include <helper_cuda.h>
@@ -72,6 +73,7 @@ glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
 glm::vec3 cameraPosition(0.0,0.0,1.0);
+glm::vec3 cameraLookAt(0.0,0.0,0.0);
 
 //-------------------------------
 //----------CUDA STUFF-----------
@@ -96,6 +98,8 @@ void runCuda();
 #else
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void mouseClick(int button, int state, int x, int y);
+	void mouseMove(int x, int y);
 #endif
 
 //-------------------------------

@@ -3,6 +3,8 @@
 
 #include "main.h"
 
+CameraController camCtlr(cameraPosition,cameraLookAt,glm::vec2(width,height));
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -23,6 +25,7 @@ int main(int argc, char** argv){
       loadedScene = true;
     }
   }
+
 
   if(!loadedScene){
     cout << "Usage: mesh=[obj file]" << endl;
@@ -74,7 +77,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
-
+	glutMouseFunc(mouseClick);
+	glutMotionFunc(mouseMove);
     glutMainLoop();
   #endif
   kernelCleanup();
@@ -94,7 +98,7 @@ void runCuda(){
 	
 	model = translationMat*rotationMat*scaleMat;
 	projection = glm::perspective(fovy, float(width)/float(height), zNear, zFar);
-	view = glm::lookAt(cameraPosition, glm::vec3(0), glm::vec3(0,1,0));
+	view = glm::lookAt(camCtlr.getCameraPosition(), camCtlr.getLookAtPosition(), glm::vec3(0,1,0));
 
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
@@ -162,6 +166,17 @@ void runCuda(){
   }
 
 #else
+
+	void mouseClick(int button, int state, int x, int y)
+	{
+		camCtlr.mouseClick(button,state,x,y);
+	}
+
+	void mouseMove(int x, int y)
+	{
+		camCtlr.mouseMove(x,y);
+	}
+
 
   void display(){
     runCuda();

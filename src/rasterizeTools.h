@@ -19,9 +19,9 @@ struct triangle {
   glm::vec3 n0;
   glm::vec3 n1;
   glm::vec3 n2;
-  glm::vec3 p0view;
-  glm::vec3 p1view;
-  glm::vec3 p2view;
+  glm::vec3 p0world;
+  glm::vec3 p1world;
+  glm::vec3 p2world;
   bool backfacing;
 };
 
@@ -29,6 +29,7 @@ struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
+  float depth;
 };
 
 //Multiplies a cudaMat4 matrix and a vec4
