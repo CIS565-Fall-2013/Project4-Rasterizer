@@ -87,7 +87,15 @@ simple video demonstrating the mouse-based interactive camera feature:
 PART 2: Performance Evaluation
 ===============================================================================
 
+For this performance analysis, I ran FPS tests on two OBJ models both with and
+without back face culling as described above. Judging from evaluation on the
+included OBJ models (tri.obj, the simple triangle, and cow.obj, the above cow 
+model), we observe a 30%-50% increase in runtime FPS with the addition of
+back face culling. The data is found below in the graphs:
 
+![Chart] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/chart.png)
+
+![Graph] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/graph.png)
 
 -------------------------------------------------------------------------------
 NOTES:
