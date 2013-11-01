@@ -19,7 +19,8 @@ objLoader::objLoader(string filename, obj* newMesh){
 	char * fname = (char*)filename.c_str();
 	fp_in.open(fname);
 	if(fp_in.is_open()){
-        while (fp_in.good() ){
+		int num = 0;
+        while (fp_in.good() && num < 90000000){
 			string line;
             getline(fp_in,line);
             if(line.empty()){
@@ -57,6 +58,7 @@ objLoader::objLoader(string filename, obj* newMesh){
 				getline(liness, z, ' ');
 				geomesh->addPoint(glm::vec3(::atof(x.c_str()), ::atof(y.c_str()), ::atof(z.c_str())));
 			}else if(line[0]=='f'){
+				num++;
 				string v;
 				getline(liness, v, ' ');
 				string delim1 = "//";

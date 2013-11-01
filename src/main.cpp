@@ -2,6 +2,7 @@
 // Written by Yining Karl Li, Copyright (c) 2012 University of Pennsylvania
 
 #include "main.h"
+#include <ctime>
 
 //-------------------------------
 //-------------MAIN--------------
@@ -111,9 +112,18 @@ void runCuda(){
   modelViewProjection = proj*view*model;
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
+  std::clock_t start = clock();
+
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, modelViewProjection, model, lightPos, eye);
   //projection, view, zNear, zFar, lightPosition,
-  cudaGLUnmapBufferObject(pbo);
+  std::clock_t finish = clock();
+	double elapsed_time = double(start-finish) / CLOCKS_PER_SEC;
+	cout<<elapsed_time<<endl;
+
+  
+  cudaGLUnmapBufferObject(pbo); 
+
+
 
   vbo = NULL;
   cbo = NULL;

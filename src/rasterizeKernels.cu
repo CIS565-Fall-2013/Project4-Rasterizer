@@ -25,7 +25,7 @@ int* device_ibo;
 float* device_nbo;
 triangle* primitives;
 
-bool diff1spec0 = 1;
+bool diff1spec0 = 0;
 
 
 void checkCUDAError(const char *msg) {
@@ -248,7 +248,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					vec3 interpWorldPos = barycentricCoord.x* worldP0+barycentricCoord.y* worldP1+barycentricCoord.z* worldP2;
 
 					fragment f;
-					f.color = vec3(.8f, .8f, .8f);
+					f.color = interpColor;//vec3(.8f, .8f, .8f);
 					f.normal = normalize(interpNormal);
 					f.position = bc;
 					f.worldPosition = interpWorldPos;

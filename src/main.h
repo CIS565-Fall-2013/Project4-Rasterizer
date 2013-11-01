@@ -63,7 +63,7 @@ int ibosize;
 float* nbo;
 int nbosize;
 
-glm::vec3 eye = glm::vec3(0,0,8);
+glm::vec3 eye = glm::vec3(0,0,3);
 glm::vec3 center = glm::vec3(0,0,0);
 glm::vec3 up = glm::vec3(0,-1,0); //flip view	
 glm::vec3 lightPos = glm::vec3(0,10,5);
