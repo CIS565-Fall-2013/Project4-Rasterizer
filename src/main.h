@@ -11,6 +11,7 @@
 	#include <GL/glut.h>
 #endif
 
+#include "glm/gtc/quaternion.hpp"
 #include "colorReader.h"
 #include <stdlib.h>
 #include <cuda_runtime.h>
@@ -72,6 +73,14 @@ float* cbo;
 int cbosize;
 int* ibo;
 int ibosize;
+
+//P0 and P1 are for Arcball camera
+glm::vec3 startP0;
+glm::vec3 endP1;
+glm::quat qstart; //starting rotation for camera 
+
+bool arcballRotOn = false;
+bool firstRun = true;
 
 //-------------------------------
 //----------CUDA STUFF-----------
