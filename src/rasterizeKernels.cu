@@ -632,20 +632,23 @@ __global__ void fineRasterizationKernel(triangle* primitives, int NPrimitives, g
 					frag.position.y = pixelY;
 
 					glm::vec3 bCoords = calculateBarycentricCoordinate(tri, glm::vec2(pixelX,pixelY));
-					frag.depth = tri.v0.pos.z*bCoords.x+tri.v1.pos.z*bCoords.y+tri.v2.pos.z*bCoords.z;
-					frag.primitiveIndex = triIndex;
-					if(frag.depth > 0.0f && frag.depth < 1.0f)
+					if(isBarycentricCoordInBounds(bCoords))
 					{
-						//Depth test
-						if(frag.depth < depthbuffer[dbIndex].depth)
+						frag.depth = tri.v0.pos.z*bCoords.x+tri.v1.pos.z*bCoords.y+tri.v2.pos.z*bCoords.z;
+						frag.primitiveIndex = triIndex;
+						if(frag.depth > 0.0f && frag.depth < 1.0f)
 						{
-							//Only continue if depth test passes.
-							frag.color = tri.v0.color*bCoords.x+tri.v1.color*bCoords.y+tri.v2.color*bCoords.z;
-							frag.normal = glm::normalize(tri.v0.eyeNormal*bCoords.x+tri.v1.eyeNormal*bCoords.y+tri.v2.eyeNormal*bCoords.z);
-							frag.lightDir = glm::normalize(tri.v0.eyeLightDirection*bCoords.x+tri.v1.eyeLightDirection*bCoords.y+tri.v2.eyeLightDirection*bCoords.z);
-							frag.halfVector = glm::normalize(tri.v0.eyeHalfVector*bCoords.x+tri.v1.eyeHalfVector*bCoords.y+tri.v2.eyeHalfVector*bCoords.z);
+							//Depth test
+							if(frag.depth < depthbuffer[dbIndex].depth)
+							{
+								//Only continue if depth test passes.
+								frag.color = tri.v0.color*bCoords.x+tri.v1.color*bCoords.y+tri.v2.color*bCoords.z;
+								frag.normal = glm::normalize(tri.v0.eyeNormal*bCoords.x+tri.v1.eyeNormal*bCoords.y+tri.v2.eyeNormal*bCoords.z);
+								frag.lightDir = glm::normalize(tri.v0.eyeLightDirection*bCoords.x+tri.v1.eyeLightDirection*bCoords.y+tri.v2.eyeLightDirection*bCoords.z);
+								frag.halfVector = glm::normalize(tri.v0.eyeHalfVector*bCoords.x+tri.v1.eyeHalfVector*bCoords.y+tri.v2.eyeHalfVector*bCoords.z);
 
-							writeToDepthbuffer(pixelX,pixelY, frag, depthbuffer,resolution);
+								writeToDepthbuffer(pixelX,pixelY, frag, depthbuffer,resolution);
+							}
 						}
 					}
 				}
