@@ -14,7 +14,8 @@ For this project I've implemented the following features:
 * A depth buffer for storing and depth testing fragments
 * Fragment to framebuffer writing
 * Lambert shading in the fragment shader
-* 
+
+
 And the following additional features:
 * Correct color interpolation ( I don't expect this feature to add much computational effort since I'm already performing barycentric coordinate based computations for normals, depth, etc ... )
 * Mouse based interactive camera
