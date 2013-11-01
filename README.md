@@ -21,10 +21,10 @@ passed to the fragment shader for simple lambertian shading. The results are the
 [Video](http://youtu.be/VETewtqqOCI)
 
 Anti-aliasing comparison:
-
 Without anti-aliasing:
 ![No Anti-Aliasing](renders/cow_bfc.png)
 ![No Anti-Aliasing](renders/cow_no_aa_zoomed.png)
+
 With anti-aliasing:
 ![Anti-Aliasing](renders/cow_bfc_aa.png)
 ![Anti-Aliasing](renders/cow_aa_zoomed.png)
@@ -43,7 +43,11 @@ sources with the bunny obj file, which contains 4968 faces and 2503 vertices.
 REFERENCES
 ---
 [OpenGL Rendering Pipeline](http://www.songho.ca/opengl/gl_pipeline.html)
+
 [OpenGL Transformation](http://www.songho.ca/opengl/gl_transform.html)
+
 [OpenGL Projection Matrix](http://www.songho.ca/opengl/gl_projectionmatrix.html)
+
 [The Viewport Transformation](http://glasnost.itcarlow.ie/~powerk/GeneralGraphicsNotes/projection/viewport_transformation.html)
+
 [GLUT Camera Movement](http://www.lighthouse3d.com/tutorials/glut-tutorial/mouse-putting-it-all-together/)
