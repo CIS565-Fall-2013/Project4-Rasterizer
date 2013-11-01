@@ -23,40 +23,39 @@ Very specifically, the following stages of the rasteriztion pipeline have been i
 - Fragment shader
 
 -------------------------------------------------------------------------------
-PIPELINE:
+MY PIPELINE IMPLEMENTATION:
 -------------------------------------------------------------------------------
-1. VERTEX SHADER
---------
-This stage is responsible for the appropriate transformations of the vertices.
-In my implementation, the following is the series of operations performed on the vertex data,
 
-![alt tag](https://raw.github.com/vimanyu/Project4-Rasterizer/)
+![alt tag](https://raw.github.com/vimanyu/Project4-Rasterizer/master/doc_images/pipeline.png)
+
 -------------------------------------------------------------------------------
-SOME RESOURCES:
+FEATURES:
 -------------------------------------------------------------------------------
 The following resources may be useful for this project:
 
-* High-Performance Software Rasterization on GPUs
-	* Paper (HPG 2011): http://www.tml.tkk.fi/~samuli/publications/laine2011hpg_paper.pdf
-	* Code: http://code.google.com/p/cudaraster/ Note that looking over this code for reference with regard to the paper is fine, but we most likely will not grant any requests to actually incorporate any of this code into your project.
-	* Slides: http://bps11.idav.ucdavis.edu/talks/08-gpuSoftwareRasterLaineAndPantaleoni-BPS2011.pdf
-* The Direct3D 10 System (SIGGRAPH 2006) - for those interested in doing geometry shaders and transform feedback.
-	* http://133.11.9.3/~takeo/course/2006/media/papers/Direct3D10_siggraph2006.pdf
-* Multi-Fragment Eﬀects on the GPU using the k-Buﬀer - for those who want to do a k-buffer
-	* http://www.inf.ufrgs.br/~comba/papers/2007/kbuffer_preprint.pdf
-* FreePipe: A Programmable, Parallel Rendering Architecture for Efficient Multi-Fragment Effects (I3D 2010)
-	* https://sites.google.com/site/hmcen0921/cudarasterizer
-* Writing A Software Rasterizer In Javascript:
-	* Part 1: http://simonstechblog.blogspot.com/2012/04/software-rasterizer-part-1.html
-	* Part 2: http://simonstechblog.blogspot.com/2012/04/software-rasterizer-part-2.html
+* A basic rasterization pipeline from start to finish for obj models
+* Parallel rasterization of each primitive
+* Smooth interpolation of normals and colors using barycentric co-ordinates
+* Backface culling in primitive assembly to discard back facing polygons. This is implemented using thrust's stream compaction.
+* Interactive mouse movement for panning, zooming and rotating
 
 -------------------------------------------------------------------------------
-NOTES ON GLM:
+RESULTS:
 -------------------------------------------------------------------------------
-This project uses GLM, the GL Math library, for linear algebra. You need to know two important points on how GLM is used in this project:
+*COLOR INTERPOLATION* : Smooth linear interpolation of colors for each triangle based on barycentric co-ordinates
+![alt tag](https://raw.github.com/vimanyu/Project4-Rasterizer/master/renders/cow_color_interp.png)
 
-* In this project, indices in GLM vectors (such as vec3, vec4), are accessed via swizzling. So, instead of v[0], v.x is used, and instead of v[1], v.y is used, and so on and so forth.
-* GLM Matrix operations work fine on NVIDIA Fermi cards and later, but pre-Fermi cards do not play nice with GLM matrices. As such, in this project, GLM matrices are replaced with a custom matrix struct, called a cudaMat4, found in cudaMat4.h. A custom function for multiplying glm::vec4s and cudaMat4s is provided as multiplyMV() in intersections.h.
+*NORMALS*: World space normals
+![alt tag](https://raw.github.com/vimanyu/Project4-Rasterizer/master/renders/cow_normals.png)
+
+*Z-DEPTH*: Z-depth in camera space
+![alt tag](https://raw.github.com/vimanyu/Project4-Rasterizer/master/renders/dragon_depth.png)
+
+*LAMBERT DIFFUSE LIGHING*: Simple lambertian shading
+![alt tag](https://raw.github.com/vimanyu/Project4-Rasterizer/master/renders/dragon.png)
+
+*BLINN PHONG LIGHTING*: Diffuse lighting with specular highlights
+![alt tag](https://raw.github.com/vimanyu/Project4-Rasterizer/master/renders/buddha_spec.png)
 
 -------------------------------------------------------------------------------
 README
