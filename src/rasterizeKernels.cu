@@ -18,6 +18,7 @@ uniforms* device_uniforms;
 
 int* binBuffers;
 int* bufferCounters;
+int* tileBuffers;
 
 void checkCUDAError(const char *msg) {
 	cudaError_t err = cudaGetLastError();
@@ -352,71 +353,6 @@ __global__ void rasterizationKernel(triangle* primitives, int* primitiveStageBuf
 }
 
 
-__global__ void binRasterizationKernel(triangle* primitives,  int* primitiveStageBuffer, int NPrimitives,
-									   int* bufferCounters, int* binBuffers, int binBufferSize,
-									   glm::vec2 resolution, glm::vec2 binDims, pipelineOpts opts)
-{
-
-	extern __shared__ int s[];
-	int *sBufferCounters = s;
-
-	int numBins = binDims.x*binDims.y;
-	int *sBatchNum = &s[numBins]; 
-
-	//threadIdx.x is id within batch
-	int indexInBatch = threadIdx.x;
-	int numBatchesPerBlock = blockDim.x;
-	int binWidth = ceil(resolution.x/binDims.x);
-	int binHeight = ceil(resolution.y/binDims.y);
-	int indexInBlock = threadIdx.x+threadIdx.y*blockDim.x;
-	//Initialize counters
-	if(indexInBlock < numBins)
-		sBufferCounters[indexInBlock] = 0;
-	if(indexInBlock < blockDim.x)
-		sBatchNum[indexInBlock] = 0;
-
-	__syncthreads();
-
-
-	while(sBatchNum[indexInBatch] < numBatchesPerBlock)
-	{
-		//Get a batch
-
-		int batchId = atomicAdd(&sBatchNum[indexInBatch], 1);
-		if(batchId < numBatchesPerBlock){
-			int stageBufferIndex = indexInBatch + blockDim.x*(batchId*gridDim.x+blockIdx.x);
-			if(stageBufferIndex < NPrimitives)
-			{
-				int triangleIndex = primitiveStageBuffer[stageBufferIndex];
-				if(triangleIndex >= 0 && triangleIndex < NPrimitives){
-					glm::vec3 minpoint,maxpoint;
-
-					transformTriToScreenSpace(primitives[triangleIndex], resolution);
-					getAABBForTriangle(primitives[triangleIndex], minpoint, maxpoint);
-
-					for(int x = 0; x < binDims.x; ++x)
-					{
-						for(int y = 0; y < binDims.y; ++y)
-						{
-							if(isAABBInBin(minpoint, maxpoint, x*binWidth, (x+1)*binWidth, y*binHeight, (y+1)*binHeight))
-							{
-								int binIndex = x+y*binDims.x;
-								int bufLoc = atomicAdd(&sBufferCounters[binIndex], 1);
-								int binBufferIndex = bufLoc + binIndex*binBufferSize + blockIdx.x*(numBins*binBufferSize);
-								binBuffers[binBufferIndex] = triangleIndex;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	__syncthreads();
-
-	if(indexInBlock < numBins)
-		bufferCounters[indexInBlock] = sBufferCounters[indexInBlock];
-}
-
 __host__ __device__ void depthFSImpl(fragment* depthbuffer, int index,  uniforms* u_variables, pipelineOpts opts)
 {
 	float depth = depthbuffer[index].depth;
@@ -511,6 +447,145 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 	}
 }
 
+
+__global__ void binRasterizationKernel(triangle* primitives,  int* primitiveStageBuffer, int NPrimitives,
+									   int* bufferCounters, int* binBuffers, int binBufferSize,
+									   glm::vec2 resolution, glm::vec2 binDims, pipelineOpts opts)
+{
+
+	extern __shared__ int s[];
+	int *sBufferCounters = s;
+
+	int numBins = binDims.x*binDims.y;
+	int *sBatchNum = &s[numBins]; 
+
+	//threadIdx.x is id within batch
+	int indexInBatch = threadIdx.x;
+	int numBatchesPerBlock = blockDim.x;
+	int binWidth = ceil(resolution.x/binDims.x);
+	int binHeight = ceil(resolution.y/binDims.y);
+	int indexInBlock = threadIdx.x+threadIdx.y*blockDim.x;
+	//Initialize counters
+	if(indexInBlock < numBins)
+		sBufferCounters[indexInBlock] = 0;
+	if(indexInBlock < blockDim.x)
+		sBatchNum[indexInBlock] = 0;
+
+	__syncthreads();
+
+
+	while(sBatchNum[indexInBatch] < numBatchesPerBlock)
+	{
+		//Get a batch
+
+		int batchId = atomicAdd(&sBatchNum[indexInBatch], 1);
+		if(batchId < numBatchesPerBlock){
+			int stageBufferIndex = indexInBatch + blockDim.x*(batchId*gridDim.x+blockIdx.x);
+			if(stageBufferIndex < NPrimitives)
+			{
+				int triangleIndex = primitiveStageBuffer[stageBufferIndex];
+				if(triangleIndex >= 0 && triangleIndex < NPrimitives){
+					glm::vec3 minpoint,maxpoint;
+
+					transformTriToScreenSpace(primitives[triangleIndex], resolution);
+					getAABBForTriangle(primitives[triangleIndex], minpoint, maxpoint);
+
+					for(int x = 0; x < binDims.x; ++x)
+					{
+						for(int y = 0; y < binDims.y; ++y)
+						{
+							if(isAABBInBin(minpoint, maxpoint, x*binWidth, (x+1)*binWidth, y*binHeight, (y+1)*binHeight))
+							{
+								int binIndex = x+y*binDims.x;
+								int bufLoc = atomicAdd(&sBufferCounters[binIndex], 1);
+								if(bufLoc < binBufferSize){
+									int binBufferIndex = bufLoc + binIndex*binBufferSize + blockIdx.x*(numBins*binBufferSize);
+									binBuffers[binBufferIndex] = triangleIndex;
+								}else{
+									//ERROR
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	__syncthreads();
+
+	if(indexInBlock < numBins)
+		bufferCounters[numBins*blockIdx.x + indexInBlock] = sBufferCounters[indexInBlock];
+}
+
+
+__global__ void coarseRasterizationKernel(triangle* primitives, int NPrimitives, glm::vec2 resolution, 
+										  int* binBufferCounters, int* binBuffers, int binBufferSize, int* tileBuffers, 
+										  int tileBufferSize, int numTilesX, int numTilesY, int tileSize, int numBinBlocks)
+{
+	extern __shared__ int s[];
+	int* sTriIndexBuffer = s;
+	
+	int numTilesInBin = blockDim.x*blockDim.y;
+	glm::vec4* sAABBBuffer = (glm::vec4*) sTriIndexBuffer[numTilesInBin];
+
+	int binIndex = blockIdx.x;
+	int tileXIndex = threadIdx.x;
+	int tileYIndex = threadIdx.y;
+	int numBins = gridDim.x*gridDim.y;
+	int indexInBin = threadIdx.x+threadIdx.y*blockDim.x;
+
+	int tileBufferCounter = 0;
+	int tileBufferOffset = tileBufferSize*(tileXIndex+numTilesY*numTilesX);
+	glm::vec4 tileAABB = glm::vec4(tileXIndex*tileSize, tileYIndex*tileSize, (tileXIndex+1)*tileSize, (tileYIndex+1)*tileSize);
+
+	//Prefetch triangles and calculate bounding boxes in compact fashion
+	//Iterate by binRaster Block
+	for(int binBlock = 0; binBlock < numBinBlocks; ++binBlock)
+	{
+		int bufferOffset = 0;
+		int bufferSize = binBufferCounters[numBins*blockIdx.x + indexInBin];
+		do{
+			if(indexInBin < bufferSize)
+			{
+				int triIndex = binBuffers[bufferOffset + indexInBin + binIndex*binBufferSize + binBlock*(numBins*binBufferSize)];
+				sTriIndexBuffer[indexInBin]  = triIndex;
+				glm::vec4 mXmYMXMY(0,0,0,0);
+				if(triIndex >= 0 && triIndex < NPrimitives)
+					getCompact2DAABBForTriangle(primitives[triIndex], mXmYMXMY);
+				sAABBBuffer[indexInBin] = mXmYMXMY;
+			}else{
+				sTriIndexBuffer[indexInBin]  = -1;
+			}
+			
+			//TODO: Do this more safely in shared memory.
+			bufferOffset = bufferOffset + numTilesInBin;
+			bufferSize = bufferSize - numTilesInBin;
+			__syncthreads();//Prefetch complete, wait for everyone else to catch up
+			
+			//For each triangle, put in correct tile
+			for(int tri = 0; tri < numTilesInBin; ++tri)
+			{
+				if(sTriIndexBuffer[tri] >= 0){
+					if(doCompactAABBsintersect(tileAABB, sAABBBuffer[tri]))
+					{
+						if(tileBufferCounter < tileBufferSize){
+							tileBuffers[tileBufferOffset + tileBufferCounter] = sTriIndexBuffer[tri];
+							tileBufferCounter++;
+						}
+					}
+				}
+			}
+			
+			__syncthreads();
+
+		}while(bufferSize > 0);
+	}
+
+
+
+}
+
+
 void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 {
 	glm::vec2 binDims = glm::vec2(5,5);
@@ -524,7 +599,6 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 
 	//Allocate bin buffers
 	cudaMalloc((void**) &binBuffers, numBlocks*binDims.x*binDims.y*(binBufferSize)*sizeof(int));
-
 	cudaMalloc((void**) &bufferCounters, numBlocks*binDims.x*binDims.y*sizeof(int));
 
 	dim3 blockDims(batchSize, batchesPerBlock);
@@ -535,8 +609,27 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 		bufferCounters, binBuffers, binBufferSize,
 		resolution, binDims, opts);
 
+	//==============COARSE RASTER===================
+	int tilesize = 8;//8x8
+	int tileBufferSize = 2<<5;
+	int numTilesX = ceil(resolution.x/float(tilesize));
+	int numTilesY = ceil(resolution.y/float(tilesize));
+	int numTilesPerBinX = ceil(numTilesX/float(binDims.x));
+	int numTilesPerBinY = ceil(numTilesY/float(binDims.y));
 
-	cudaFree(binBuffers);
+	cudaMalloc((void**) &tileBuffers, numTilesX*numTilesY*tileBufferSize*sizeof(int));
+
+	dim3 coarseGridDims(binDims.x, binDims.y);
+	dim3 coarseBlockDims(numTilesPerBinX,numTilesPerBinY);
+	Ns = (sizeof(glm::vec4)+sizeof(int))*numTilesPerBinX*numTilesPerBinY;
+	coarseRasterizationKernel<<<coarseGridDims,coarseBlockDims,Ns>>>(primitives, NPrimitives, resolution, bufferCounters, binBuffers, binBufferSize, tileBuffers, tileBufferSize, numTilesX, numTilesY, tilesize, numBlocks); 
+
+	cudaFree(binBuffers);//Free previous buffer
+
+	//==============FINE RASTER=====================
+
+
+	cudaFree(tileBuffers);
 	cudaFree(bufferCounters);
 }
 

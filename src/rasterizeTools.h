@@ -10,6 +10,8 @@
 #include "cudaMat4.h"
 #include "rasterizeStructs.h"
 
+#define MIN(a,b) (a<b?a:b);
+
 //Multiplies a cudaMat4 matrix and a vec4
 __host__ __device__ glm::vec3 multiplyMV(cudaMat4 m, glm::vec4 v){
   glm::vec3 r(1,1,1);
@@ -28,6 +30,16 @@ __host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, g
         glm::max(glm::max(tri.v0.pos.y, tri.v1.pos.y),tri.v2.pos.y),
         glm::max(glm::max(tri.v0.pos.z, tri.v1.pos.z),tri.v2.pos.z));
 }
+
+
+//LOOK: finds the axis aligned bounding box for a given triangle
+__host__ __device__ void getCompact2DAABBForTriangle(triangle tri, glm::vec4& minXminYmaxXmaxY){
+  minXminYmaxXmaxY = glm::vec4(glm::min(glm::min(tri.v0.pos.x, tri.v1.pos.x),tri.v2.pos.x), 
+        glm::min(glm::min(tri.v0.pos.y, tri.v1.pos.y),tri.v2.pos.y),
+        glm::max(glm::max(tri.v0.pos.x, tri.v1.pos.x),tri.v2.pos.x), 
+        glm::max(glm::max(tri.v0.pos.y, tri.v1.pos.y),tri.v2.pos.y));
+}
+
 
 //LOOK: calculates the signed area of a given triangle
 __host__ __device__ float calculateSignedArea(triangle tri){
@@ -92,6 +104,19 @@ __host__ __device__ bool isAABBInClipSpace(glm::vec3 minpoint, glm::vec3 maxpoin
 }
 
 
+//Checks for 2D AABB intersection in memory efficient
+__host__ __device__ bool doCompactAABBsintersect(glm::vec4 aabb1, glm::vec4 aabb2)
+{
+	//If 1.minX > 2.maxX || 2.minX > 1.maxX
+	if (aabb1.x > aabb2.z || aabb2.x > aabb1.z)
+		 return false;
+	
+	//If 1.minY > 2.maxY || 2.minY > 1.maxY
+	if (aabb1.y > aabb2.w || aabb2.y > aabb1.w)
+		 return false;
+
+	 return true;
+}
 __host__ __device__ bool isAABBInBin(glm::vec3 minpoint, glm::vec3 maxpoint, int binXMin, int binXMax, int binYMin, int binYMax)
 {
 	if (minpoint.x > binXMax  || binXMin > maxpoint.x)
