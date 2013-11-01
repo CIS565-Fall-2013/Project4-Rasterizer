@@ -55,6 +55,44 @@ SCREENSHOTS:
 -------------------------------------------------------------------------------
 PROBLEMS ENCOUNTERED:
 -------------------------------------------------------------------------------
+The biggest problem I was having with this project is getting atomics to work for depth test. Compare the following code snippet:
+    ```
+     do{} while(atomicExch(&dBufferLocked[pixelIndex], 1)); 
+	
+	 if(depth < depthBuffer[pixelIndex])
+     {
+         depthBuffer[pixelIndex] = depth;
+
+	     interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;						  
+	     interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
+	     interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
+     }
+	 dBufferLocked[pixelIndex] = 0;
+   ```
+And this one:
+```
+    bool wait = true;
+	while(wait)
+	{
+		if(0 == atomicExch(&dBufferLocked[pixelIndex], 1))
+		{
+								   
+			if(depth < depthBuffer[pixelIndex]) 
+			{
+				depthBuffer[pixelIndex] = depth;
+
+				interpVariables[pixelIndex].position = barycentricCoords.x * thisTriangle.eyeCoords0 + barycentricCoords.y * thisTriangle.eyeCoords1 + barycentricCoords.z * thisTriangle.eyeCoords2;				  
+				interpVariables[pixelIndex].normal   = barycentricCoords.x * thisTriangle.eyeNormal0 + barycentricCoords.y * thisTriangle.eyeNormal1 + barycentricCoords.z * thisTriangle.eyeNormal2; 
+				interpVariables[pixelIndex].color    = barycentricCoords.x * thisTriangle.c0         + barycentricCoords.y * thisTriangle.c1         + barycentricCoords.z * thisTriangle.c2; 
+			}
+			dBufferLocked[pixelIndex] = 0;
+			wait = false;
+		}
+	}
+```
+
+They do absolutely the same thing in terms of constructing a critical section that only allows entrance when dBufferLocked[pixelIndex] is 0. However, the second one works for me but the first one would give me deadlock.
+It seems the only explaination is that the compiler does some optimization under the hood and generated different machine instructions. I actually have another 3 implementations of critical sections, all of which failed me...
 
 -------------------------------------------------------------------------------
 PERFORMANCE EVALUATION
@@ -69,4 +107,6 @@ From the comparison, it is seen that frame rate is pretty low for low polycount 
 Only 11 fps in a close view:
 ![alt text](bunny_close.bmp)
 
+
+Also, without antialiasing, the performance with backface culling enabled actually droped. And the framerate drop is more visible if the face count is low. This is probably because stream compaction overhead after culling faces are taking longer than actually rasterize those faces. For antialised situations, the fps with backface culling enabled surpasses the regular rasterization for large face count. This in part proves that backface culling would only be effective if poly count is fairly large.
 
