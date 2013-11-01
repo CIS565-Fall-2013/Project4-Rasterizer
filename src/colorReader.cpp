@@ -52,6 +52,10 @@ colorReader::colorReader(int size, std::string file){
 	currFile.close();
 }
 
+float* colorReader::getCBO(){
+	return cbo;
+}
+
 colorReader::~colorReader(){
 	delete cbo;
 }

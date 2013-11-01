@@ -41,7 +41,7 @@ using namespace std;
 //-------------------------------
 //------------GL STUFF-----------
 //-------------------------------
-colorReader* myColorReader;
+//colorReader* myColorReader;
 
 bool rotateModel = false;
 bool drawLines = false;

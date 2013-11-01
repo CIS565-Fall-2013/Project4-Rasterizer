@@ -25,7 +25,7 @@ int main(int argc, char** argv){
     }
   }
 
-  myColorReader = new colorReader(mesh->getCBOsize(), "../../objs/colors_90_deg.ncolors");
+  //myColorReader = new colorReader(mesh->getCBOsize(), "../../objs/colors_90_deg.ncolors");
 
   if(!loadedScene){
     cout << "Usage: mesh=[obj file]" << endl;
@@ -91,6 +91,7 @@ void runCuda(){
   dptr=NULL;
 
   vbo = mesh->getVBO();
+
   vbosize = mesh->getVBOsize();
   nbo = mesh->getNBO();
 
@@ -102,6 +103,7 @@ void runCuda(){
   //cbosize = 9;
   mesh->setColor(glm::vec3(0, 1, 0));
   cbo = mesh->getCBO();
+  //cbo = myColorReader->getCBO();
   cbosize = mesh->getCBOsize();
 
   ibo = mesh->getIBO();
