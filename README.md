@@ -52,7 +52,48 @@ The camera is a bit awkward to use, but its a nice start.
 -------------------------------------------------------------------------------
 Performance:
 -------------------------------------------------------------------------------
-...
+
+TileSize vs Framerate for cow_smooth2.obj:
+* 1   | 12
+* 2   | 14
+* 4   | 15
+* 8   | 16
+* 16  | 17
+* 32  | 18
+* 64  | 19
+* 128 | 18
+* 256 | 18
+* 512 | 17
+
+A tilesize of 64 is the sweeet spot leading to maximum framerate. It seems that
+the tilesize doesn't have a huge effect on framerate except towards the smaller
+end. In my implementation memory is allocated/freed every frame so I feel that
+a performance improvement can be gained there. 
+
+The greatest performance hit occurs as individual triangles take up larger 
+amounts of the screen size since my implementation has a single thread 
+per triangle bounding box. A performance improvement could be gained there
+by dividing that bounding box into smaller tiles and allocated a thread per 
+tile. 
+
+Finally, I just use flags to indicate if a primitive should be processed or not. 
+I think performance could be improved by not wasting threads by performing
+stream compaction on the primitives. 
+
+#### Color interpolation
+Removing all barycentric operations leads to the same 19fps for a tilesize of 64.
+When it comes down to it the barycentric coordinate computations cosist of a
+few multiplies.
+
+#### Back-face culling
+Without back-face culling the framerate drops to 17fps for a tilesize of 64. 
+This is expected, and awesome! 
+
+#### Interactive camera
+The primary losses with regards to the interactive camera come from the user
+being able to get too-close to the model triangles leading to large performance 
+losses as mentioned above
+
 
 -------------------------------------------------------------------------------
 Thanks:
