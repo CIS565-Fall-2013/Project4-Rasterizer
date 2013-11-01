@@ -529,7 +529,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, glm::m
   //primitive assembly
   //------------------------------
   int triCount = ibosize/3;
-  printf("triangle count before culling: %d\n", triCount);
+//  printf("triangle count before culling: %d\n", triCount);
   primitiveBlocks = ceil(((float)triCount)/((float)tileSize)); // launch for every primitive
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, device_vbo_eye, vbosize, device_nbo, nbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, sResolution, zNear, zFar);
   checkCUDAErrorWithLine("Kernel failed!");
