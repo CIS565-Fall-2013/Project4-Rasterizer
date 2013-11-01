@@ -122,36 +122,20 @@ Dragon| 50000|100000
 
 
 Backface culling:
-Time is measured in milliseconds and measure the cuda kernel time per frame
+Time is measured in *milliseconds* and measure the cuda kernel time per frame
 
-Model|Without backface culling| Bckfce culling in primitive assembly|
---|---|---
-Bunny|485|5804
-Cow| 2503|4968
-Budhda|49990| 100000
-Dragon| 50000|100000
+Model|Without backface culling| Backfce culling during primitive assembly|Backface culling during fragment shader
+---|---|---|---
+Bunny|21.54|21.15| 19.36
+Cow| 31.23|28.26|26.93
+Budhda|50.37|43.67|36.68
+Dragon| 45.63|40.95|39.18
 
 
--------------------------------------------------------------------------------
-SELF-GRADING
--------------------------------------------------------------------------------
-* On the submission date, email your grade, on a scale of 0 to 100, to Liam, liamboone+cis565@gmail.edu, with a one paragraph explanation.  Be concise and realistic.  Recall that we reserve 30 points as a sanity check to adjust your grade.  Your actual grade will be (0.7 * your grade) + (0.3 * our grade).  We hope to only use this in extreme cases when your grade does not realistically reflect your work - it is either too high or too low.  In most cases, we plan to give you the exact grade you suggest.
-* Projects are not weighted evenly, e.g., Project 0 doesn't count as much as the path tracer.  We will determine the weighting at the end of the semester based on the size of each project.
+The results seem to indicate that stream compaction is quite an overhead for models of this size.
+Backface during primitive assembly is followed by stream compaction. This induces an overhead and maybe, we will see gains in more complex or bigger objs.
 
 ---
-SUBMISSION
+ACKNOWLEDGEMENTS
 ---
-As with the previous project, you should fork this project and work inside of
-your fork. Upon completion, commit your finished project back to your fork, and
-make a pull request to the master repository.  You should include a README.md
-file in the root directory detailing the following
-
-* A brief description of the project and specific features you implemented
-* At least one screenshot of your project running.
-* A link to a video of your raytracer running.
-* Instructions for building and running your project if they differ from the
-  base code.
-* A performance writeup as detailed above.
-* A list of all third-party code used.
-* This Readme file edited as described above in the README section.
-
+The objs for this project were downloaded from various websites online.
