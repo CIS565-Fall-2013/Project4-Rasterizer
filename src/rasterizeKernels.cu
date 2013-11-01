@@ -554,7 +554,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(1,1,1));
   
   fragment frag;
-  frag.color = glm::vec3(1,1,1);
+  if(!wireframe){
+	frag.color = glm::vec3(1,1,1);
+  } else {
+	  frag.color = glm::vec3(0, 0, 0);
+  }
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,-10000);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
