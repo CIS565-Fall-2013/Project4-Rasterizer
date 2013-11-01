@@ -1,4 +1,4 @@
-CIS 565 : Project 4 : CUDA Rasterizer
+#CIS 565 : Project 4 : CUDA Rasterizer
 
 ----
 
@@ -9,6 +9,10 @@ This includes vertex shading, primitive assembly, viewport transformation, raste
 We have been able to successfully a stanford dragon and a stanford bunny into our rasterizer, both rendering at ~20-30 FPS when optimized.
 We hope to continue to optimize based on the observations we will discuss later on.
 
+<div align="center">
+<img src="https://raw.github.com/harmoli/Project4-Rasterizer/master/renders/dragon_normal.JPG" "Dragon with Shaded Normals">
+<img src="https://raw.github.com/harmoli/Project4-Rasterizer/master/renders/bunny_color_diffuse.JPG" "Bunny with Color Interpolated Diffuse Shading">
+</div>
 ----
 
 ##Features
@@ -38,6 +42,15 @@ Some of the following are planned / in-progress:
 
 ----
 
+##Mouse Interaction
+
+* Left Button : Camera Rotate
+* Middle Button : Camera Pan
+* 'I' : Zoom In
+* 'O' : Zoom Out
+
+----
+
 ##Expected Results
 
 #### Back-Face Culling
@@ -60,17 +73,36 @@ the viewport area.
 
 ###Raw Data
 
-##### Back-face Ignoring && Out-of-Viewport Ignoring
-28 ms | 34 FPS
+######Cow
+Render | Total time | FPS
+----- | ----- | -----
+Back-face Ignoring | 18 ms | 51 FPS
+Back-face Ignoring && Out-of-Viewport Ignoring |19-20 ms | 49 FPS
+Back-face Culling && Out-of-Viewport Ignoring | 635 ms | 2 FPS
+Back-face Culling | 620 ms | 2 FPS
 
-##### Back-face Culling && Out-of-Viewport Ignoring
-30 ms | 32 FPS
+######Stanford Bunny 
+Render | Total time | FPS
+----- | ----- | -----
+Back-face Ignoring | 28 ms | 33 FPS
+Back-face Ignoring && Out-of-Viewport Ignoring | 28 ms | 34 FPS
+Back-face Culling && Out-of-Viewport Ignoring |30 ms | 32 FPS
+Back-face Culling | 300 ms | 1 FPS
+ 
+######Stanford Dragon
+Render | Total time | FPS
+----- | ----- | -----
+Back-face Ignoring | 28 ms | 33 FPS
+Back-face Ignoring && Out-of-Viewport Ignoring | 28 ms | 34 FPS
+Back-face Culling && Out-of-Viewport Ignoring | 37 ms | 27 FPS
+Back-face Culling | 36 ms | 26 FPS
+ 
+###Graph
 
-##### Back-face Culling
-300 ms | 1 FPS
- 
- 
-###Graphs
+<div align="center">
+<img src="https://docs.google.com/spreadsheet/oimg?key=0AgKtr6Wx5YDPdHBNQUdmSlRFTDg4bkdaWWhTb3JMN2c&oid=1&zx=gvuq1g9k5vva" />
+<img src="https://docs.google.com/spreadsheet/oimg?key=0AgKtr6Wx5YDPdHBNQUdmSlRFTDg4bkdaWWhTb3JMN2c&oid=2&zx=u5yjmvff9j4s" />
+</div>
 
 ------
 
@@ -94,6 +126,14 @@ tight bounding box.  We could seek to improve rasterization performance slightly
 to fill the triangle starting at the calculated point the scanline intersects the left most edge.  This would avoid 
 checking useless space without more overhead.
 
+In all of the methods, we have chosen to leave out atomics as using atomics slows down the performance because warps run
+in lock-step.  Thus, you can see some of the faces from the back peaking through from race conditions.  This is vastly helped
+by back-face culling / ignoring.
+
+<div align="center">
+<img src="https://raw.github.com/harmoli/Project4-Rasterizer/master/renders/dragon_white.JPG" "Dragon White Diffuse w Race Conditions">
+<img src="https://raw.github.com/harmoli/Project4-Rasterizer/master/renders/bunny_white.JPG" "Bunny White Diffuse, Race Conditions Unnoticeable">
+</div>
 
 #### Back-Face Culling 
 Surprisingly, back-face culling is more expensive of an operation than back-face ignoring.  There is a possibility 
@@ -108,6 +148,12 @@ rasterizing useless large triangles that are outside of the viewport or not faci
 a question : why is geometric clipping the standard?  While geometric clipping will ultimately have small triangles from 
 frustum clipping and splitting the resulting geometry into triangles, does this not add a considerable amount of geometry
 from the edges? If so, what are the biggest benefits that will come from geometric clipping?
+
+-----
+
+## Video
+
+<iframe src="//player.vimeo.com/video/78317834" width="500" height="519" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe> <p><a href="http://vimeo.com/78317834">GPU Software Rasterizer</a> from <a href="http://vimeo.com/harmonyli">Harmony Li</a> on <a href="https://vimeo.com">Vimeo</a>.</p>
 
 -----
 
