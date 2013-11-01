@@ -64,7 +64,6 @@ __host__ __device__ unsigned int hash(unsigned int a){
 //	return old;
 //}
 
-//Writes a given fragment to a fragment buffer at a given location
 __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution){
 	int index = (y*resolution.x) + x;
 	//if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
@@ -78,6 +77,26 @@ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthb
 		//}
 		//printf("Frag z: %f\n", frag.position.z);
 		if(depthbuffer[index].position.z < frag.position.z){
+			depthbuffer[index] = frag;
+		}
+	}
+}
+
+//Writes a given fragment to a fragment buffer at a given location
+__device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution, int* writeCount){
+	int index = (y*resolution.x) + x;
+	//if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
+	//	//fatomicMax(&tmp_depthbuffer[index], frag.position.z);
+	//	//atomicMax(&tmp_depthbuffer[index], frag.position.z);
+	//}
+	//__threadfence();
+	if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
+		//if(frag.position.z == tmp_depthbuffer[index]){//if we are indeed the fragment with min Z, then write
+		//	int leet = 1337;
+		//}
+		//printf("Frag z: %f\n", frag.position.z);
+		if(depthbuffer[index].position.z < frag.position.z){
+			atomicAdd( &writeCount[index], 1 );
 			depthbuffer[index] = frag;
 		}
 	}
@@ -188,7 +207,7 @@ __device__ void writeColorPoint(triangle currTri, int triIdx, glm::vec2 xyCoords
 
 
 //"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
-__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution, bool interpColors){
+__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution, bool interpColors, int* writeCount){
 	fragment currFrag;
 	currFrag.triIdx = triIdx;
 	//currFrag.color = currTri.c0; //assume the tri is all one color for now.
@@ -205,26 +224,26 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
-	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution);
+	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution, writeCount);
 }
 
 //rasterize between startX and endX, inclusive
-__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx, bool interpColors){
-	int Xinc = roundf(end.x) - roundf(start.x);
-	int sgnXinc = Xinc > 0 ? 1 : -1;
-	int numPixels = abs(Xinc) + 1; //+1 to be inclusive
-	int currX = roundf(start.x);
-	int Y = roundf(start.y); //Y should be the same for the whole line
-	int endY = roundf(end.y);
-	for(int i = 0; i < numPixels; i++){
-		writePointInTriangle(currTri, triIdx, glm::vec2(currX, Y), depthBuffer, resolution, interpColors);
-		if( endY != Y ){
-			writePointInTriangle(currTri, triIdx, glm::vec2(currX, endY), depthBuffer, resolution, interpColors);
-		}
-		currX += sgnXinc; //either increase or decrease currX depending on direction
-	}
-	
-}
+//__device__ int rasterizeHorizLine(glm::vec2 start, glm::vec2 end, fragment* depthBuffer, glm::vec2 resolution, triangle currTri, int triIdx, bool interpColors){
+//	int Xinc = roundf(end.x) - roundf(start.x);
+//	int sgnXinc = Xinc > 0 ? 1 : -1;
+//	int numPixels = abs(Xinc) + 1; //+1 to be inclusive
+//	int currX = roundf(start.x);
+//	int Y = roundf(start.y); //Y should be the same for the whole line
+//	int endY = roundf(end.y);
+//	for(int i = 0; i < numPixels; i++){
+//		writePointInTriangle(currTri, triIdx, glm::vec2(currX, Y), depthBuffer, resolution, interpColors);
+//		if( endY != Y ){
+//			writePointInTriangle(currTri, triIdx, glm::vec2(currX, endY), depthBuffer, resolution, interpColors);
+//		}
+//		currX += sgnXinc; //either increase or decrease currX depending on direction
+//	}
+//	
+//}
 
 //Based on slide 75-76 of the CIS560 notes, Norman I. Badler, University of Pennsylvania. 
 //returns the number of pixels drawn
@@ -319,7 +338,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, float* nbo
 //NATHAN: at each fragment, calculate the barycentric coordinates, and interpolate position/color. 
 //for now the normal can just be the cross product of the vectors that make up the face (flat shading).
 //NATHAN: add early-z here.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 vdir, bool drawLines, bool interpColors){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, 
+	glm::vec3 vdir, bool drawLines, bool interpColors, int* writeCount){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 	  //based on notes from here: http://sol.gfxile.net/tri/index.html
@@ -347,7 +367,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  glm::vec2 currPoint(x, y);
 			  glm::vec3 baryCoords = calculateBarycentricCoordinate(currTri, currPoint);
 			  if(isBarycentricCoordInBounds(baryCoords)){ //we are inside
-				  writePointInTriangle(currTri, index, currPoint, depthbuffer, resolution, interpColors);
+				  writePointInTriangle(currTri, index, currPoint, depthbuffer, resolution, interpColors, writeCount);
 			  }
 		  }
 	  }
@@ -576,7 +596,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //first draw the outlines of the triangle
   glm::vec3 vdir = center - eye;
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines, interpColors);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines, interpColors, framebuffer_writes);
   cudaDeviceSynchronize();
   //next, march through all scanlines
   //int scanlineBlocks = ceil(resolution.y/(float)tileSize);
