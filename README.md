@@ -98,7 +98,7 @@ losses as mentioned above
 -------------------------------------------------------------------------------
 Thanks:
 -------------------------------------------------------------------------------
-Thanks to Nathan Marshak for providing a cow.obj with smoothed normals
+Thanks to Nathan Marshak for providing the cow_smoothed2.obj cow.obj with smoothed normals
 
 
 -------------------------------------------------------------------------------
