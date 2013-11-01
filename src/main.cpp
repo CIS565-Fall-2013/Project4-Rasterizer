@@ -10,7 +10,8 @@ bool leftMButtonDown = false;
 
 float camRadius = 3.5f;
 float scrollSpeed = 0.33f;
-bool outline = false;
+bool outline = false, camControl = false;
+
 cbuffer constantBuffer;
 glm::mat4	cameraTransform;
 glm::vec3	currentLookAt =  glm::vec3 (0,0,1);
@@ -47,6 +48,11 @@ int main(int argc, char** argv){
 	{
 		if (strcmp(data.c_str(), "true")==0)
 			outline = true;
+    }
+	else if (strcmp(header.c_str(), "cameraControl")==0)
+	{
+		if (strcmp(data.c_str(), "true")==0)
+			camControl = true;
     }
   }
 
@@ -181,10 +187,12 @@ void runCuda(bool &isFirstTime){
   glm::vec4 center =  /*camOrigin + */(/*cameraTransform * */glm::vec4 (0,0,0,0));
   glm::vec4 up =  /*glm::normalize(cameraTransform * */glm::vec4 (0,1,0,0)/*)*/;
 
-//  constantBuffer.view = glm::lookAt (glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), 
-									 /*glm::vec3 (center.x, center.y, center.z), 
-									 glm::vec3 (up.x, up.y, up.z));*/
-  constantBuffer.view = glm::lookAt (glm::vec3 (0.0f, 0.0f, 0.0f),/*glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z)*/ 
+  if (camControl)
+	  constantBuffer.view = glm::lookAt (glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), 
+									 glm::vec3 (center.x, center.y, center.z), 
+									 glm::vec3 (up.x, up.y, up.z));
+  else
+	  constantBuffer.view = glm::lookAt (glm::vec3 (0.0f, 0.0f, 0.0f),/*glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z)*/ 
 										glm::vec3 (0.0f,0.0f,1.0f), 
 										glm::vec3 (0.0f,1.0f,0.0f));
   cudaGLMapBufferObject((void**)&dptr, pbo);
