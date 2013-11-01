@@ -36,7 +36,7 @@ obj::~obj(){
 }
 
 void obj::buildVBOs(){
-	recenter();
+	//recenter(); // zia said no
 	vector<float> VBOvec;
 	vector<float> NBOvec;
 	vector<int> IBOvec;

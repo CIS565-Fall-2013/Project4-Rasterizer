@@ -57,6 +57,8 @@ float* vbo;
 int vbosize;
 float* cbo;
 int cbosize;
+float* nbo;
+int nbosize;
 int* ibo;
 int ibosize;
 
@@ -65,6 +67,9 @@ int ibosize;
 //-------------------------------
 
 int width=800; int height=800;
+
+glm::vec3 eye(0, 0, 3);
+glm::vec3 center(0, 0, 0);
 
 //-------------------------------
 //-------------MAIN--------------
@@ -81,8 +86,12 @@ void runCuda();
 #ifdef __APPLE__
 	void display();
 #else
+	int buttonPressed;
+	int prevX, prevY;
 	void display();
 	void keyboard(unsigned char key, int x, int y);
+	void mousePress(int button, int state, int x, int y);
+	void mouseMove(int x, int y);
 #endif
 
 //-------------------------------

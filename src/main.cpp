@@ -2,6 +2,7 @@
 // Written by Yining Karl Li, Copyright (c) 2012 University of Pennsylvania
 
 #include "main.h"
+#include "glm/gtx/transform.hpp"
 
 //-------------------------------
 //-------------MAIN--------------
@@ -71,6 +72,8 @@ int main(int argc, char** argv){
   #else
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
+		glutMouseFunc(mousePress);
+		glutMotionFunc(mouseMove);
 
     glutMainLoop();
   #endif
@@ -90,17 +93,36 @@ void runCuda(){
   vbo = mesh->getVBO();
   vbosize = mesh->getVBOsize();
 
-  float newcbo[] = {0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0};
+  //float newcbo[] = {0.0, 1.0, 0.0, 
+  //                  0.0, 0.0, 1.0, 
+  //                  1.0, 0.0, 0.0};
+
+	//blue
+  float newcbo[] = {0.4, 0.7, 1.0, 
+                    0.4, 0.7, 1.0, 
+                    0.4, 0.7, 1.0};
+
+	//gold
+	//float newcbo[] = {1.0, 0.77, 0.03, 
+ //                   1.0, 0.77, 0.03, 
+ //                   1.0, 0.77, 0.03};
+
+	//grey
+	//float newcbo[] = {0.6, 0.6, 0.6, 
+  //                  0.6, 0.6, 0.6, 
+  //                   0.6, 0.6, 0.6};
+
   cbo = newcbo;
   cbosize = 9;
+
+  nbo = mesh->getNBO();
+  nbosize = mesh->getNBOsize();
 
   ibo = mesh->getIBO();
   ibosize = mesh->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), eye, center, frame, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -186,6 +208,58 @@ void runCuda(){
     }
   }
 
+	void mousePress(int button, int state, int x, int y) {
+		if (state == GLUT_DOWN) {
+			buttonPressed = button;
+			prevX = x;
+			prevY = y;
+		}
+		else {
+			buttonPressed = -1;
+			prevX = -1;
+			prevY = -1;
+		}
+	}
+
+	void mouseMove(int x, int y) {
+		x = max(0, x);
+		x = min(x, width);
+		y = max(0, y);
+		y = min(y, height);
+		int offsetX = x - prevX;
+		int offsetY = y - prevY;
+		prevX = x;
+		prevY = y;
+
+		glm::vec4 teye;
+		glm::mat4 rotation;
+		glm::vec3 axis;
+		glm::vec3 step;
+
+		switch (buttonPressed) {
+		case(GLUT_LEFT_BUTTON):
+			teye = glm::vec4(eye - center, 1);
+			axis = glm::normalize(glm::cross(glm::vec3(0,1,0), eye-center));
+			rotation = glm::rotate((float)(-360.0f/width*offsetX), 0.0f, 1.0f, 0.0f) * glm::rotate((float)(-360.0f/width*offsetY), axis.x, axis.y, axis.z);
+			teye = rotation * teye;
+			eye = glm::vec3(teye);
+			eye = eye + center;
+			break;
+		case(GLUT_MIDDLE_BUTTON): //need revise
+			eye += glm::vec3(-0.002, 0, 0) * (float)offsetX;
+			eye += glm::vec3(0, 0.002, 0) * (float)offsetY;
+			center += glm::vec3(-0.002, 0, 0) * (float)offsetX;
+			center += glm::vec3(0, 0.002, 0) * (float)offsetY;
+			break;
+		case(GLUT_RIGHT_BUTTON): //need revise
+			if (glm::distance(center, eye) > 0.01 || (offsetX < 0 && glm::distance(center, eye) < 20)) {
+				step = 0.01f * glm::normalize(center - eye);
+				eye += step * (float)offsetX;
+			}
+			break;
+		}
+	}
+
 #endif
   
 //-------------------------------
@@ -214,6 +288,10 @@ void runCuda(){
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
     glutInitWindowSize(width, height);
     glutCreateWindow("CIS565 Rasterizer");
+
+		buttonPressed = -1; //no mouse button is pressed
+		prevX = -1;
+		prevY = -1;
 
     // Init GLEW
     glewInit();
