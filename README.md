@@ -46,7 +46,26 @@ Lambertian Fragment Shading
 Barycentric Color and Normal Interpolation
 -------------------------------------------------------------------------------
 
+To achieve proper color interpolation, I converted each pixel coordinate back to
+barycentric coordinates relative to the triangle primitive's three vertices. Since
+I already knew the linearly interpreted x- and y-position of each pixel relative
+to the vertices' screen space positions, I could solve for the value of the
+color as follows (image borrowed from UCSC presentation):
+
+![Barycentric] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/barycentric.png)
+
+By following this barycentric interpolation model for colors, I was able to
+achieve properly interpolated color gradients within each face (in this example
+I arbitrarily set the vertex colors to R, G, and B respectively):
+
 ![Color Interpolation] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/color_interpolation.png)
+
+Furthermore, these barycentric coefficients could also be used for normal
+interpolation at any point within the triangular face. The normal at any point
+(x,y,z) could be calculated in exactly the same manner as a scaled sum of the
+vertex normals. Below is a comparison of two rendered images of the cow. The one
+on the left has constant normals per face, and the one on the right has smoothed vertex
+normals with interpolated values for each (x,y,z):
 
 ![Normal Interpolation] (https://raw.github.com/rarietta/Project4-Rasterizer/master/README_images/normal_interpolation.png)
 
