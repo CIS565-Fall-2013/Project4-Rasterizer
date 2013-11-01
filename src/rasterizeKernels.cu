@@ -190,12 +190,13 @@ __device__ void writeColorPoint(triangle currTri, int triIdx, glm::vec2 xyCoords
 __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution){
 	fragment currFrag;
 	currFrag.triIdx = triIdx;
-	currFrag.color = currTri.c0; //assume the tri is all one color for now.
+	//currFrag.color = currTri.c0; //assume the tri is all one color for now.
 	glm::vec3 currBaryCoords = calculateBarycentricCoordinate(currTri, xyCoords);
 	float fragZ = getZAtCoordinate(currBaryCoords, currTri);
 	currFrag.position = glm::vec3(xyCoords.x, xyCoords.y, fragZ);
 	currFrag.modelPosition = interpVec3(currBaryCoords, currTri.modelspace_p0, currTri.modelspace_p1, currTri.modelspace_p2);
 	currFrag.modelNormal = interpVec3(currBaryCoords, currTri.modelspace_n0, currTri.modelspace_n1, currTri.modelspace_n2);
+	currFrag.color = interpVec3(currBaryCoords, currTri.c0, currTri.c1, currTri.c2);
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
