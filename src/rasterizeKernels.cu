@@ -369,12 +369,13 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			{
 				vec2 pointInTri((float)x,(float)y);
 				vec3 bc = calculateBarycentricCoordinate(tri, pointInTri);
+				vec3 bcw = calculateBarycentricCoordinateWorld(tri, pointInTri);
 				if (isBarycentricCoordInBounds(bc))
 				{
 					int depthBufferId = y * resolution.x + x;
 					
 					//float z = getZAtCoordinate(bc, tri);
-					float z = getZWorldAtCoordinate(bc, tri);
+					float z = getZWorldAtCoordinate(bcw, tri);
 					
 					// trying out atomicDiff version
 					if (z > depthbuffer[depthBufferId].position.z)
@@ -384,25 +385,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 						depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
 						depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;		// normal in world space
 					}
-
-					// trying out atomicExch version
-					//bool done = false;
-					//while(!done)
-					//{
-					//	int old = atomicExch(&(depthbuffer[depthBufferId].locked), 1); // put 1 in depthbuffer[depthBufferId].locked
-					//	if (old == 0) // if old was 0, then that means the buffer was unlocked before
-					//	{
-					//		if (z > depthbuffer[depthBufferId].position.z)
-					//		{
-					//			depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z;    // point in world space
-					//			depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
-					//			depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;		// normal in world space
-					//		}
-
-					//		depthbuffer[depthBufferId].locked = 0;
-					//		done = true;
-					//	}
-					//}
 				}
 			}
 		}

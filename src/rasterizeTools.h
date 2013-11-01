@@ -49,6 +49,25 @@ __host__ __device__ glm::vec3 calculateBarycentricCoordinate(triangle tri, glm::
 	return glm::vec3(alpha,beta,gamma);
 }
 
+
+// Compute in world coordinates
+__host__ __device__ float calculateSignedAreaWorld(triangle tri){
+	return 0.5*((tri.pw2.x - tri.pw0.x)*(tri.pw1.y - tri.pw0.y) - (tri.pw1.x - tri.pw0.x)*(tri.pw2.y - tri.pw0.y));
+}
+
+__host__ __device__ float calculateBarycentricCoordinateWorldValue(glm::vec2 a, glm::vec2 b, glm::vec2 c, triangle tri){
+	triangle baryTri;
+	baryTri.pw0 = glm::vec3(a,0); baryTri.pw1 = glm::vec3(b,0); baryTri.pw2 = glm::vec3(c,0);
+	return calculateSignedAreaWorld(baryTri)/calculateSignedAreaWorld(tri);
+}
+
+__host__ __device__ glm::vec3 calculateBarycentricCoordinateWorld(triangle tri, glm::vec2 point){
+	float beta  = calculateBarycentricCoordinateWorldValue(glm::vec2(tri.pw0.x,tri.pw0.y), point, glm::vec2(tri.pw2.x,tri.pw2.y), tri);
+	float gamma = calculateBarycentricCoordinateWorldValue(glm::vec2(tri.pw0.x,tri.pw0.y), glm::vec2(tri.pw1.x,tri.pw1.y), point, tri);
+	float alpha = 1.0-beta-gamma;
+	return glm::vec3(alpha,beta,gamma);
+}
+
 //LOOK: checks if a barycentric coordinate is within the boundaries of a triangle
 __host__ __device__ bool isBarycentricCoordInBounds(glm::vec3 barycentricCoord){
 	return barycentricCoord.x >= 0.0 && barycentricCoord.x <= 1.0 &&
