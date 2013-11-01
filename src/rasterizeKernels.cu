@@ -5,6 +5,9 @@
 #include <cuda.h>
 #include <cmath>
 #include <thrust/random.h>
+#include <thrust/device_ptr.h>
+#include <thrust/reduce.h>
+#include <thrust/copy.h>
 #include "rasterizeKernels.h"
 #include "rasterizeTools.h"
 
@@ -32,6 +35,16 @@ float* device_vbo;
 float* device_cbo;
 int* device_ibo;
 triangle* primitives;
+triangle* primitivesBuffer;
+int* backfaceculling;
+
+#if BFCULL == 1
+struct is_render{
+	__host__ __device__ bool operator()(triangle t){
+		return t.render;
+	}
+};
+#endif
 
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
@@ -192,7 +205,7 @@ __global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 MV, glm::ve
 
 // Primative assembly
 #if POINT_MODE == 0
-__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitives, glm::vec4 light){
+__global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, triangle* primitivesBuffer, int* backfaceculling){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   int primitivesCount = ibosize/3;
   if(index < primitivesCount){
@@ -217,19 +230,53 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 
 #if COLOR == 0
 	  t.c0 = t.c1 = t.c2 = glm::vec3(1.0f);
-#else
+#elif COLOR == 1
 	  t.c0 = glm::vec3(cbo[0], cbo[1], cbo[2]);
 	  t.c1 = glm::vec3(cbo[3], cbo[4], cbo[5]);
 	  t.c2 = glm::vec3(cbo[6], cbo[7], cbo[8]);
+#elif COLOR == 2
+	  t.c0 = t.normal;
+	  t.c1 = t.normal;
+	  t.c2 = t.normal;
 #endif
 
-	  // TODO : Cull Back-Face Triangle
+	  // Cull Back-Face Triangle
+	  bool cull = glm::dot(t.normal, -glm::vec3((t.p1 + t.p0 + t.p2) / 3)) < 0;
 
-	  // TODO : Cull Out-of-Viewport Triangles
+	  if(cull) t.render = false;
+	  else t.render = true;
+#if BFCULL == 1
+	  backfaceculling[index] = cull ? 1 : 0; 
+#endif
 
 	  // Put triangle into primitives
-	  primitives[index] = t;
+	  primitivesBuffer[index] = t;
   }
+}
+
+void __global__ scatter(triangle* src, triangle* dest, int* scanArr, int numTri){
+	int k = blockIdx.x * blockDim.x + threadIdx.x;
+	if(k < numTri){
+		if(src[k].render){
+			int idx = scanArr[k];
+			dest[idx] = src[k];
+		}
+	}
+}
+
+void cullBackFaceKernel(triangle* src, triangle* dest, int* backfaceculling, int primitiveCount, int& fullBlocksPerGrid, int threadsPerBlock, int& primCount){
+	thrust::device_ptr<int> t_bfcull = thrust::device_pointer_cast(backfaceculling);
+	thrust::device_ptr<triangle> t_primBuffer = thrust::device_pointer_cast(src);
+	thrust::device_ptr<triangle> t_prim = thrust::device_pointer_cast(dest);
+
+	// Compact
+	thrust::copy_if(t_primBuffer, t_primBuffer + primitiveCount, t_prim, is_render());
+
+	// Reduce
+	primCount = thrust::reduce(t_bfcull, t_bfcull + primitiveCount, 0);
+
+	// Recalculate kernel dimensions
+	fullBlocksPerGrid = (int) ceil((float)primCount/threadsPerBlock);
 }
 
 __global__ void viewportTransformKernel(triangle* primitives, int primitivesCount, glm::vec2 resolution, glm::mat4 proj){
@@ -259,7 +306,12 @@ __global__ void viewportTransformKernel(triangle* primitives, int primitivesCoun
 		t.p2.y = 1.0f / 2 * resolution.y * p2_ndc.y + (1.0f / 2 * resolution.y);
 		t.p2.z = p2_ndc.z;
 
-		//t.normal = glm::cross(glm::vec3(t.p1 - t.p0), glm::vec3(t.p2 - t.p1));
+#if OOVIGNORE == 1
+		glm::vec3 minpt, maxpt;
+		getAABBForTriangle(t, minpt, maxpt);
+		if(maxpt.x < 0 && maxpt.y < 0) t.render = false;
+		if(minpt.x > resolution.x && minpt.y > resolution.y) t.render = false;
+#endif
 		
 		primitives[index] = t;
 	}
@@ -315,6 +367,7 @@ __device__ void rasterizeByPrimitive(triangle* primitives, int primitivesCount, 
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index < primitivesCount){
 		triangle t  = primitives[index];
+		if(!t.render) return;
 		glm::vec2 minpoint, maxpoint;
 		getTightBoxForTriangle(t, minpoint, maxpoint, resolution);
 		glm::vec3 bary_center;
@@ -480,6 +533,14 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitives = NULL;
   cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
 
+#if BFCULL == 1
+  primitivesBuffer = NULL;
+  cudaMalloc((void**)&primitivesBuffer, (ibosize/3) * sizeof(triangle));
+
+  backfaceculling = NULL;
+  cudaMalloc((void**)&backfaceculling, (ibosize / 3) * sizeof(triangle));
+#endif
+
   device_ibo = NULL;
   cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
   cudaMemcpy( device_ibo, ibo, ibosize*sizeof(int), cudaMemcpyHostToDevice);
@@ -507,22 +568,30 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
 
   primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
+  
+  int primitiveCount = ibosize/3;
 
 #if POINT_MODE == 0
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, MV * light);
+#if BFCULL == 1
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitivesBuffer, backfaceculling);
+  cullBackFaceKernel(primitivesBuffer, primitives, backfaceculling, ibosize/3, primitiveBlocks, tileSize, primitiveCount);
+#else 
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_vbo, cbosize, device_ibo, ibosize, primitives, backfaceculling);
+  primitiveCount = ibosize/3;
+#endif
   cudaDeviceSynchronize();
 
   //------------------------------
   //viewport transformation
   //------------------------------
-  viewportTransformKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, resolution, proj);
+  viewportTransformKernel<<<primitiveBlocks, tileSize>>>(primitives, primitiveCount, resolution, proj);
   cudaDeviceSynchronize();
 
   //------------------------------
   //rasterization
   //------------------------------
 
-  rasterizationKernel<<<NUM_BLOCKS(ibosize, resolution, tileSize), tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, primitiveCount, depthbuffer, resolution);
 #else
   primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
   rasterizePoints<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, depthbuffer, resolution);
@@ -554,5 +623,7 @@ void kernelCleanup(){
   cudaFree( device_ibo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
+  cudaFree( primitivesBuffer );
+  cudaFree( backfaceculling );
 }
 

@@ -22,8 +22,9 @@
 #define SCANLINE 0
 #define THREE 0
 #define READ_NORMAL 0
-#define LIGHT glm::vec3(5,5,5);
-#define COLOR 0
+#define COLOR 2
+#define BFCULL 1
+#define OOVIGNORE 1
 
 void kernelCleanup();
 void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, glm::mat4 MVP, glm::mat4 proj, glm::vec4 light);

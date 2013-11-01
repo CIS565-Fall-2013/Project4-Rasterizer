@@ -109,7 +109,7 @@ void runCuda(){
   MV = view * model;
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, MV, proj, light);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, MV, proj, view * model_switch * light);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;

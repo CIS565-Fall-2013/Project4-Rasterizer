@@ -27,7 +27,7 @@ struct triangle {
 #if READ_NORMALS == 0
   glm::vec3 normal;
 #endif
-
+  bool render;
 };
 
 struct fragment{
