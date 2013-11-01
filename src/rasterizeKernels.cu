@@ -359,7 +359,7 @@ __global__ void binRasterizationKernel(triangle* primitives,  int* primitiveStag
 
 	extern __shared__ int s[];
 	int *sBufferCounters = s;
-	
+
 	int numBins = binDims.x*binDims.y;
 	int *sBatchNum = &s[numBins]; 
 
@@ -511,6 +511,35 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 	}
 }
 
+void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
+{
+	glm::vec2 binDims = glm::vec2(5,5);
+	//Tuning params
+	int binBufferSize = 2<<5;
+	int batchSize = 32;//One batch per warp
+	int numBatches = ceil(NPrimitives/float(batchSize));
+	int numBlocks = max(ceil(numBatches*batchSize/float(1024)), ceil(numBatches*batchSize*26/float(8192)));//26 is number of registers for kernel
+	int batchesPerBlock = ceil(numBatches/float(numBlocks));
+
+
+	//Allocate bin buffers
+	cudaMalloc((void**) &binBuffers, numBlocks*binDims.x*binDims.y*(binBufferSize)*sizeof(int));
+
+	cudaMalloc((void**) &bufferCounters, numBlocks*binDims.x*binDims.y*sizeof(int));
+
+	dim3 blockDims(batchSize, batchesPerBlock);
+	dim3 gridDims(numBlocks);
+	int Ns =  (binDims.x*binDims.y+batchSize)*sizeof(int);
+	binRasterizationKernel<<<gridDims,blockDims,Ns>>>(
+		primitives, primitiveStageBuffer, NPrimitives,
+		bufferCounters, binBuffers, binBufferSize,
+		resolution, binDims, opts);
+
+
+	cudaFree(binBuffers);
+	cudaFree(bufferCounters);
+}
+
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* nbo, int nbosize, 
 					   float* cbo, int cbosize, int* ibo, int ibosize, uniforms u_variables, pipelineOpts opts)
@@ -611,29 +640,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	{
 		rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, depthbuffer, resolution, device_uniforms, opts);
 	}else if(opts.rasterMode == BIN){
-		glm::vec2 binDims = glm::vec2(5,5);
-		//Tuning params
-		int binBufferSize = 2<<5;
-		int batchSize = 32;//One batch per warp
-		int numBlocks = 16;//max(2.0f, ceil(NPrimitives/float(batchSize*1024)));//At least the number of SMs, limited by size
-		int batchesPerBlock = ceil(NPrimitives/float(batchSize*numBlocks));
-
-
-		//Allocate bin buffers
-		cudaMalloc((void**) &binBuffers, numBlocks*binDims.x*binDims.y*(binBufferSize)*sizeof(int));
-
-		cudaMalloc((void**) &bufferCounters, numBlocks*binDims.x*binDims.y*sizeof(int));
-
-		dim3 blockDims(batchSize, batchesPerBlock);
-		dim3 gridDims(numBlocks);
-		int Ns =  (binDims.x*binDims.y+batchSize)*sizeof(int);
-		binRasterizationKernel<<<gridDims,blockDims,Ns>>>(
-			primitives, primitiveStageBuffer, NPrimitives,
-			bufferCounters, binBuffers, binBufferSize,
-			resolution, binDims, opts);
-
-		cudaFree(binBuffers);
-		cudaFree(bufferCounters);
+		binRasterizer(NPrimitives, resolution, opts);
 	}
 
 
