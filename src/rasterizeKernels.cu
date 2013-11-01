@@ -16,6 +16,9 @@ triangle* primitives;
 int* primitiveStageBuffer;
 uniforms* device_uniforms;
 
+int* binBuffers;
+int* bufferCounters;
+
 void checkCUDAError(const char *msg) {
 	cudaError_t err = cudaGetLastError();
 	if( cudaSuccess != err) {
@@ -257,16 +260,16 @@ __global__ void backfaceCulling(triangle* primitives, int* primitiveStageBuffer,
 
 __global__ void totalClipping(triangle* primitives, int* primitiveStageBuffer, int NPrimitives, pipelineOpts opts)
 {
-	
+
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if(index < NPrimitives)
 	{
 		int primIndex = primitiveStageBuffer[index];
 		if(primIndex >= 0 && primIndex < NPrimitives){
 			triangle tri = primitives[primIndex];
-			
+
 			glm::vec3 minpoint, maxpoint;
-			
+
 			getAABBForTriangle(tri, minpoint,maxpoint);
 
 			if(!isAABBInClipSpace(minpoint, maxpoint))
@@ -346,6 +349,72 @@ __global__ void rasterizationKernel(triangle* primitives, int* primitiveStageBuf
 			}
 		}
 	}
+}
+
+
+__global__ void binRasterizationKernel(triangle* primitives,  int* primitiveStageBuffer, int NPrimitives,
+									   int* bufferCounters, int* binBuffers, int binBufferSize,
+									   glm::vec2 resolution, glm::vec2 binDims, pipelineOpts opts)
+{
+
+	extern __shared__ int s[];
+	int *sBufferCounters = s;
+	
+	int numBins = binDims.x*binDims.y;
+	int *sBatchNum = &s[numBins]; 
+
+	//threadIdx.x is id within batch
+	int indexInBatch = threadIdx.x;
+	int numBatchesPerBlock = blockDim.x;
+	int binWidth = ceil(resolution.x/binDims.x);
+	int binHeight = ceil(resolution.y/binDims.y);
+	int indexInBlock = threadIdx.x+threadIdx.y*blockDim.x;
+	//Initialize counters
+	if(indexInBlock < numBins)
+		sBufferCounters[indexInBlock] = 0;
+	if(indexInBlock < blockDim.x)
+		sBatchNum[indexInBlock] = 0;
+
+	__syncthreads();
+
+
+	while(sBatchNum[indexInBatch] < numBatchesPerBlock)
+	{
+		//Get a batch
+
+		int batchId = atomicAdd(&sBatchNum[indexInBatch], 1);
+		if(batchId < numBatchesPerBlock){
+			int stageBufferIndex = indexInBatch + blockDim.x*(batchId*gridDim.x+blockIdx.x);
+			if(stageBufferIndex < NPrimitives)
+			{
+				int triangleIndex = primitiveStageBuffer[stageBufferIndex];
+				if(triangleIndex >= 0 && triangleIndex < NPrimitives){
+					glm::vec3 minpoint,maxpoint;
+
+					transformTriToScreenSpace(primitives[triangleIndex], resolution);
+					getAABBForTriangle(primitives[triangleIndex], minpoint, maxpoint);
+
+					for(int x = 0; x < binDims.x; ++x)
+					{
+						for(int y = 0; y < binDims.y; ++y)
+						{
+							if(isAABBInBin(minpoint, maxpoint, x*binWidth, (x+1)*binWidth, y*binHeight, (y+1)*binHeight))
+							{
+								int binIndex = x+y*binDims.x;
+								int bufLoc = atomicAdd(&sBufferCounters[binIndex], 1);
+								int binBufferIndex = bufLoc + binIndex*binBufferSize + blockIdx.x*(numBins*binBufferSize);
+								binBuffers[binBufferIndex] = triangleIndex;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	__syncthreads();
+
+	if(indexInBlock < numBins)
+		bufferCounters[indexInBlock] = sBufferCounters[indexInBlock];
 }
 
 __host__ __device__ void depthFSImpl(fragment* depthbuffer, int index,  uniforms* u_variables, pipelineOpts opts)
@@ -538,8 +607,34 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 	//------------------------------
 	//rasterization
 	//------------------------------
-	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, depthbuffer, resolution, device_uniforms, opts);
+	if(opts.rasterMode == NAIVE)
+	{
+		rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, primitiveStageBuffer, NPrimitives, depthbuffer, resolution, device_uniforms, opts);
+	}else if(opts.rasterMode == BIN){
+		glm::vec2 binDims = glm::vec2(5,5);
+		//Tuning params
+		int binBufferSize = 2<<5;
+		int batchSize = 32;//One batch per warp
+		int numBlocks = 16;//max(2.0f, ceil(NPrimitives/float(batchSize*1024)));//At least the number of SMs, limited by size
+		int batchesPerBlock = ceil(NPrimitives/float(batchSize*numBlocks));
 
+
+		//Allocate bin buffers
+		cudaMalloc((void**) &binBuffers, numBlocks*binDims.x*binDims.y*(binBufferSize)*sizeof(int));
+
+		cudaMalloc((void**) &bufferCounters, numBlocks*binDims.x*binDims.y*sizeof(int));
+
+		dim3 blockDims(batchSize, batchesPerBlock);
+		dim3 gridDims(numBlocks);
+		int Ns =  (binDims.x*binDims.y+batchSize)*sizeof(int);
+		binRasterizationKernel<<<gridDims,blockDims,Ns>>>(
+			primitives, primitiveStageBuffer, NPrimitives,
+			bufferCounters, binBuffers, binBufferSize,
+			resolution, binDims, opts);
+
+		cudaFree(binBuffers);
+		cudaFree(bufferCounters);
+	}
 
 
 	cudaDeviceSynchronize();

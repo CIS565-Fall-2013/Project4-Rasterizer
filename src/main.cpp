@@ -229,6 +229,12 @@ void keyboard(unsigned char key, int x, int y)
 	case 't':
 		u_pipelineOpts.totalClipping = !u_pipelineOpts.totalClipping;
 		break;
+	case 'r':
+		u_pipelineOpts.rasterMode = NAIVE;
+		break;
+	case 'f':
+		u_pipelineOpts.rasterMode = BIN;
+		break;
 	case '1':
 		u_pipelineOpts.fShaderProgram = AMBIENT_LIGHTING;
 		break;

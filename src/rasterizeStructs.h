@@ -46,8 +46,10 @@ struct uniforms{
 
 
 enum FRAGMENT_SHADER {DEPTH_SHADING, AMBIENT_LIGHTING, BLINN_PHONG_SHADING, NORMAL_SHADING};
+enum RASTER_MODE {NAIVE, BIN };
 struct pipelineOpts{
 	FRAGMENT_SHADER fShaderProgram;
+	RASTER_MODE rasterMode;
 	bool showTriangleColors;
 	bool backfaceCulling;
 	bool totalClipping;

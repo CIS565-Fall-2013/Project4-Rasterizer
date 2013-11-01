@@ -91,4 +91,15 @@ __host__ __device__ bool isAABBInClipSpace(glm::vec3 minpoint, glm::vec3 maxpoin
 	 return true;
 }
 
+
+__host__ __device__ bool isAABBInBin(glm::vec3 minpoint, glm::vec3 maxpoint, int binXMin, int binXMax, int binYMin, int binYMax)
+{
+	if (minpoint.x > binXMax  || binXMin > maxpoint.x)
+		 return false;
+	 if (minpoint.y > binYMax || binYMin> maxpoint.y)
+		 return false;
+
+	 return true;
+}
+
 #endif
