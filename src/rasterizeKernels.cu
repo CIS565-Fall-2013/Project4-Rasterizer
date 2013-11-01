@@ -254,16 +254,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
   }
 }
 
-void __global__ scatter(triangle* src, triangle* dest, int* scanArr, int numTri){
-	int k = blockIdx.x * blockDim.x + threadIdx.x;
-	if(k < numTri){
-		if(src[k].render){
-			int idx = scanArr[k];
-			dest[idx] = src[k];
-		}
-	}
-}
-
+#if BFCULL == 1
 void cullBackFaceKernel(triangle* src, triangle* dest, int* backfaceculling, int primitiveCount, int& fullBlocksPerGrid, int threadsPerBlock, int& primCount){
 	thrust::device_ptr<int> t_bfcull = thrust::device_pointer_cast(backfaceculling);
 	thrust::device_ptr<triangle> t_primBuffer = thrust::device_pointer_cast(src);
@@ -278,6 +269,7 @@ void cullBackFaceKernel(triangle* src, triangle* dest, int* backfaceculling, int
 	// Recalculate kernel dimensions
 	fullBlocksPerGrid = (int) ceil((float)primCount/threadsPerBlock);
 }
+#endif
 
 __global__ void viewportTransformKernel(triangle* primitives, int primitivesCount, glm::vec2 resolution, glm::mat4 proj){
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -576,7 +568,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitivesBuffer, backfaceculling);
   cullBackFaceKernel(primitivesBuffer, primitives, backfaceculling, ibosize/3, primitiveBlocks, tileSize, primitiveCount);
 #else 
-  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_vbo, cbosize, device_ibo, ibosize, primitives, backfaceculling);
+  primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_ibo, ibosize, primitives, backfaceculling);
   primitiveCount = ibosize/3;
 #endif
   cudaDeviceSynchronize();

@@ -69,6 +69,7 @@ int main(int argc, char** argv){
 
     glfwTerminate();
   #else
+    model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0,0,1));
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboard);
 	glutMouseFunc(mouse);
@@ -104,7 +105,7 @@ void runCuda(){
   glm::mat4 view = glm::lookAt(eye, center, up);
   proj = glm::perspective(fov, (float)width/height, zNear, zFar);
   float angle = glm::radians(5.0f);
-  model = glm::rotate(model, angle, glm::vec3(0,1,0));
+  //model = glm::rotate(model, angle, glm::vec3(0,1,0));
 
   MV = view * model;
 
@@ -157,7 +158,24 @@ void runCuda(){
 #else
 
   void display(){
+	cudaEvent_t start, stop;
+	float time_cuda;
+
+	// Keep track of time
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+
+	cudaEventRecord( start, 0 );
+
     runCuda();
+
+	cudaEventRecord( stop, 0 );
+	cudaEventSynchronize( stop );
+
+	cudaEventElapsedTime( &time_cuda, start, stop );		
+	cudaEventDestroy( start );
+	cudaEventDestroy( stop );
+
 	time_t seconds2 = time (NULL);
 
     if(seconds2-seconds >= 1){
@@ -167,9 +185,10 @@ void runCuda(){
       seconds = seconds2;
 
     }
-
-    string title = "CIS565 Rasterizer | "+ utilityCore::convertIntToString((int)fps) + "FPS";
-    glutSetWindowTitle(title.c_str());
+	char info[1024];
+    sprintf(info, "CIS565 Rasterizer | %i FPS | Total : %3.3f ms", (int)fps, time_cuda);
+    string title(info);
+	glutSetWindowTitle(title.c_str());
 
     glBindBuffer( GL_PIXEL_UNPACK_BUFFER, pbo);
     glBindTexture(GL_TEXTURE_2D, displayImage);

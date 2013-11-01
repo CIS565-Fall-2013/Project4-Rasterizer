@@ -79,7 +79,7 @@ glm::mat4 model_switch = glm::mat4(glm::vec4(-1,0,0,0), glm::vec4(0,-1,0,0), glm
 glm::mat4 MV = glm::mat4(1.0f);
 glm::mat4 proj = glm::mat4(1.0f);
 
-glm::vec4 light = glm::normalize(glm::vec4(5,5,5,1));
+glm::vec4 light = glm::normalize(glm::vec4(5,5,7,1));
 
 //-------------------------------
 //----------CUDA STUFF-----------
