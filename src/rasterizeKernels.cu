@@ -517,25 +517,24 @@ __global__ void binRasterizationKernel(triangle* primitives,  int* primitiveStag
 		bufferCounters[numBins*blockIdx.x + indexInBlock] = sBufferCounters[indexInBlock];
 }
 
-
-__global__ void coarseRasterizationKernel(triangle* primitives, int NPrimitives, glm::vec2 resolution, 
-										  int* binBufferCounters, int* binBuffers, int binBufferSize, int* tileBuffers, 
-										  int tileBufferSize, int numTilesX, int numTilesY, int tileSize, int numBinBlocks)
+__global__ void coarseRasterizationKernel(triangle* primitives, int NPrimitives, glm::vec2 resolution, int* binBufferCounters, 
+										  int* binBuffers, int binBufferSize, int* tileBuffers, int tileBufferSize,
+										  int numTilesX, int numTilesY, int tileSize, int numBinBlocks)
 {
 	extern __shared__ int s[];
 	int* sTriIndexBuffer = s;
 	
 	int numTilesInBin = blockDim.x*blockDim.y;
-	glm::vec4* sAABBBuffer = (glm::vec4*) sTriIndexBuffer[numTilesInBin];
+	glm::vec4* sAABBBuffer = (glm::vec4*) &sTriIndexBuffer[numTilesInBin];
 
-	int binIndex = blockIdx.x;
+	int binIndex = blockIdx.x + blockIdx.y*gridDim.x;
 	int tileXIndex = threadIdx.x;
 	int tileYIndex = threadIdx.y;
 	int numBins = gridDim.x*gridDim.y;
 	int indexInBin = threadIdx.x+threadIdx.y*blockDim.x;
 
 	int tileBufferCounter = 0;
-	int tileBufferOffset = tileBufferSize*(tileXIndex+numTilesY*numTilesX);
+	int tileBufferOffset = tileBufferSize*(tileXIndex+tileYIndex*numTilesX);
 	glm::vec4 tileAABB = glm::vec4(tileXIndex*tileSize, tileYIndex*tileSize, (tileXIndex+1)*tileSize, (tileYIndex+1)*tileSize);
 
 	//Prefetch triangles and calculate bounding boxes in compact fashion
@@ -543,11 +542,12 @@ __global__ void coarseRasterizationKernel(triangle* primitives, int NPrimitives,
 	for(int binBlock = 0; binBlock < numBinBlocks; ++binBlock)
 	{
 		int bufferOffset = 0;
-		int bufferSize = binBufferCounters[numBins*blockIdx.x + indexInBin];
+		int bufferSize = binBufferCounters[binIndex+binBlock*numBins];
 		do{
 			if(indexInBin < bufferSize)
 			{
-				int triIndex = binBuffers[bufferOffset + indexInBin + binIndex*binBufferSize + binBlock*(numBins*binBufferSize)];
+				int binBufferOffset = binIndex*binBufferSize + binBlock*(numBins*binBufferSize);
+				int triIndex = binBuffers[(bufferOffset + indexInBin) + binBufferOffset];
 				sTriIndexBuffer[indexInBin]  = triIndex;
 				glm::vec4 mXmYMXMY(0,0,0,0);
 				if(triIndex >= 0 && triIndex < NPrimitives)
@@ -608,7 +608,10 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 		primitives, primitiveStageBuffer, NPrimitives,
 		bufferCounters, binBuffers, binBufferSize,
 		resolution, binDims, opts);
+	int* debug = (int *) malloc( numBlocks*binDims.x*binDims.y*sizeof(int));
 
+	cudaMemcpy( debug, bufferCounters,  numBlocks*binDims.x*binDims.y*sizeof(int), cudaMemcpyDeviceToHost);
+	free(debug);
 	//==============COARSE RASTER===================
 	int tilesize = 8;//8x8
 	int tileBufferSize = 2<<5;
@@ -622,7 +625,9 @@ void binRasterizer(int NPrimitives, glm::vec2 resolution, pipelineOpts opts)
 	dim3 coarseGridDims(binDims.x, binDims.y);
 	dim3 coarseBlockDims(numTilesPerBinX,numTilesPerBinY);
 	Ns = (sizeof(glm::vec4)+sizeof(int))*numTilesPerBinX*numTilesPerBinY;
-	coarseRasterizationKernel<<<coarseGridDims,coarseBlockDims,Ns>>>(primitives, NPrimitives, resolution, bufferCounters, binBuffers, binBufferSize, tileBuffers, tileBufferSize, numTilesX, numTilesY, tilesize, numBlocks); 
+	coarseRasterizationKernel<<<coarseGridDims,coarseBlockDims,Ns>>>(primitives, NPrimitives, resolution, bufferCounters, 
+		binBuffers, binBufferSize, tileBuffers, tileBufferSize, 
+		numTilesX, numTilesY, tilesize, numBlocks); 
 
 	cudaFree(binBuffers);//Free previous buffer
 
