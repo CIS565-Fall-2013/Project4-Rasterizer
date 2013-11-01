@@ -102,7 +102,12 @@ void runCuda(){
   //cbo = newcbo;
   //cbosize = 9;
   mesh->setColor(glm::vec3(0, 1, 0));
-  cbo = mesh->getNBO();//mesh->getCBO();
+
+  if(normalsAsColors){
+	cbo = mesh->getNBO();
+  } else {
+	cbo = mesh->getCBO();
+  }
   //cbo = myColorReader->getCBO();
   cbosize = mesh->getCBOsize();
 
@@ -117,7 +122,7 @@ void runCuda(){
   else
 	angleDeg = 0;
 
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, camPos, drawLines);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, camPos, drawLines, useShading);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -219,11 +224,17 @@ void runCuda(){
 	   case(101): //E
          camPos.z += 0.1f;  
          break;
-	   case(108):
+	   case(108): //l
 		drawLines = !drawLines;
 		break;
-	   case(114):
+	   case(114): //r
 		rotateModel = !rotateModel;
+		break;
+	   case(110): //n
+		normalsAsColors = !normalsAsColors;
+		break;
+	   case(104):
+		useShading = !useShading;
 		break;
     }
   }

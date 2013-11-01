@@ -43,6 +43,8 @@ using namespace std;
 //-------------------------------
 //colorReader* myColorReader;
 
+bool useShading = true;
+bool normalsAsColors = false;
 bool rotateModel = false;
 bool drawLines = false;
 glm::vec3 camPos;
