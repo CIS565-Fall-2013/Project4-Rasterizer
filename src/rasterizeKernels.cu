@@ -83,7 +83,7 @@ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthb
 }
 
 //Writes a given fragment to a fragment buffer at a given location
-__device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution, int* writeCount){
+__device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthbuffer, glm::vec2 resolution, int* writeCount, bool checkWriteCount){
 	int index = (y*resolution.x) + x;
 	//if(x >= 0 && y >= 0 && x<resolution.x && y<resolution.y){
 	//	//fatomicMax(&tmp_depthbuffer[index], frag.position.z);
@@ -95,7 +95,9 @@ __device__ void writeToDepthbuffer(int x, int y, fragment frag, fragment* depthb
 		//	int leet = 1337;
 		//}
 		//printf("Frag z: %f\n", frag.position.z);
-		atomicAdd( &writeCount[index], 1 );
+		if(checkWriteCount){
+			atomicAdd( &writeCount[index], 1 );
+		}
 		if(depthbuffer[index].position.z < frag.position.z){
 			depthbuffer[index] = frag;
 		}
@@ -207,7 +209,7 @@ __device__ void writeColorPoint(triangle currTri, int triIdx, glm::vec2 xyCoords
 
 
 //"xyCoords" are the FLOATING-POINT, sub-pixel-accurate location to be write to
-__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution, bool interpColors, int* writeCount){
+__device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyCoords, fragment* depthBuffer, glm::vec2 resolution, bool interpColors, int* writeCount, bool checkWriteCount){
 	fragment currFrag;
 	currFrag.triIdx = triIdx;
 	//currFrag.color = currTri.c0; //assume the tri is all one color for now.
@@ -224,7 +226,7 @@ __device__ void writePointInTriangle(triangle currTri, int triIdx, glm::vec2 xyC
 	int pixX = roundf(xyCoords.x);
 	int pixY = roundf(xyCoords.y);
 	//TODO: incorporate the normal in here **somewhere**
-	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution, writeCount);
+	writeToDepthbuffer((resolution.x - 1) - pixX, (resolution.y - 1) - pixY, currFrag, depthBuffer, resolution, writeCount, checkWriteCount);
 }
 
 //rasterize between startX and endX, inclusive
@@ -339,7 +341,7 @@ __global__ void primitiveAssemblyKernel(float* vbo, float* model_vbo, float* nbo
 //for now the normal can just be the cross product of the vectors that make up the face (flat shading).
 //NATHAN: add early-z here.
 __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, 
-	glm::vec3 vdir, bool drawLines, bool interpColors, int* writeCount, bool useLargeStep){
+	glm::vec3 vdir, bool drawLines, bool interpColors, int* writeCount, bool useLargeStep, bool checkWriteCount){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<primitivesCount){
 	  //based on notes from here: http://sol.gfxile.net/tri/index.html
@@ -373,7 +375,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 			  glm::vec2 currPoint(x, y);
 			  glm::vec3 baryCoords = calculateBarycentricCoordinate(currTri, currPoint);
 			  if(isBarycentricCoordInBounds(baryCoords)){ //we are inside
-				  writePointInTriangle(currTri, index, currPoint, depthbuffer, resolution, interpColors, writeCount);
+				  writePointInTriangle(currTri, index, currPoint, depthbuffer, resolution, interpColors, writeCount, checkWriteCount);
 			  }
 		  }
 	  }
@@ -466,7 +468,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 eyePos, glm::vec3 lightPos, bool useShading, int* write_count){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 eyePos, glm::vec3 lightPos, bool useShading, int* write_count, bool checkWriteCount){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
@@ -487,7 +489,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 			  currFrag.color = diffuseCoeff * currFrag.color;
 		  }
 
-		  if( write_count[index] > 1 ){ //yellow indicates overlap!
+		  if( checkWriteCount && write_count[index] > 1 ){ //yellow indicates overlap!
 			  currFrag.color = glm::vec3(1, 1, 0);
 		  }
 
@@ -510,7 +512,7 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, 
-	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep){
+	float angleDeg, glm::vec3 camPos, bool drawLines, bool useShading, bool interpColors, bool useLargeStep, bool checkWriteCount){
 
   // set up crucial magic
   int tileSize = 8;
@@ -607,7 +609,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //first draw the outlines of the triangle
   glm::vec3 vdir = center - eye;
-  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines, interpColors, framebuffer_writes, useLargeStep);
+  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, vdir, drawLines, interpColors, framebuffer_writes, useLargeStep, checkWriteCount);
   cudaDeviceSynchronize();
   //next, march through all scanlines
   //int scanlineBlocks = ceil(resolution.y/(float)tileSize);
@@ -619,7 +621,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //fragment shader
   //------------------------------
   glm::vec3 lightPos(0, 0, 1);
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, eye, lightPos, useShading, framebuffer_writes);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, eye, lightPos, useShading, framebuffer_writes, checkWriteCount);
 
   cudaDeviceSynchronize();
   //------------------------------

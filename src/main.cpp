@@ -122,7 +122,8 @@ void runCuda(){
   else
 	angleDeg = 0;
 
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, camPos, drawLines, useShading, interpColors, useLargeStep);
+  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, angleDeg, 
+	  camPos, drawLines, useShading, interpColors, useLargeStep, checkWriteCount);
   cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -241,6 +242,9 @@ void runCuda(){
 		break;
 	   case(116): //t for sTep;
 		useLargeStep = !useLargeStep;
+		break;
+	   case(107): //k for checK if we write twice
+		checkWriteCount = !checkWriteCount;
 		break;
     }
   }
