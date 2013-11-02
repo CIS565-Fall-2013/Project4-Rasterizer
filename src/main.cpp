@@ -35,9 +35,9 @@ int main(int argc, char** argv){
 
 
 	u_pipelineOpts.fShaderProgram = BLINN_PHONG_SHADING;
-	u_pipelineOpts.rasterMode = BIN;
+	u_pipelineOpts.rasterMode = NAIVE;
 	u_pipelineOpts.showTriangleColors = false;
-	u_pipelineOpts.backfaceCulling = false;
+	u_pipelineOpts.backfaceCulling = true;
 	u_pipelineOpts.totalClipping = true;
 	u_pipelineOpts.recordMetrics = true;
 	performanceMetrics.clear();
