@@ -72,3 +72,19 @@ PERFORMANCE EVALUATION
 -------------------------------------------------------------------------------
 
 
+-------------------------------------------------------------------------------
+Additional Screenshots
+-------------------------------------------------------------------------------
+Flat Shaded Cow:
+![Screenshot](/renders/CowFlatShading.JPG "Flat shaded cow")
+Flat Cow Normals:
+![Screenshot](/renders/FlatNormalCow.JPG "Cow Normals (Flat Cow)")
+Depth Buffer For Cow:
+![Screenshot](/renders/cow_zdepth.png "Cow Depth Buffer")
+Cube:
+![Screenshot](/renders/MatteCube.JPG "Simple Cube")
+Depth Buffer for Cube:
+![Screenshot](/renders/CubeDepth.JPG "Cube Depth Buffer")
+Cube Normals:
+![Screenshot](/renders/NormalCube.JPG "Cube Normals")
+
