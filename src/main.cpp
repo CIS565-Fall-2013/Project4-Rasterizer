@@ -35,21 +35,21 @@ int main(int argc, char** argv){
 
 
 	u_pipelineOpts.fShaderProgram = BLINN_PHONG_SHADING;
-	u_pipelineOpts.rasterMode = NAIVE;
+	u_pipelineOpts.rasterMode = BIN;
 	u_pipelineOpts.showTriangleColors = false;
 	u_pipelineOpts.backfaceCulling = true;
 	u_pipelineOpts.totalClipping = true;
-	u_pipelineOpts.recordMetrics = true;
+	u_pipelineOpts.recordMetrics = false;
 	performanceMetrics.clear();
 
-	u_variables.blinnPhongParams  = glm::vec3(0.1,0.6,0.3);//Ambient, diffuse, specular.
-	u_variables.lightPos = glm::vec4(-1.0f,1.0f,10.0f,1.0f);
+	u_variables.blinnPhongParams  = glm::vec3(0.1,0.5,0.4);//Ambient, diffuse, specular.
+	u_variables.lightPos = glm::vec4(-1.0f,-1.0f,5.0f,1.0f);
 	u_variables.lightColor = glm::vec3(1.0f,1.0f,1.0f);
-	u_variables.diffuseColor = glm::vec3(0.8,0.8,0.8);
-	u_variables.specularColor = glm::vec3(1.0,1.0,1.0);
-	u_variables.shininess = 8.0f;
+	u_variables.diffuseColor = glm::vec3(0.7,0.57,0.27);
+	u_variables.specularColor = glm::vec3(0.7,0.57,0.27);
+	u_variables.shininess = 5.0f;
 
-	u_variables.viewTransform = glm::lookAt(glm::vec3(1.0,0.0,1.0), glm::vec3(0,0,0), glm::vec3(0.0,0.0,-1.0));
+	u_variables.viewTransform = glm::lookAt(glm::vec3(1.0,1.0,1.0), glm::vec3(0,0,0), glm::vec3(0.0,0.0,-1.0));
 	u_variables.perspectiveTransform = glm::perspective(60.0f, float(width)/float(height), 0.1f, 5.0f);
 
 	glm::mat4 scale = glm::mat4(1.0f);
