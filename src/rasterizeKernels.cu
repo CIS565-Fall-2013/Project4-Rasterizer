@@ -156,7 +156,7 @@ __global__ void vertexShadeKernel(float* vbo, float *vbo2, int vbosize, float *n
 {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
-  __shared__ glm::mat4	ModelViewProjection;
+  __shared__ glm::mat4	ViewProjection;
   __shared__ int	step;
   __shared__ int	normStep;
   __shared__ cbuffer	constBuff;
@@ -167,7 +167,7 @@ __global__ void vertexShadeKernel(float* vbo, float *vbo2, int vbosize, float *n
 	  step = vbosize/4;
 	  normStep = nbosize / 4;
 
-	  ModelViewProjection = constBuff.projection * constBuff.view * constBuff.model;
+	  ViewProjection = /*constBuff.projection **/ constBuff.view;
   }
 
   __syncthreads ();
@@ -178,12 +178,12 @@ __global__ void vertexShadeKernel(float* vbo, float *vbo2, int vbosize, float *n
 	  cudaMat4 stupidMat;
 
 	  // Transform to world space for light vector calculation.
-	  stupidMat.x = constBuff.model [0];	stupidMat.y = constBuff.model [1];	stupidMat.z = constBuff.model [2];	stupidMat.w = constBuff.model [3];
+	  stupidMat = mat4GLMtoCUDA (constBuff.model);
 	  currentVertex = multiplyMV (stupidMat, currentVertex);
  	  vbo2 [index] = constBuff.lightPos [0] - currentVertex.x;	vbo2 [index+step] = constBuff.lightPos [1] - currentVertex.y;	vbo2 [index+(2*step)] = constBuff.lightPos [2] - currentVertex.z;	vbo2 [index+(3*step)] = 0;
 
 	  // Transform vertex to clip space.
-	  stupidMat.x = ModelViewProjection [0];	stupidMat.y = ModelViewProjection [1];	stupidMat.z = ModelViewProjection [2];	stupidMat.w = ModelViewProjection [3];
+	  stupidMat = mat4GLMtoCUDA (ViewProjection);
 	  currentVertex = multiplyMV (stupidMat, currentVertex);
 	  vbo [index] = currentVertex.x;	vbo [index+step] = currentVertex.y;	vbo [index+(2*step)] = currentVertex.z;	vbo [index+(3*step)] = currentVertex.w;
   }
@@ -194,7 +194,7 @@ __global__ void vertexShadeKernel(float* vbo, float *vbo2, int vbosize, float *n
 	  cudaMat4 stupidMat;
 
 	  // Transform normal to world space.
-	  stupidMat.x = constBuff.modelIT [0];	stupidMat.y = constBuff.modelIT [1];	stupidMat.z = constBuff.modelIT [2];	stupidMat.w = constBuff.modelIT [3];
+	  stupidMat = mat4GLMtoCUDA (constBuff.modelIT);
 	  currentNormal = glm::normalize (multiplyMV (stupidMat, currentNormal));
 
 	  nbo [index] = currentNormal.x;	nbo [index+normStep] = currentNormal.y;	nbo [index+(2*normStep)] = currentNormal.z;	nbo [index+(3*normStep)] = currentNormal.w;
@@ -540,10 +540,15 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution)
 
   if(x<resolution.x && y<resolution.y)
   {
+	  // Lambertian shading.
 	  float dotPdt = glm::dot (curFragment.normal, curFragment.lightVec);
 	  dotPdt = max (dotPdt, 0.0f);
 	  dotPdt = min (dotPdt, 1.0f);
 	  curFragment.color *= dotPdt;
+
+	  // Ambient colour.
+	  if (curFragment.position.z < 1.0f)
+		  curFragment.color += 0.1;
 
 	  depthbuffer [index] = curFragment;
   }

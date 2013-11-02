@@ -41,14 +41,16 @@ __host__ __device__ glm::vec4 multiplyMV(cudaMat4 m, glm::vec4 v){
   return r;
 }
 
-////Multiplies a cudaMat4 matrix and a vec4
-//__host__ __device__ glm::vec4 multiplyMV(cudaMat4 m, glm::vec4 v){
-//  glm::vec3 r(1,1,1);
-//  r.x = (m.x.x*v.x)+(m.x.y*v.y)+(m.x.z*v.z)+(m.x.w*v.w);
-//  r.y = (m.y.x*v.x)+(m.y.y*v.y)+(m.y.z*v.z)+(m.y.w*v.w);
-//  r.z = (m.z.x*v.x)+(m.z.y*v.y)+(m.z.z*v.z)+(m.z.w*v.w);
-//  return r;
-//}
+// Transforms a mat4 to a cudaMat4.
+__host__ __device__ cudaMat4 mat4GLMtoCUDA (const glm::mat4 &v)
+{
+	cudaMat4 matrix;
+	matrix.x.x = v[0].x;	matrix.x.y = v[1].x;	matrix.x.z = v[2].x;	matrix.x.w = v[3].x;
+	matrix.y.x = v[0].y;	matrix.y.y = v[1].y;	matrix.y.z = v[2].y;	matrix.y.w = v[3].y;
+	matrix.z.x = v[0].z;	matrix.z.y = v[1].z;	matrix.z.z = v[2].z;	matrix.z.w = v[3].z;
+	matrix.w.x = v[0].w;	matrix.w.y = v[1].w;	matrix.w.z = v[2].w;	matrix.w.w = v[3].w;
+	return matrix;
+}
 
 //LOOK: finds the axis aligned bounding box for a given triangle
 __host__ __device__ void getAABBForTriangle(triangle tri, glm::vec3& minpoint, glm::vec3& maxpoint){

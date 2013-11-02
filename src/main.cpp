@@ -8,8 +8,8 @@ bool first = true;
 int oldX = 0, oldY = 0, dx = 0, dy = 0;	
 bool leftMButtonDown = false;
 
-float camRadius = 3.5f;
-float scrollSpeed = 0.33f;
+float camRadius = 5.0f;
+float scrollSpeed = 0.25f;
 bool outline = false, camControl = false;
 
 cbuffer constantBuffer;
@@ -66,8 +66,8 @@ int main(int argc, char** argv){
   seconds = time (NULL);
   fpstracker = 0;
 
-  constantBuffer.model = glm::translate (glm::mat4 (1.0f), glm::vec3 (0,0,1.0))*glm::rotate (glm::mat4 (1.0f), 180.0f, glm::vec3 (1,0,0));
-  constantBuffer.modelIT = glm::transpose (glm::inverse (constantBuffer.model));
+  constantBuffer.model = /*glm::translate(glm::mat4 (1.0f), glm::vec3 (0,0,1.0))**/glm::rotate (glm::mat4 (1.0f), 180.0f, glm::vec3 (1,0,0));
+  constantBuffer.modelIT = glm::transpose(glm::inverse (constantBuffer.model));
   constantBuffer.lightPos = glm::vec4 (0, 10, -10, 1);
   // Launch CUDA/GL
   #ifdef __APPLE__
@@ -140,7 +140,9 @@ void runCuda(bool &isFirstTime){
   nbo = mesh->getNBO ();
   nbosize = mesh->getNBOsize ();
 
-  constantBuffer.projection = /*glm::mat4 (1.0f);*/glm::perspective (60.0f, (float)(width/height), 0.1f, 100.0f);
+  constantBuffer.projection = glm::perspective (60.0f, (float)(width/height), 0.1f, 100.0f);
+  
+  //constantBuffer.projection = glm::transpose(constantBuffer.projection);
 
   // Change u and v with respect to change in Y and X respectively.
   u = u + (float)dy / (float)(height/scrollSpeed);
@@ -162,7 +164,10 @@ void runCuda(bool &isFirstTime){
 								    glm::vec3 (camRadius*sin (PI*u)*sin (2.0f*PI*vvv), 
 												camRadius*cos (PI*u), 
 												-camRadius*sin (PI*u)*cos (2.0f*PI*vvv)));
-  glm::vec4 camOrigin = cameraTransform*glm::vec4 (0.0f, 0.0f, 0.0f, 1.0f);
+  glm::vec4 camOrigin = glm::vec4 (camRadius*sin (PI*u)*sin (2.0f*PI*vvv), 
+												camRadius*cos (PI*u), 
+												-camRadius*sin (PI*u)*cos (2.0f*PI*vvv), 1.0);
+  //cameraTransform*glm::vec4 (0.0f, 0.0f, 0.0f, 1.0f);
 
   // Now for rotation:
   glm::vec3 target_lookat = glm::normalize (glm::vec3 (0.0f) - glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z));
@@ -186,15 +191,22 @@ void runCuda(bool &isFirstTime){
 
   glm::vec4 center =  /*camOrigin + */(/*cameraTransform * */glm::vec4 (0,0,0,0));
   glm::vec4 up =  /*glm::normalize(cameraTransform * */glm::vec4 (0,1,0,0)/*)*/;
+  //camOrigin = cameraTransform*glm::vec4 (0.0f, 0.0f, 0.0f, 1.0f);
 
   if (camControl)
+  {
 	  constantBuffer.view = glm::lookAt (glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), 
 									 glm::vec3 (center.x, center.y, center.z), 
-									 glm::vec3 (up.x, up.y, up.z));
+									 glm::vec3 (up.x, up.y, up.z));	
+	  //constantBuffer.view = glm::transpose(constantBuffer.view);
+	  //constantBuffer.view = cameraTransform;
+  }
   else
+  {
 	  constantBuffer.view = glm::lookAt (glm::vec3 (0.0f, 0.0f, 0.0f),/*glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z)*/ 
-										glm::vec3 (0.0f,0.0f,1.0f), 
+		  								glm::vec3 (0.0f,0.0f,1.0f), 
 										glm::vec3 (0.0f,1.0f,0.0f));
+  }
   cudaGLMapBufferObject((void**)&dptr, pbo);
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, 
 					nbo, nbosize, isFirstTime, constantBuffer);
@@ -306,8 +318,8 @@ void runCuda(bool &isFirstTime){
   {
 	  if (leftMButtonDown)
 	  {
-		  dx = x - oldX;
-		  dy = y - oldY;
+		  dx = -(x - oldX);
+		  dy = -(y - oldY);
 	  }
 	  else
 	  {
