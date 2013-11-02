@@ -216,94 +216,191 @@ __device__ glm::vec3 getScanlineIntersection(glm::vec3 v1, glm::vec3 v2, float y
 	return glm::vec3(t*v2.x + (1-t)*v1.x, y, t*v2.z + (1-t)*v1.z);
 }
 
-//TODO: Implement a rasterization method, such as scanline.
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 view){
-  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index < resolution.y){
-	  for (int i=0; i<primitivesCount; ++i) {
-		  triangle prim = primitives[i];
-			// back face culling
-			//if (glm::dot(prim.n0, view) > 0 && glm::dot(prim.n1, view) > 0 && glm::dot(prim.n2, view) > 0) {
-			//	continue;
-			//}
+__global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fragment* depthbuffer, glm::vec2 resolution) {
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (index < primitiveCount) {
+		triangle prim = primitives[index];
+		float topy = min(min(prim.pt0.y, prim.pt1.y), prim.pt2.y);
+		float boty = max(max(prim.pt0.y, prim.pt1.y), prim.pt2.y);
+		int top = max((int)floor(topy), 0);
+		int bot = min((int)ceil(boty), (int)resolution.y);
 
-		  float dy0 = prim.pt0.y - index;
-		  float dy1 = prim.pt1.y - index;
-		  float dy2 = prim.pt2.y - index;
-			int onPositiveSide = (int)(dy0>=-FLT_EPSILON) + (int)(dy1>=-FLT_EPSILON) + (int)(dy2>=-FLT_EPSILON);
-		  int onNegativeSide = (int)(dy0<=FLT_EPSILON) + (int)(dy1<=FLT_EPSILON) + (int)(dy2<=FLT_EPSILON);
-		  if (onPositiveSide != 3 && onNegativeSide != 3) { // the primitive intersects the scanline
-			  glm::vec3 intersection1, intersection2;
-			  if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline
-																// doesn't really happen due to the floating point error
-				  if (dy0 == 0) {
-					  intersection1 = prim.pt0;
-					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
-				  }
-				  else if (dy1 == 0) {
-					  intersection1 = prim.pt1;
-					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
-				  }
-				  else { // dy2 == 0
-					  intersection1 = prim.pt2;
-					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, index);
-				  }
-			  }
-			  else if (onPositiveSide == 2) {
-				  if (dy0 < 0) {
-					  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
-					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
-				  }
-				  else if (dy1 < 0) {
-					  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
-					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
-				  }
-				  else { // dy2 < 0
-					  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
-					  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
-				  }
-			  }
-			  else { // onNegativeSide == 2
-				  if (dy0 > 0) {
-					  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
-					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
-				  }
-				  else if (dy1 > 0) {
-					  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
-					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
-				  }
-				  else { // dy2 > 0
-					  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
-					  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
-				  }
-			  }
+		for (int y=top; y<bot; ++y) {
+			float dy0 = prim.pt0.y - y;
+		  float dy1 = prim.pt1.y - y;
+		  float dy2 = prim.pt2.y - y;
+			int onPositiveSide = (int)(dy0>=0) + (int)(dy1>=0) + (int)(dy2>=0);
+		  int onNegativeSide = (int)(dy0<=0) + (int)(dy1<=0) + (int)(dy2<=0);
 
-			  // make sure intersection1's x value is less than intersection2's
-			  if (intersection2.x < intersection1.x) {
-				  glm::vec3 temp = intersection1;
-				  intersection1 = intersection2;
-				  intersection2 = temp;
-			  }
+			glm::vec3 intersection1, intersection2;
+			if (onPositiveSide == 3 || onNegativeSide == 3) {
+				if (dy0 == 0) {
+					intersection1 = prim.pt0;
+					intersection2 = prim.pt0;
+				}
+				else if (dy1 == 0) {
+					intersection1 = prim.pt1;
+					intersection2 = prim.pt1;
+				}
+				else if (dy2 == 0) {
+					intersection1 = prim.pt2;
+					intersection2 = prim.pt2;
+				}
+			}
+			else if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline
+															// doesn't really happen due to the floating point error
+				if (dy0 == 0) {
+					intersection1 = prim.pt0;
+					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+				}
+				else if (dy1 == 0) {
+					intersection1 = prim.pt1;
+					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+				}
+				else { // dy2 == 0
+					intersection1 = prim.pt2;
+					intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+				}
+			}
+			else if (onPositiveSide == 2) {
+				if (dy0 < 0) {
+					intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
+					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+				}
+				else if (dy1 < 0) {
+					intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+				}
+				else { // dy2 < 0
+					intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
+					intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
+				}
+			}
+			else { // onNegativeSide == 2
+				if (dy0 > 0) {
+					intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
+					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+				}
+				else if (dy1 > 0) {
+					intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+				}
+				else { // dy2 > 0
+					intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
+					intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
+				}
+			}
 
-				int start = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
-				int end = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
-			  for (int j=start; j<=end; ++j) {
-				  int pixelIndex = (resolution.x-1-j) + (resolution.y-1-index) * resolution.x;
-				  float t = (j-intersection1.x)/(intersection2.x-intersection1.x);
-				  glm::vec3 point = t*intersection2 + (1-t)*intersection1;
-				  if (point.z > depthbuffer[pixelIndex].z) {
-					  glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
-					  depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
-					  depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
-					  //depthbuffer[pixelIndex].color = depthbuffer[pixelIndex].normal;
-					  depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
-					  depthbuffer[pixelIndex].z = point.z;
-				  }
-			  }
-		  }
-	  }
-  }
+			// make sure intersection1's x value is less than intersection2's
+			if (intersection2.x < intersection1.x) {
+				glm::vec3 temp = intersection1;
+				intersection1 = intersection2;
+				intersection2 = temp;
+			}
+
+			int left = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
+			int right = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
+			for (int x=left; x<=right; ++x) {
+				int pixelIndex = (resolution.x-1-x) + (resolution.y-1-y) * resolution.x;
+				float t = (x-intersection1.x)/(intersection2.x-intersection1.x);
+				glm::vec3 point = t*intersection2 + (1-t)*intersection1;
+				if (point.z > depthbuffer[pixelIndex].z) {
+					glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
+					depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
+					depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
+					//depthbuffer[pixelIndex].color = depthbuffer[pixelIndex].normal;
+					depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
+					depthbuffer[pixelIndex].z = point.z;
+				}
+			}
+		}
+	}
 }
+
+////TODO: Implement a rasterization method, such as scanline.
+//__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 view){
+//  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+//  if(index < resolution.y){
+//	  for (int i=0; i<primitivesCount; ++i) {
+//		  triangle prim = primitives[i];
+//
+//		  float dy0 = prim.pt0.y - index;
+//		  float dy1 = prim.pt1.y - index;
+//		  float dy2 = prim.pt2.y - index;
+//			int onPositiveSide = (int)(dy0>=-FLT_EPSILON) + (int)(dy1>=-FLT_EPSILON) + (int)(dy2>=-FLT_EPSILON);
+//		  int onNegativeSide = (int)(dy0<=FLT_EPSILON) + (int)(dy1<=FLT_EPSILON) + (int)(dy2<=FLT_EPSILON);
+//		  if (onPositiveSide != 3 && onNegativeSide != 3) { // the primitive intersects the scanline
+//			  glm::vec3 intersection1, intersection2;
+//			  if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline
+//																// doesn't really happen due to the floating point error
+//				  if (dy0 == 0) {
+//					  intersection1 = prim.pt0;
+//					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+//				  }
+//				  else if (dy1 == 0) {
+//					  intersection1 = prim.pt1;
+//					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+//				  }
+//				  else { // dy2 == 0
+//					  intersection1 = prim.pt2;
+//					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+//				  }
+//			  }
+//			  else if (onPositiveSide == 2) {
+//				  if (dy0 < 0) {
+//					  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
+//					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+//				  }
+//				  else if (dy1 < 0) {
+//					  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+//					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+//				  }
+//				  else { // dy2 < 0
+//					  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
+//					  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
+//				  }
+//			  }
+//			  else { // onNegativeSide == 2
+//				  if (dy0 > 0) {
+//					  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
+//					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+//				  }
+//				  else if (dy1 > 0) {
+//					  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+//					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+//				  }
+//				  else { // dy2 > 0
+//					  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
+//					  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
+//				  }
+//			  }
+//
+//			  // make sure intersection1's x value is less than intersection2's
+//			  if (intersection2.x < intersection1.x) {
+//				  glm::vec3 temp = intersection1;
+//				  intersection1 = intersection2;
+//				  intersection2 = temp;
+//			  }
+//
+//				int start = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
+//				int end = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
+//			  for (int j=start; j<=end; ++j) {
+//				  int pixelIndex = (resolution.x-1-j) + (resolution.y-1-index) * resolution.x;
+//				  float t = (j-intersection1.x)/(intersection2.x-intersection1.x);
+//				  glm::vec3 point = t*intersection2 + (1-t)*intersection1;
+//				  if (point.z > depthbuffer[pixelIndex].z) {
+//					  glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
+//					  depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
+//					  depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
+//					  //depthbuffer[pixelIndex].color = depthbuffer[pixelIndex].normal;
+//					  depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
+//					  depthbuffer[pixelIndex].z = point.z;
+//				  }
+//			  }
+//		  }
+//	  }
+//  }
+//}
 
 //TODO: Implement a fragment shader
 __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 lightPos, glm::vec3 lightColor){
@@ -420,8 +517,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   //------------------------------
   //rasterization
   //------------------------------
-  int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
-	rasterizationKernel<<<scanlineBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, glm::normalize(center-eye));
+ // int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
+	//rasterizationKernel<<<scanlineBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, glm::normalize(center-eye));
+
+	//parallel by primitive
+	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
 
   cudaDeviceSynchronize();
 
