@@ -16,7 +16,7 @@ cbuffer constantBuffer;
 glm::mat4	cameraTransform;
 glm::vec3	currentLookAt =  glm::vec3 (0,0,1);
 float u = 0.5;
-float vvv = 0;
+float v = 0;
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -66,9 +66,11 @@ int main(int argc, char** argv){
   seconds = time (NULL);
   fpstracker = 0;
 
-  constantBuffer.model = /*glm::translate(glm::mat4 (1.0f), glm::vec3 (0,0,1.0))**/glm::rotate (glm::mat4 (1.0f), 180.0f, glm::vec3 (1,0,0));
+  constantBuffer.model = glm::rotate (glm::mat4 (1.0f), 180.0f, glm::vec3 (1,0,0));
+  constantBuffer.projection = glm::perspective (60.0f, (float)(width/height), 0.1f, 100.0f);
   constantBuffer.modelIT = glm::transpose(glm::inverse (constantBuffer.model));
   constantBuffer.lightPos = glm::vec4 (0, 10, -10, 1);
+
   // Launch CUDA/GL
   #ifdef __APPLE__
   // Needed in OSX to force use of OpenGL3.2 
@@ -140,13 +142,9 @@ void runCuda(bool &isFirstTime){
   nbo = mesh->getNBO ();
   nbosize = mesh->getNBOsize ();
 
-  constantBuffer.projection = glm::perspective (60.0f, (float)(width/height), 0.1f, 100.0f);
-  
-  //constantBuffer.projection = glm::transpose(constantBuffer.projection);
-
   // Change u and v with respect to change in Y and X respectively.
   u = u + (float)dy / (float)(height/scrollSpeed);
-  vvv = vvv - (float)dx / (float)(width/scrollSpeed);
+  v = v - (float)dx / (float)(width/scrollSpeed);
 
   // Make sure u and v stay within [0,1]
   if (u < 0)
@@ -154,59 +152,27 @@ void runCuda(bool &isFirstTime){
   else if (u > 1)
 	  u = 1 - (u - 1);
 
-  if (vvv < 0)
-	  vvv = 1 + vvv;
-  else if (vvv > 1)
-	  vvv = vvv - 1;
+  if (v < 0)
+	  v = 1 + v;
+  else if (v > 1)
+	  v = v - 1;
 
-  // Camera transformation - translation part:
-  cameraTransform = glm::translate (glm::mat4 (1.0f), 
-								    glm::vec3 (camRadius*sin (PI*u)*sin (2.0f*PI*vvv), 
-												camRadius*cos (PI*u), 
-												-camRadius*sin (PI*u)*cos (2.0f*PI*vvv)));
-  glm::vec4 camOrigin = glm::vec4 (camRadius*sin (PI*u)*sin (2.0f*PI*vvv), 
-												camRadius*cos (PI*u), 
-												-camRadius*sin (PI*u)*cos (2.0f*PI*vvv), 1.0);
-  //cameraTransform*glm::vec4 (0.0f, 0.0f, 0.0f, 1.0f);
-
-  // Now for rotation:
-  glm::vec3 target_lookat = glm::normalize (glm::vec3 (0.0f) - glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z));
-  currentLookAt = glm::normalize (currentLookAt);
-  // Refer Real-Time Rendering sec. "Quaternion Transforms", for explanation of following:
-  glm::mat4 rotationMat (1.0f);
-  glm::vec3 v = glm::cross (currentLookAt, target_lookat);
-  float e = glm::dot (currentLookAt, target_lookat);
-  float vSqrMagnitude = glm::dot (v, v);
-  if (vSqrMagnitude > 0.001f)
-  {
-	  float h = (1-e) / vSqrMagnitude;
-	  rotationMat [0][0] = e + h*(v.x*v.x);		rotationMat [0][1] = h*v.x*v.y + v.z;	rotationMat [0][2] = h*v.x*v.z - v.y;	rotationMat [0][3] = 0;
-	  rotationMat [1][0] = h*v.x*v.y - v.z;		rotationMat [1][1] = e + h*(v.y*v.y);	rotationMat [1][2] = h*v.y*v.z + v.x;	rotationMat [1][3] = 0;
-	  rotationMat [2][0] = h*v.x*v.z + v.y;		rotationMat [2][1] = h*v.y*v.z - v.x;	rotationMat [2][2] = e + h*(v.z*v.z);	rotationMat [2][3] = 0;
-	  rotationMat [3][0] = 0;					rotationMat [3][1] = 0;					rotationMat [3][2] = 0;					rotationMat [3][3] = 1;
-  }
-  cameraTransform = cameraTransform * glm::transpose (rotationMat);
+  glm::vec4 camOrigin = glm::vec4 (camRadius*sin (PI*u)*sin (2.0f*PI*v), 
+								   camRadius*cos (PI*u), 
+								   -camRadius*sin (PI*u)*cos (2.0f*PI*v), 1.0);
   
-  currentLookAt = target_lookat;	// Why? Because they're both in world space!
-
-  glm::vec4 center =  /*camOrigin + */(/*cameraTransform * */glm::vec4 (0,0,0,0));
-  glm::vec4 up =  /*glm::normalize(cameraTransform * */glm::vec4 (0,1,0,0)/*)*/;
-  //camOrigin = cameraTransform*glm::vec4 (0.0f, 0.0f, 0.0f, 1.0f);
+  glm::vec4 center = glm::vec4 (0,0,0,0);
+  glm::vec4 up = glm::vec4 (0,1,0,0);
 
   if (camControl)
-  {
 	  constantBuffer.view = glm::lookAt (glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z), 
 									 glm::vec3 (center.x, center.y, center.z), 
 									 glm::vec3 (up.x, up.y, up.z));	
-	  //constantBuffer.view = glm::transpose(constantBuffer.view);
-	  //constantBuffer.view = cameraTransform;
-  }
   else
-  {
-	  constantBuffer.view = glm::lookAt (glm::vec3 (0.0f, 0.0f, 0.0f),/*glm::vec3 (camOrigin.x, camOrigin.y, camOrigin.z)*/ 
+	  constantBuffer.view = glm::lookAt (glm::vec3 (0.0f, 0.0f, -1.0f),
 		  								glm::vec3 (0.0f,0.0f,1.0f), 
 										glm::vec3 (0.0f,1.0f,0.0f));
-  }
+
   cudaGLMapBufferObject((void**)&dptr, pbo);
   cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, 
 					nbo, nbosize, isFirstTime, constantBuffer);
