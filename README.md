@@ -160,3 +160,11 @@ from the edges? If so, what are the biggest benefits that will come from geometr
 ## Acknowledgements
 
 Many thanks to Ishaan who helped to implement point mode for debugging.
+
+-----
+
+## References
+
+[OpenGL Transformation from World to Screen Space](http://www.songho.ca/opengl/gl_transform.html "OpenGL Transformations")
+[OpenGL Tutorial on Matrices](http://www.opengl-tutorial.org/beginners-tutorials/tutorial-3-matrices/ "OpenGL Tutorial on Matrices")
+[Triangle Rasterization Algorithms](http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html "Software Rasterization Triangle Algorithms")
