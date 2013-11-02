@@ -70,6 +70,42 @@ This project uses GLM, the GL Math library, for linear algebra. You need to know
 -------------------------------------------------------------------------------
 PERFORMANCE EVALUATION
 -------------------------------------------------------------------------------
+Initally I implemented the rasterizer stage of the pipeline with a naive scan line method.
+The rasterizer was primitive parallel and iterated over each primitive's Axis-Aligned Bounding Box (AABB).
+For each fragment in the AABB, it would compute the mapped barycentric coordinates for the triangle.
+If the coordniates generated were valid, the fragment was inside the triangle and proceeded to the depth test.
+
+Because my implementation was primitive parallel, race conditions are possible in the depth buffer. 
+To avoid this I used atomicCAS to enforce atomic writes.
+
+Clearly there were many improvements that could be made. 
+
+The first improvement was implementing backface culling. 
+Instead of computing the dot product of the surface normal with the eye vector, I used the winding direction of the primitive in 2D screen space.
+By ignoring the z component, this calculation reduces to 7 scalar operations.
+
+The theoretical limit on performance improvement from backface culling is twofold. 
+I suspected I would see about 75% of that due to overhead and the aditional pipeline stage.
+As the charts below will show, I achieved roughly that on my naive implementation.
+
+My second and more substantial improvement was the bin rasterizer. 
+This splits the rasterize stage into a bin rasterizer, coarse rasterizer, and fine rasterizer.
+Each stage splits the image plane into smaller subdivisions until the fine rasterizer can run completely pixel parallel.
+
+The pipeline is much more complex, requiring multiple levels of intermediate buffers that must be maintained and accessed in parallel.
+However, I was able to show a MASSIVE increase in performance, especially in the worst case scenario for the naive rasterizer.
+
+This data was collected on a GeForce525M, Intel Core i5 laptop. 
+This first chart shows a comparison between the different pipelines for the cube at various viewing angles and distances.
+The x axis shows the average number of pixels per triangle. 
+As the cube dominates the view screen, the bin rasterizer really shows it's worth.
+![Screenshot](/performance/RasterizationRealtimeCube.JPG "Comparison of different methods for cube")
+Also notice the substatial improvement the backface culling offers (especially for the naive implementation).
+
+This result is robust for larger models such as the cow (5804 faces, 4583 vertices).
+![Screenshot](/performance/RasterizationRealtimeCow.JPG "Comparison of different methods for cow")
+
+Examining the application shows that the coarse rasterizer is now the bottleneck of the pipeline, accounting for >50% of total GPU Utilization in the worst cases.
 
 
 -------------------------------------------------------------------------------
