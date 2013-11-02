@@ -100,10 +100,10 @@ This first chart shows a comparison between the different pipelines for the cube
 The x axis shows the average number of pixels per triangle. 
 As the cube dominates the view screen, the bin rasterizer really shows it's worth.
 ![Screenshot](/performance/RasterizationRealtimeCube.JPG "Comparison of different methods for cube")
-Also notice the substatial improvement the backface culling offers (especially for the naive implementation).
 
 This result is robust for larger models such as the cow (5804 faces, 4583 vertices).
 ![Screenshot](/performance/RasterizationRealtimeCow.JPG "Comparison of different methods for cow")
+Also notice the substatial improvement the backface culling offers (especially for the naive implementation).
 
 Examining the application shows that the coarse rasterizer is now the bottleneck of the pipeline, accounting for >50% of total GPU Utilization in the worst cases.
 
