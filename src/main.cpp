@@ -232,6 +232,8 @@ void runCuda(){
 		prevY = y;
 
 		glm::vec4 teye;
+		glm::vec4 txaxis;
+		glm::vec4 tyaxis;
 		glm::mat4 rotation;
 		glm::vec3 axis;
 		glm::vec3 step;
@@ -239,17 +241,23 @@ void runCuda(){
 		switch (buttonPressed) {
 		case(GLUT_LEFT_BUTTON):
 			teye = glm::vec4(eye - center, 1);
+			txaxis = glm::vec4(xaxis, 0);
+			tyaxis = glm::vec4(yaxis, 0);
 			axis = glm::normalize(glm::cross(glm::vec3(0,1,0), eye-center));
 			rotation = glm::rotate((float)(-360.0f/width*offsetX), 0.0f, 1.0f, 0.0f) * glm::rotate((float)(-360.0f/width*offsetY), axis.x, axis.y, axis.z);
 			teye = rotation * teye;
+			txaxis = rotation * txaxis;
+			tyaxis = rotation * tyaxis;
 			eye = glm::vec3(teye);
+			xaxis = glm::vec3(txaxis);
+			yaxis = glm::vec3(tyaxis);
 			eye = eye + center;
 			break;
-		case(GLUT_MIDDLE_BUTTON): //need revise
-			eye += glm::vec3(-0.002, 0, 0) * (float)offsetX;
-			eye += glm::vec3(0, 0.002, 0) * (float)offsetY;
-			center += glm::vec3(-0.002, 0, 0) * (float)offsetX;
-			center += glm::vec3(0, 0.002, 0) * (float)offsetY;
+		case(GLUT_MIDDLE_BUTTON):
+			eye += -0.002f * xaxis * (float)offsetX;
+			eye += 0.002f * yaxis * (float)offsetY;
+			center += -0.002f * xaxis * (float)offsetX;
+			center += 0.002f * yaxis * (float)offsetY;
 			break;
 		case(GLUT_RIGHT_BUTTON): //need revise
 			if (glm::distance(center, eye) > 0.01 || (offsetX < 0 && glm::distance(center, eye) < 20)) {

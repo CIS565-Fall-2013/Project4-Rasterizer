@@ -23,7 +23,7 @@ float* device_vbo;
 float* device_cbo;
 float* device_nbo;
 int* device_ibo;
-triangle* primitives;
+triangle* validPrimitives;
 
 glm::vec3 up(0, 1, 0);
 float fovy = 60;
@@ -216,6 +216,117 @@ __device__ glm::vec3 getScanlineIntersection(glm::vec3 v1, glm::vec3 v2, float y
 	return glm::vec3(t*v2.x + (1-t)*v1.x, y, t*v2.z + (1-t)*v1.z);
 }
 
+__device__ bool isInScreen(glm::vec3 p, glm::vec2 resolution) {
+	return (p.x > 0&& p.x < resolution.x && p.y > 0 && p.y < resolution.y);
+}
+
+__global__ void validatePrims(triangle* primitives, int primitiveCount, int* validArray, glm::vec3 view, glm::vec2 resolution) {
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if(index<primitiveCount){
+		triangle prim = primitives[index];
+		if (!isInScreen(prim.pt0, resolution) && !isInScreen(prim.pt1, resolution) && !isInScreen(prim.pt2, resolution)) {
+			//clipping
+			validArray[index] = 0;
+		}
+		else if (glm::dot(view, prim.n0) > 0 && glm::dot(view, prim.n1) > 0 && glm::dot(view, prim.n2) > 0) {
+			//back face culling
+			validArray[index] = 0;
+		}
+		else {
+			validArray[index] = 1;
+		}
+	}
+}
+
+// Copy valid primitive data to scanArray
+__global__ void copy(int* validArray, int primCount, int* scanArray) {
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (index < primCount) {
+		scanArray[index] = validArray[index];
+	}
+}
+
+// Scan using shared memory
+__global__ void sharedMemoryScan(int* scanArray, int* sumArray, int primCount) {
+	__shared__ int subArray1[64];
+	__shared__ int subArray2[64];
+
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (index < primCount) {
+		subArray1[threadIdx.x] = scanArray[index];
+		subArray2[threadIdx.x] = scanArray[index];
+		__syncthreads();
+
+		int d = 1;
+#pragma unroll
+		for (; d<=ceil(log((float)blockDim.x)/log(2.0f)); ++d) {
+			if (threadIdx.x >= ceil(pow((float)2, (float)(d-1)))) {
+				int prevIdx = threadIdx.x - ceil(pow((float)2, (float)(d-1)));
+				if (d % 2 == 1) {
+					subArray2[threadIdx.x] = subArray1[threadIdx.x] + subArray1[prevIdx];
+				}
+				else {
+					subArray1[threadIdx.x] = subArray2[threadIdx.x] + subArray2[prevIdx];
+				}
+			}
+			else {
+				if (d % 2 == 1) {
+					subArray2[threadIdx.x] = subArray1[threadIdx.x];
+				}
+				else {
+					subArray1[threadIdx.x] = subArray2[threadIdx.x];
+				}
+			}
+			__syncthreads();
+		}
+
+		if (d % 2 == 1) {
+			scanArray[index] = subArray1[threadIdx.x];
+			if (threadIdx.x == 63) {
+				sumArray[blockIdx.x] = subArray1[threadIdx.x];
+			}
+		}
+		else {
+			scanArray[index] = subArray2[threadIdx.x];
+			if (threadIdx.x == 63) {
+				sumArray[blockIdx.x] = subArray2[threadIdx.x];
+			}
+		}
+	}
+}
+
+// Naive scan, for scanning the sum array
+__global__ void naiveScan(int* scanArray1, int* scanArray2, int d, int sumArrayLength) {
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (index < sumArrayLength) {
+		if (index >= ceil(pow((float)2, (float)(d-1)))) {
+			int prevIndex = index - (int)ceil(pow((float)2, (float)(d-1)));
+			scanArray2[index] = scanArray1[index] + scanArray1[prevIndex];
+		}
+		else {
+			scanArray2[index] = scanArray1[index];
+		}
+	}
+}
+
+// Add the elements in the sum array to the scan array
+__global__ void addToScanArray(int* scanArray, int* sumArray, int primCount) {
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (index < primCount && blockIdx.x > 0) {
+		scanArray[index] += sumArray[blockIdx.x-1];
+	}
+}
+
+// Scatter kernel for stream compaction
+__global__ void scatter(triangle* primitives, int* validArray, int* scanArray, triangle* validPrimitives, int primCount) {
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+	if (index < primCount && validArray[index] == 1) {
+		validPrimitives[scanArray[index]-1] = primitives[index];
+	}
+}
+
+
 __global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fragment* depthbuffer, glm::vec2 resolution) {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if (index < primitiveCount) {
@@ -308,7 +419,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fr
 					glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
 					depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
 					depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
-					//depthbuffer[pixelIndex].color = depthbuffer[pixelIndex].normal;
 					depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
 					depthbuffer[pixelIndex].z = point.z;
 				}
@@ -316,91 +426,6 @@ __global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fr
 		}
 	}
 }
-
-////TODO: Implement a rasterization method, such as scanline.
-//__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 view){
-//  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-//  if(index < resolution.y){
-//	  for (int i=0; i<primitivesCount; ++i) {
-//		  triangle prim = primitives[i];
-//
-//		  float dy0 = prim.pt0.y - index;
-//		  float dy1 = prim.pt1.y - index;
-//		  float dy2 = prim.pt2.y - index;
-//			int onPositiveSide = (int)(dy0>=-FLT_EPSILON) + (int)(dy1>=-FLT_EPSILON) + (int)(dy2>=-FLT_EPSILON);
-//		  int onNegativeSide = (int)(dy0<=FLT_EPSILON) + (int)(dy1<=FLT_EPSILON) + (int)(dy2<=FLT_EPSILON);
-//		  if (onPositiveSide != 3 && onNegativeSide != 3) { // the primitive intersects the scanline
-//			  glm::vec3 intersection1, intersection2;
-//			  if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline
-//																// doesn't really happen due to the floating point error
-//				  if (dy0 == 0) {
-//					  intersection1 = prim.pt0;
-//					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
-//				  }
-//				  else if (dy1 == 0) {
-//					  intersection1 = prim.pt1;
-//					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
-//				  }
-//				  else { // dy2 == 0
-//					  intersection1 = prim.pt2;
-//					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, index);
-//				  }
-//			  }
-//			  else if (onPositiveSide == 2) {
-//				  if (dy0 < 0) {
-//					  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
-//					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
-//				  }
-//				  else if (dy1 < 0) {
-//					  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
-//					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
-//				  }
-//				  else { // dy2 < 0
-//					  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
-//					  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
-//				  }
-//			  }
-//			  else { // onNegativeSide == 2
-//				  if (dy0 > 0) {
-//					  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
-//					  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
-//				  }
-//				  else if (dy1 > 0) {
-//					  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
-//					  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
-//				  }
-//				  else { // dy2 > 0
-//					  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
-//					  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
-//				  }
-//			  }
-//
-//			  // make sure intersection1's x value is less than intersection2's
-//			  if (intersection2.x < intersection1.x) {
-//				  glm::vec3 temp = intersection1;
-//				  intersection1 = intersection2;
-//				  intersection2 = temp;
-//			  }
-//
-//				int start = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
-//				int end = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
-//			  for (int j=start; j<=end; ++j) {
-//				  int pixelIndex = (resolution.x-1-j) + (resolution.y-1-index) * resolution.x;
-//				  float t = (j-intersection1.x)/(intersection2.x-intersection1.x);
-//				  glm::vec3 point = t*intersection2 + (1-t)*intersection1;
-//				  if (point.z > depthbuffer[pixelIndex].z) {
-//					  glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
-//					  depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
-//					  depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
-//					  //depthbuffer[pixelIndex].color = depthbuffer[pixelIndex].normal;
-//					  depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
-//					  depthbuffer[pixelIndex].z = point.z;
-//				  }
-//			  }
-//		  }
-//	  }
-//  }
-//}
 
 //TODO: Implement a fragment shader
 __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 lightPos, glm::vec3 lightColor){
@@ -427,7 +452,9 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 }
 
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float frame, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize){
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float frame, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize
+											 glm::vec3* framebuffer, fragment* depthbuffer, triangle* primitives, triangle* validPrimitives,
+											 ){
   // set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -454,8 +481,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   //------------------------------
   //memory stuff
   //------------------------------
-  primitives = NULL;
-  cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
+  triangle* primitives = NULL;
+	int primcount = ibosize/3;
+  cudaMalloc((void**)&primitives, primcount*sizeof(triangle));
 
   device_ibo = NULL;
   cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
@@ -473,7 +501,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
   cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
 
-  tileSize = 32;
+  tileSize = 64;
 
   //------------------------------
   //compute the camera matrix
@@ -486,7 +514,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   //------------------------------
   //primitive assembly
   //------------------------------
-  int primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
+  int primitiveBlocks = ceil(((float)primcount)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_nbo, nbosize, device_ibo, ibosize, primitives);
 
   cudaDeviceSynchronize();
@@ -506,7 +534,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   //------------------------------
   //update primitives
   //------------------------------
-	primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
+	primitiveBlocks = ceil(((float)primcount)/((float)tileSize));
   updatePrimitiveKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_ibo, ibosize, primitives);
 
   cudaDeviceSynchronize();
@@ -514,14 +542,75 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   //cudaMemcpy(prim_cpu, primitives, ibosize/3*sizeof(triangle), cudaMemcpyDeviceToHost);
   //t = prim_cpu[0];
 
+	//------------------------------
+  //back face culling and clipping
+  //------------------------------
+	int* validArray = NULL;
+	cudaMalloc((void**)&validArray, primcount*sizeof(int));
+
+	validatePrims<<<primitiveBlocks, tileSize>>>(primitives, primcount, validArray, center-eye, resolution);
+	cudaDeviceSynchronize();
+	
+	//stream compaction
+	int* scanArray = NULL;
+	cudaMalloc((void**)&scanArray, primcount*sizeof(int));
+	copy<<<primitiveBlocks, tileSize>>>(validArray, primcount, scanArray);
+	cudaDeviceSynchronize();
+
+	int* sumArray1 = NULL;
+	int* sumArray2 = NULL;
+	int sumArrayLength = primitiveBlocks;
+	cudaMalloc((void**)&sumArray1, sumArrayLength*sizeof(int));
+	cudaMalloc((void**)&sumArray2, sumArrayLength*sizeof(int));
+	sharedMemoryScan<<<primitiveBlocks, tileSize>>>(scanArray, sumArray1, primcount);
+	cudaDeviceSynchronize();
+
+	int naiveScanBlocksPerGrid = ((int)ceil((float)sumArrayLength/(float)64), 24); // 24 is the number of SMs on my GPU
+	int naiveScanThreadsPerBlock = ceil((float)sumArrayLength/(float)naiveScanBlocksPerGrid);
+	int d = 1;
+	for (; d<=ceil(log(float(sumArrayLength))/log(2.0f)); ++d) {
+		// use double buffer
+		if (d % 2 == 1) {
+			naiveScan<<<naiveScanBlocksPerGrid, naiveScanThreadsPerBlock>>>(sumArray1, sumArray2, d, sumArrayLength);
+			cudaDeviceSynchronize();
+		}
+		else {
+			naiveScan<<<naiveScanBlocksPerGrid, naiveScanThreadsPerBlock>>>(sumArray2, sumArray1, d, sumArrayLength);
+			cudaDeviceSynchronize();
+		}
+	}
+	if (d % 2 == 1) {
+		addToScanArray<<<primitiveBlocks, tileSize>>>(scanArray, sumArray1, primcount);
+		cudaDeviceSynchronize();
+	}
+	else {
+		addToScanArray<<<primitiveBlocks, tileSize>>>(scanArray, sumArray2, primcount);
+		cudaDeviceSynchronize();
+	}
+
+	int* validPrimCount = new int[1];
+	cudaMemcpy(validPrimCount, scanArray + primcount - 1, sizeof(int), cudaMemcpyDeviceToHost);
+
+	validPrimitives = NULL;
+	cudaMalloc((void**)&validPrimitives, validPrimCount[0]*sizeof(triangle));
+	scatter<<<primitiveBlocks, tileSize>>>(primitives, validArray, scanArray, validPrimitives, primcount);
+	cudaDeviceSynchronize();
+
+	primcount = validPrimCount[0];
+	delete [] validPrimCount;
+
+	cudaFree(validArray);
+	cudaFree(scanArray);
+	cudaFree(sumArray1);
+	cudaFree(sumArray2);
+	cudaFree(primitives);
+
   //------------------------------
   //rasterization
   //------------------------------
- // int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
-	//rasterizationKernel<<<scanlineBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, glm::normalize(center-eye));
-
-	//parallel by primitive
-	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution);
+	tileSize = 64;
+	primitiveBlocks = ceil(((float)primcount)/((float)tileSize));
+	rasterizationKernel<<<primitiveBlocks, tileSize>>>(validPrimitives, primcount, depthbuffer, resolution);
 
   cudaDeviceSynchronize();
 
@@ -545,7 +634,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
 }
 
 void kernelCleanup(){
-  cudaFree( primitives );
+  cudaFree( validPrimitives );
   cudaFree( device_vbo );
   cudaFree( device_cbo );
   cudaFree( device_nbo );

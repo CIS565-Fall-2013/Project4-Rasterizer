@@ -70,6 +70,8 @@ int width=800; int height=800;
 
 glm::vec3 eye(0, 0, 3);
 glm::vec3 center(0, 0, 0);
+glm::vec3 xaxis(1, 0, 0);
+glm::vec3 yaxis(0, 1, 0);
 
 //-------------------------------
 //-------------MAIN--------------
