@@ -20,7 +20,7 @@ Requirements completed
 * Fragment Sading + per-fragment lighting
 * A depth buffer for storing and depth testing fragments
 * Fragment to framebuffer writing
-* Lamber shading
+* Lambert shading
 
 ---
 Additional features
@@ -40,7 +40,7 @@ Right button (move horizontally) - zoom
 
 Demo: https://vimeo.com/78330880
 
-* Back-face culling
+* Back-face culling and scissor test
 
 See analysis below
 
@@ -50,12 +50,16 @@ Performance Analysis
 
 ![alt tag](https://raw.github.com/YingtingXiao/Project4-Rasterizer/master/perf.PNG)
 
-I did rasterization through scanline-parallel scanline approach. This is more efficient than the pixel-parallel approach without bounding box. since I just need to test intersection with all the premitives for every scanline instead of every pixel. However, compared to the primitive-parallel approach with bounding box (only tests intersection between primitives and the pixels around them), my approach is certainly not efficient enough.
+I first did rasterization through scanline-parallel scanline approach. Each thread checks a scanline's intersection with all primitives and fill in the fragments that intersect with primitives. This is more efficient than the pixel-parallel approach without bounding box, since I just need to test intersection with all the premitives for every scanline instead of every pixel. However, compared to the primitive-parallel approach with bounding box (only tests intersection between primitives and the pixels around them), my approach is certainly not efficient enough. So I tried primitive-parallel scanline approach, where I look for intersection between primitives and their nearby scanlines. This enhanced my program's performance significantly, as shown in the chart above. On my GT650M GPU, my rasterizer runs at 40fps with the stanford bunny.
 
-Surprisingly, the perfomance of my rasterizer declined after I added back-face culling. I added back-face culling to my rasterizer kernel. I checked if the dot products of a primitive's normals and the view direction are all greater than 1. If so, the primitive is facing away from the camera. Therefore, we do not test if it intersects with the scanline. Since I didn't use stream compaction, back-face culling should only shorten some threads' running time, and therefore should not cause a huge improvement on the overall running time. I also added 3 * numberOfPrimitives dot product computation to each thread. I think this is the reason that back-face culling slows down my program.
+Then I did backface culling and clipping with self-written stream compaction. Surprisingly, the perfomance of my rasterizer went down. I think this is due to the heavy computation and memory allocation used in stream compaction, so I optimized my stream compaction by allocating memory only when I initialize CUDA. This brought my speed back to the speed before I did any backface culling and clipping, which is not very encouraging :( I also tried doing backface culling and clipping without stream compaction (i.e. as an if statement in rasterizeKernel). This also slowed down my program, but not as much as unoptimized stream compaction. However, clipping does have a significant effect on performace when more than half of the object is moved out of screen (as shown in the demo).
 
 ---
 Future work
 ---
 
-There are a lot of optimizations that could be done. I want to do primitive-parallel scanline, which only checks for intersections between a primitive and the scanlines that are nearby. I believe that this will improve the performance significantly. I also want to use stream compaction together with back-face culling and scissor test.
+Some pixels are flicking due to multiple threads accessing the same depth buffer. I want to eliminate this by locking the memory, as suggested by Hao in the Google group.
+
+I also really want to implement this, once I figure out how...
+
+https://www.youtube.com/watch?v=5DKIP9N-OB4
