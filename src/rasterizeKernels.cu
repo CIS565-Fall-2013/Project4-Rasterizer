@@ -20,18 +20,10 @@
 glm::vec3* framebuffer;
 fragment* depthbuffer;
 float* device_vbo;
-float* device_vbo_trans; //transformed vbo
 float* device_cbo;
 float* device_nbo;
 int* device_ibo;
 triangle* primitives;
-triangle* validPrimitives;
-
-//for stream compaction
-int* validArray;
-int* scanArray;
-int* sumArray1;
-int* sumArray2;
 
 glm::vec3 up(0, 1, 0);
 float fovy = 60;
@@ -194,14 +186,14 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 }
 
 //TODO: Implement a vertex shader
-__global__ void vertexShadeKernel(float* vbo, int vbosize, float* tvbo, glm::mat4 cameraMatrix, glm::vec2 resolution){
+__global__ void vertexShadeKernel(float* vbo, int vbosize, glm::mat4 cameraMatrix, glm::vec2 resolution){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index<vbosize/3){
 	  glm::vec3 v(vbo[index*3], vbo[index*3+1], vbo[index*3+2]);
 	  v = transformPos(v, cameraMatrix, resolution);
-	  tvbo[index*3] = v.x;
-	  tvbo[index*3+1] = v.y;
-	  tvbo[index*3+2] = v.z;
+	  vbo[index*3] = v.x;
+	  vbo[index*3+1] = v.y;
+	  vbo[index*3+2] = v.z;
   }
 }
 
@@ -228,207 +220,104 @@ __device__ bool isInScreen(glm::vec3 p, glm::vec2 resolution) {
 	return (p.x > 0&& p.x < resolution.x && p.y > 0 && p.y < resolution.y);
 }
 
-__global__ void validatePrims(triangle* primitives, int primitiveCount, int* validArray, glm::vec3 view, glm::vec2 resolution) {
-	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-	if(index<primitiveCount){
-		triangle prim = primitives[index];
-		if (!isInScreen(prim.pt0, resolution) && !isInScreen(prim.pt1, resolution) && !isInScreen(prim.pt2, resolution)) {
-			//clipping
-			validArray[index] = 0;
-		}
-		else if (glm::dot(view, prim.n0) > 0 && glm::dot(view, prim.n1) > 0 && glm::dot(view, prim.n2) > 0) {
-			//back face culling
-			validArray[index] = 0;
-		}
-		else {
-			validArray[index] = 1;
-		}
-	}
-}
-
-// Copy valid primitive data to scanArray
-__global__ void copy(int* validArray, int primCount, int* scanArray) {
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	if (index < primCount) {
-		scanArray[index] = validArray[index];
-	}
-}
-
-// Scan using shared memory
-__global__ void sharedMemoryScan(int* scanArray, int* sumArray, int primCount) {
-	__shared__ int subArray1[64];
-	__shared__ int subArray2[64];
-
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	if (index < primCount) {
-		subArray1[threadIdx.x] = scanArray[index];
-		subArray2[threadIdx.x] = scanArray[index];
-		__syncthreads();
-
-		int d = 1;
-#pragma unroll
-		for (; d<=ceil(log((float)blockDim.x)/log(2.0f)); ++d) {
-			if (threadIdx.x >= ceil(pow((float)2, (float)(d-1)))) {
-				int prevIdx = threadIdx.x - ceil(pow((float)2, (float)(d-1)));
-				if (d % 2 == 1) {
-					subArray2[threadIdx.x] = subArray1[threadIdx.x] + subArray1[prevIdx];
-				}
-				else {
-					subArray1[threadIdx.x] = subArray2[threadIdx.x] + subArray2[prevIdx];
-				}
-			}
-			else {
-				if (d % 2 == 1) {
-					subArray2[threadIdx.x] = subArray1[threadIdx.x];
-				}
-				else {
-					subArray1[threadIdx.x] = subArray2[threadIdx.x];
-				}
-			}
-			__syncthreads();
-		}
-
-		if (d % 2 == 1) {
-			scanArray[index] = subArray1[threadIdx.x];
-			if (threadIdx.x == 63) {
-				sumArray[blockIdx.x] = subArray1[threadIdx.x];
-			}
-		}
-		else {
-			scanArray[index] = subArray2[threadIdx.x];
-			if (threadIdx.x == 63) {
-				sumArray[blockIdx.x] = subArray2[threadIdx.x];
-			}
-		}
-	}
-}
-
-// Naive scan, for scanning the sum array
-__global__ void naiveScan(int* scanArray1, int* scanArray2, int d, int sumArrayLength) {
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-
-	if (index < sumArrayLength) {
-		if (index >= ceil(pow((float)2, (float)(d-1)))) {
-			int prevIndex = index - (int)ceil(pow((float)2, (float)(d-1)));
-			scanArray2[index] = scanArray1[index] + scanArray1[prevIndex];
-		}
-		else {
-			scanArray2[index] = scanArray1[index];
-		}
-	}
-}
-
-// Add the elements in the sum array to the scan array
-__global__ void addToScanArray(int* scanArray, int* sumArray, int primCount) {
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	if (index < primCount && blockIdx.x > 0) {
-		scanArray[index] += sumArray[blockIdx.x-1];
-	}
-}
-
-// Scatter kernel for stream compaction
-__global__ void scatter(triangle* primitives, int* validArray, int* scanArray, triangle* validPrimitives, int primCount) {
-	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	if (index < primCount && validArray[index] == 1) {
-		validPrimitives[scanArray[index]-1] = primitives[index];
-	}
-}
-
-
-__global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fragment* depthbuffer, glm::vec2 resolution) {
+__global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 view) {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if (index < primitiveCount) {
 		triangle prim = primitives[index];
-		float topy = min(min(prim.pt0.y, prim.pt1.y), prim.pt2.y);
-		float boty = max(max(prim.pt0.y, prim.pt1.y), prim.pt2.y);
-		int top = max((int)floor(topy), 0);
-		int bot = min((int)ceil(boty), (int)resolution.y);
+		bool offScreen = !isInScreen(prim.pt0, resolution) && !isInScreen(prim.pt1, resolution) && !isInScreen(prim.pt2, resolution);
+		bool backface = glm::dot(view, prim.n0) > 0 && glm::dot(view, prim.n1) > 0 && glm::dot(view, prim.n2) > 0;
+		if (!offScreen && !backface) {
+			float topy = min(min(prim.pt0.y, prim.pt1.y), prim.pt2.y);
+			float boty = max(max(prim.pt0.y, prim.pt1.y), prim.pt2.y);
+			int top = max((int)floor(topy), 0);
+			int bot = min((int)ceil(boty), (int)resolution.y);
 
-		for (int y=top; y<bot; ++y) {
-			float dy0 = prim.pt0.y - y;
-		  float dy1 = prim.pt1.y - y;
-		  float dy2 = prim.pt2.y - y;
-			int onPositiveSide = (int)(dy0>=0) + (int)(dy1>=0) + (int)(dy2>=0);
-		  int onNegativeSide = (int)(dy0<=0) + (int)(dy1<=0) + (int)(dy2<=0);
+			for (int y=top; y<bot; ++y) {
+				float dy0 = prim.pt0.y - y;
+				float dy1 = prim.pt1.y - y;
+				float dy2 = prim.pt2.y - y;
+				int onPositiveSide = (int)(dy0>=0) + (int)(dy1>=0) + (int)(dy2>=0);
+				int onNegativeSide = (int)(dy0<=0) + (int)(dy1<=0) + (int)(dy2<=0);
 
-			glm::vec3 intersection1, intersection2;
-			if (onPositiveSide == 3 || onNegativeSide == 3) {
-				if (dy0 == 0) {
-					intersection1 = prim.pt0;
-					intersection2 = prim.pt0;
+				glm::vec3 intersection1, intersection2;
+				if (onPositiveSide == 3 || onNegativeSide == 3) {
+					if (dy0 == 0) {
+						intersection1 = prim.pt0;
+						intersection2 = prim.pt0;
+					}
+					else if (dy1 == 0) {
+						intersection1 = prim.pt1;
+						intersection2 = prim.pt1;
+					}
+					else if (dy2 == 0) {
+						intersection1 = prim.pt2;
+						intersection2 = prim.pt2;
+					}
 				}
-				else if (dy1 == 0) {
-					intersection1 = prim.pt1;
-					intersection2 = prim.pt1;
+				else if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline
+																// doesn't really happen due to the floating point error
+					if (dy0 == 0) {
+						intersection1 = prim.pt0;
+						intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+					}
+					else if (dy1 == 0) {
+						intersection1 = prim.pt1;
+						intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+					}
+					else { // dy2 == 0
+						intersection1 = prim.pt2;
+						intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+					}
 				}
-				else if (dy2 == 0) {
-					intersection1 = prim.pt2;
-					intersection2 = prim.pt2;
+				else if (onPositiveSide == 2) {
+					if (dy0 < 0) {
+						intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
+						intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+					}
+					else if (dy1 < 0) {
+						intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+						intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+					}
+					else { // dy2 < 0
+						intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
+						intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
+					}
 				}
-			}
-			else if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline
-															// doesn't really happen due to the floating point error
-				if (dy0 == 0) {
-					intersection1 = prim.pt0;
-					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+				else { // onNegativeSide == 2
+					if (dy0 > 0) {
+						intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
+						intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+					}
+					else if (dy1 > 0) {
+						intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+						intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+					}
+					else { // dy2 > 0
+						intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
+						intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
+					}
 				}
-				else if (dy1 == 0) {
-					intersection1 = prim.pt1;
-					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
-				}
-				else { // dy2 == 0
-					intersection1 = prim.pt2;
-					intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, y);
-				}
-			}
-			else if (onPositiveSide == 2) {
-				if (dy0 < 0) {
-					intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
-					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
-				}
-				else if (dy1 < 0) {
-					intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
-					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
-				}
-				else { // dy2 < 0
-					intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
-					intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
-				}
-			}
-			else { // onNegativeSide == 2
-				if (dy0 > 0) {
-					intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
-					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
-				}
-				else if (dy1 > 0) {
-					intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
-					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
-				}
-				else { // dy2 > 0
-					intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
-					intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
-				}
-			}
 
-			// make sure intersection1's x value is less than intersection2's
-			if (intersection2.x < intersection1.x) {
-				glm::vec3 temp = intersection1;
-				intersection1 = intersection2;
-				intersection2 = temp;
-			}
+				// make sure intersection1's x value is less than intersection2's
+				if (intersection2.x < intersection1.x) {
+					glm::vec3 temp = intersection1;
+					intersection1 = intersection2;
+					intersection2 = temp;
+				}
 
-			int left = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
-			int right = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
-			for (int x=left; x<=right; ++x) {
-				int pixelIndex = (resolution.x-1-x) + (resolution.y-1-y) * resolution.x;
-				float t = (x-intersection1.x)/(intersection2.x-intersection1.x);
-				glm::vec3 point = t*intersection2 + (1-t)*intersection1;
-				if (point.z > depthbuffer[pixelIndex].z) {
-					glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
-					depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
-					depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
-					depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
-					depthbuffer[pixelIndex].z = point.z;
+				int left = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
+				int right = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
+				for (int x=left; x<=right; ++x) {
+					int pixelIndex = (resolution.x-1-x) + (resolution.y-1-y) * resolution.x;
+					float t = (x-intersection1.x)/(intersection2.x-intersection1.x);
+					glm::vec3 point = t*intersection2 + (1-t)*intersection1;
+					if (point.z > depthbuffer[pixelIndex].z) {
+						glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
+						depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
+						depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
+						depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
+						depthbuffer[pixelIndex].z = point.z;
+					}
 				}
 			}
 		}
@@ -459,61 +348,20 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
   }
 }
 
-void initCudaArrays(glm::vec2 resolution, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize) {
-	//set up framebuffer
+// Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float frame, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize){
+  // set up crucial magic
+  int tileSize = 8;
+  dim3 threadsPerBlock(tileSize, tileSize);
+  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
+
+  //set up framebuffer
   framebuffer = NULL;
   cudaMalloc((void**)&framebuffer, (int)resolution.x*(int)resolution.y*sizeof(glm::vec3));
   
   //set up depthbuffer
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
-
-	primitives = NULL;
-	int primcount = ibosize/3;
-  cudaMalloc((void**)&primitives, primcount*sizeof(triangle));
-
-	validPrimitives = NULL;
-	cudaMalloc((void**)&validPrimitives, primcount*sizeof(triangle));
-
-  device_ibo = NULL;
-  cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
-  cudaMemcpy( device_ibo, ibo, ibosize*sizeof(int), cudaMemcpyHostToDevice);
-
-  device_vbo = NULL;
-  cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
-  cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
-
-	device_vbo_trans = NULL;
-  cudaMalloc((void**)&device_vbo_trans, vbosize*sizeof(float));
-
-  device_cbo = NULL;
-  cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
-  cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
-
-  device_nbo = NULL;
-  cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
-  cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
-
-	validArray = NULL;
-	cudaMalloc((void**)&validArray, primcount*sizeof(int));
-
-	scanArray = NULL;
-	cudaMalloc((void**)&scanArray, primcount*sizeof(int));
-
-	sumArray1 = NULL;
-	sumArray2 = NULL;
-	int sumArrayLength = ceil(((float)primcount)/((float)64));
-	cudaMalloc((void**)&sumArray1, sumArrayLength*sizeof(int));
-	cudaMalloc((void**)&sumArray2, sumArrayLength*sizeof(int));
-}
-
-// Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float frame,
-											 int vbosize, int cbosize, int nbosize, int ibosize){
-  // set up crucial magic
-  int tileSize = 8;
-  dim3 threadsPerBlock(tileSize, tileSize);
-  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
@@ -525,8 +373,29 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   frag.z = -FLT_MAX;
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
-	int primcount = ibosize/3;
-  tileSize = 64;
+  //------------------------------
+  //memory stuff
+  //------------------------------
+  primitives = NULL;
+  cudaMalloc((void**)&primitives, (ibosize/3)*sizeof(triangle));
+
+  device_ibo = NULL;
+  cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
+  cudaMemcpy( device_ibo, ibo, ibosize*sizeof(int), cudaMemcpyHostToDevice);
+
+  device_vbo = NULL;
+  cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
+  cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  device_cbo = NULL;
+  cudaMalloc((void**)&device_cbo, cbosize*sizeof(float));
+  cudaMemcpy( device_cbo, cbo, cbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  device_nbo = NULL;
+  cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
+  cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+  tileSize = 32;
 
   //------------------------------
   //compute the camera matrix
@@ -539,109 +408,47 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   //------------------------------
   //primitive assembly
   //------------------------------
-  int primitiveBlocks = ceil(((float)primcount)/((float)tileSize));
+  int primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_nbo, nbosize, device_ibo, ibosize, primitives);
 
   cudaDeviceSynchronize();
-	checkCUDAError("Kernel failed!");
 
   //------------------------------
   //vertex shader
   //------------------------------
 	primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
-	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_vbo_trans, cameraMatrix, resolution);
+  vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMatrix, resolution);
 
   cudaDeviceSynchronize();
-	checkCUDAError("Kernel failed!");
 
   //------------------------------
   //update primitives
   //------------------------------
-	primitiveBlocks = ceil(((float)primcount)/((float)tileSize));
-  updatePrimitiveKernel<<<primitiveBlocks, tileSize>>>(device_vbo_trans, vbosize, device_ibo, ibosize, primitives);
+	primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
+  updatePrimitiveKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_ibo, ibosize, primitives);
 
   cudaDeviceSynchronize();
-	checkCUDAError("Kernel failed!");
 
- // triangle* prim_cpu = new triangle[primcount];
- // cudaMemcpy(prim_cpu, primitives, primcount*sizeof(triangle), cudaMemcpyDeviceToHost);
- // triangle t0 = prim_cpu[0];
-	//triangle t1 = prim_cpu[1];
-	//triangle t2 = prim_cpu[2];
-	//triangle t3 = prim_cpu[3];
-	//triangle t4 = prim_cpu[4];
-	//triangle t5 = prim_cpu[5];
+  //cudaMemcpy(prim_cpu, primitives, ibosize/3*sizeof(triangle), cudaMemcpyDeviceToHost);
+  //t = prim_cpu[0];
 
-	//------------------------------
-  //back face culling and clipping
   //------------------------------
-	validatePrims<<<primitiveBlocks, tileSize>>>(primitives, primcount, validArray, glm::normalize(center-eye), resolution);
-	cudaDeviceSynchronize();
-	checkCUDAError("Kernel failed!");
-	
-	//stream compaction
-	copy<<<primitiveBlocks, tileSize>>>(validArray, primcount, scanArray);
-	cudaDeviceSynchronize();
-	checkCUDAError("Kernel failed!");
+  //rasterization
+  //------------------------------
+ // int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
+	//rasterizationKernel<<<scanlineBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, glm::normalize(center-eye));
 
-	sharedMemoryScan<<<primitiveBlocks, tileSize>>>(scanArray, sumArray1, primcount);
-	cudaDeviceSynchronize();
-	checkCUDAError("Kernel failed!");
+	//parallel by primitive
+	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, center-eye);
 
-	int sumArrayLength = ceil(((float)primcount)/((float)64));
-	int naiveScanBlocksPerGrid = ((int)ceil((float)sumArrayLength/(float)64), 24); // 24 is the number of SMs on my GPU
-	int naiveScanThreadsPerBlock = ceil((float)sumArrayLength/(float)naiveScanBlocksPerGrid);
-	int d = 1;
-	for (; d<=ceil(log(float(sumArrayLength))/log(2.0f)); ++d) {
-		// use double buffer
-		if (d % 2 == 1) {
-			naiveScan<<<naiveScanBlocksPerGrid, naiveScanThreadsPerBlock>>>(sumArray1, sumArray2, d, sumArrayLength);
-		}
-		else {
-			naiveScan<<<naiveScanBlocksPerGrid, naiveScanThreadsPerBlock>>>(sumArray2, sumArray1, d, sumArrayLength);
-		}
-		cudaDeviceSynchronize();
-	}
-	if (d % 2 == 1) {
-		addToScanArray<<<primitiveBlocks, tileSize>>>(scanArray, sumArray1, primcount);
-	}
-	else {
-		addToScanArray<<<primitiveBlocks, tileSize>>>(scanArray, sumArray2, primcount);
-	}
-	cudaDeviceSynchronize();
-	checkCUDAError("Kernel failed!");
+  cudaDeviceSynchronize();
 
-	int* validPrimCount = new int[1];
-	cudaMemcpy(validPrimCount, scanArray + primcount - 1, sizeof(int), cudaMemcpyDeviceToHost);
+  //------------------------------
+  //fragment shader
+  //------------------------------
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, lightPos, lightColor);
 
-	scatter<<<primitiveBlocks, tileSize>>>(primitives, validArray, scanArray, validPrimitives, primcount);
-	cudaDeviceSynchronize();
-	checkCUDAError("Kernel failed!");
-
-	primcount = validPrimCount[0];
-	delete [] validPrimCount;
-
-	if (primcount > 0) {
-		//------------------------------
-		//rasterization
-		//------------------------------
-		primitiveBlocks = ceil(((float)primcount)/((float)tileSize));
-		rasterizationKernel<<<primitiveBlocks, tileSize>>>(validPrimitives, primcount, depthbuffer, resolution);
-
-		cudaDeviceSynchronize();
-		checkCUDAError("Kernel failed!");
-
-		//------------------------------
-		//fragment shader
-		//------------------------------
-		fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, lightPos, lightColor);
-
-		cudaDeviceSynchronize();
-		checkCUDAError("Kernel failed!");
-	}
-	else {
-		clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
-	}
+  cudaDeviceSynchronize();
   //------------------------------
   //write fragments to framebuffer
   //------------------------------
@@ -649,21 +456,19 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
 
   cudaDeviceSynchronize();
+
+  kernelCleanup();
+
   checkCUDAError("Kernel failed!");
 }
 
 void kernelCleanup(){
-	cudaFree( primitives );
-  cudaFree( validPrimitives );
+  cudaFree( primitives );
   cudaFree( device_vbo );
   cudaFree( device_cbo );
   cudaFree( device_nbo );
   cudaFree( device_ibo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
-	cudaFree( validArray );
-	cudaFree( scanArray );
-	cudaFree( sumArray1 );
-	cudaFree( sumArray2 );
 }
 
