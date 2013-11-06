@@ -1,4 +1,6 @@
-CUDA Rasterizer. Please see http://lightspeedbanana.blogspot.com/2013/11/cuda-rasterizer.html for video/screenshots/performance evaluation.
+-------------------------------------------
+CUDA (Massively Parallel) Software Rasterizer
+-------------------------------------------
 
 USAGE/Features:
 
