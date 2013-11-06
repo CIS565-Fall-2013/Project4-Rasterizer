@@ -1,6 +1,7 @@
 -------------------------------------------
 CUDA (Massively Parallel) Software Rasterizer
 -------------------------------------------
+Video and full description avialable at http://lightspeedbanana.blogspot.com/2013/11/cuda-rasterizer.html.
 
 ![Wireframe, Backfaces, Normals, Diffuse](screenshots/four_cows_small.png)
 
