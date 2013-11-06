@@ -40,6 +40,12 @@ Right button (move horizontally) - zoom
 
 Demo: https://vimeo.com/78330880
 
+* Portal effect done with stencil buffer
+
+Based on the method described in this blog post: http://th0mas.nl/2013/05/rendering-recursive-portals-with-opengl/
+
+Demo: https://vimeo.com/78774305
+
 * Back-face culling and scissor test
 
 See analysis below
