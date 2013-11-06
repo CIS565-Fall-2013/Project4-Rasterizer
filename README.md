@@ -120,7 +120,7 @@ Depth Buffer For Cow:
 Cube:
 ![Screenshot](/renders/MatteCube.JPG "Simple Cube")
 Depth Buffer for Cube:
-![Screenshot](/renders/CubeDepth.JPG "Cube Depth Buffer")
+![Screenshot](/renders/DepthCube.JPG "Cube Depth Buffer")
 Cube Normals:
 ![Screenshot](/renders/NormalCube.JPG "Cube Normals")
 
