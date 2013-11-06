@@ -211,6 +211,21 @@ __global__ void updatePrimitiveKernel(float* vbo, int vbosize, int* ibo, int ibo
   }
 }
 
+//Populate the primitive list for portal
+__global__ void stencilPrimitiveKernel(float* vbo, int vbosize, int* ibo, int ibosize, vertTriangle* primitives){
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  int primitivesCount = ibosize/3;
+  if(index<primitivesCount){
+	  int v0 = ibo[index*3];
+	  int v1 = ibo[index*3+1];
+	  int v2 = ibo[index*3+2];
+		glm::vec3 pt0 = glm::vec3(vbo[v0*3], vbo[v0*3+1], vbo[v0*3+2]);
+	  glm::vec3 pt1 = glm::vec3(vbo[v1*3], vbo[v1*3+1], vbo[v1*3+2]);
+	  glm::vec3 pt2 = glm::vec3(vbo[v2*3], vbo[v2*3+1], vbo[v2*3+2]);
+		primitives[index] = vertTriangle(pt0, pt1, pt2);
+  }
+}
+
 __device__ glm::vec3 getScanlineIntersection(glm::vec3 v1, glm::vec3 v2, float y) {
 	float t = (y-v1.y)/(v2.y-v1.y);
 	return glm::vec3(t*v2.x + (1-t)*v1.x, y, t*v2.z + (1-t)*v1.z);
@@ -224,9 +239,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fr
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if (index < primitiveCount) {
 		triangle prim = primitives[index];
-		bool offScreen = !isInScreen(prim.pt0, resolution) && !isInScreen(prim.pt1, resolution) && !isInScreen(prim.pt2, resolution);
-		bool backface = glm::dot(view, prim.n0) > 0 && glm::dot(view, prim.n1) > 0 && glm::dot(view, prim.n2) > 0;
-		if (!offScreen && !backface) {
+		//bool offScreen = !isInScreen(prim.pt0, resolution) && !isInScreen(prim.pt1, resolution) && !isInScreen(prim.pt2, resolution);
+		//bool backface = glm::dot(view, prim.n0) > 0 && glm::dot(view, prim.n1) > 0 && glm::dot(view, prim.n2) > 0;
+		//if (!offScreen && !backface) {
 			float topy = min(min(prim.pt0.y, prim.pt1.y), prim.pt2.y);
 			float boty = max(max(prim.pt0.y, prim.pt1.y), prim.pt2.y);
 			int top = max((int)floor(topy), 0);
@@ -320,7 +335,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fr
 					}
 				}
 			}
-		}
+		//}
 	}
 }
 
@@ -331,8 +346,8 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
 		glm::vec3 lightDir = glm::normalize(glm::vec3(lightPos - depthbuffer[index].position));
-		float diffuseTerm = glm::clamp(glm::dot(lightDir, depthbuffer[index].normal), 0.0f, 1.0f);
-	  depthbuffer[index].color = diffuseTerm * lightColor * depthbuffer[index].color;
+		float diffuseTerm = glm::clamp(glm::dot(lightDir, depthbuffer[index].normal), 0.0f, 0.8f);
+	  depthbuffer[index].color = (0.2f+diffuseTerm) * lightColor * depthbuffer[index].color;
   }
 }
 
@@ -348,14 +363,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
   }
 }
 
-// Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float frame, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize){
-  // set up crucial magic
-  int tileSize = 8;
-  dim3 threadsPerBlock(tileSize, tileSize);
-  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
-
-  //set up framebuffer
+void initBuffers(glm::vec2 resolution) {
+	//set up framebuffer
   framebuffer = NULL;
   cudaMalloc((void**)&framebuffer, (int)resolution.x*(int)resolution.y*sizeof(glm::vec3));
   
@@ -363,15 +372,73 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   depthbuffer = NULL;
   cudaMalloc((void**)&depthbuffer, (int)resolution.x*(int)resolution.y*sizeof(fragment));
 
-  //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
+	clearBuffers(resolution);
+}
+
+void clearBuffers(glm::vec2 resolution) {
+	int tileSize = 8;
+  dim3 threadsPerBlock(tileSize, tileSize);
+  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
+	
+	//kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
-  
-  fragment frag;
+
+	fragment frag;
   frag.color = glm::vec3(0,0,0);
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,0);
   frag.z = -FLT_MAX;
+	frag.s = 0;
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
+}
+
+void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float* vbo, int vbosize, int* ibo, int ibosize) {
+	// set up crucial magic
+  int tileSize = 8;
+  dim3 threadsPerBlock(tileSize, tileSize);
+  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
+
+	vertTriangle* stencilPrimitives = NULL;
+  cudaMalloc((void**)&stencilPrimitives, (ibosize/3)*sizeof(vertTriangle));
+
+  device_ibo = NULL;
+  cudaMalloc((void**)&device_ibo, ibosize*sizeof(int));
+  cudaMemcpy( device_ibo, ibo, ibosize*sizeof(int), cudaMemcpyHostToDevice);
+
+  device_vbo = NULL;
+  cudaMalloc((void**)&device_vbo, vbosize*sizeof(float));
+  cudaMemcpy( device_vbo, vbo, vbosize*sizeof(float), cudaMemcpyHostToDevice);
+
+	//------------------------------
+  //compute the camera matrix
+  //------------------------------
+  float aspect = resolution.x / resolution.y;
+  glm::mat4 perspMatrix = glm::perspective(fovy, resolution.x/resolution.y, zNear, zFar);
+  glm::mat4 lookatMatrix = glm::lookAt(eye, center, up);
+  glm::mat4 cameraMatrix = perspMatrix * lookatMatrix;
+
+	//------------------------------
+  //vertex shader
+  //------------------------------
+	tileSize = 64;
+	int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
+	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMatrix, resolution);
+  cudaDeviceSynchronize();
+
+	//------------------------------
+  //update stencil primitives
+  //------------------------------
+	primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
+  stencilPrimitiveKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_ibo, ibosize, stencilPrimitives);
+  cudaDeviceSynchronize();
+}
+
+// Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
+void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float frame, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize){
+  // set up crucial magic
+  int tileSize = 8;
+  dim3 threadsPerBlock(tileSize, tileSize);
+  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
 
   //------------------------------
   //memory stuff
@@ -395,7 +462,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
   cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
 
-  tileSize = 32;
+  tileSize = 64;
 
   //------------------------------
   //compute the camera matrix
@@ -468,7 +535,10 @@ void kernelCleanup(){
   cudaFree( device_cbo );
   cudaFree( device_nbo );
   cudaFree( device_ibo );
-  cudaFree( framebuffer );
+}
+
+void freeBuffers() {
+	cudaFree( framebuffer );
   cudaFree( depthbuffer );
 }
 

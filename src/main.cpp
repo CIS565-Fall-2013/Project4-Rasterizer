@@ -17,9 +17,10 @@ int main(int argc, char** argv){
     getline(liness, header, '='); getline(liness, data, '=');
     if(strcmp(header.c_str(), "mesh")==0){
       //renderScene = new scene(data);
-      mesh = new obj();
+      obj* mesh = new obj();
       objLoader* loader = new objLoader(data, mesh);
       mesh->buildVBOs();
+			meshes.push_back(mesh);
       delete loader;
       loadedScene = true;
     }
@@ -88,42 +89,41 @@ int main(int argc, char** argv){
 void runCuda(){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
-  dptr=NULL;
-
-  vbo = mesh->getVBO();
-  vbosize = mesh->getVBOsize();
-
-  //float newcbo[] = {0.0, 1.0, 0.0, 
-  //                  0.0, 0.0, 1.0, 
-  //                  1.0, 0.0, 0.0};
 
 	//blue
-  float newcbo[] = {0.4, 0.7, 1.0, 
-                    0.4, 0.7, 1.0, 
-                    0.4, 0.7, 1.0};
+  //float newcbo[] = {0.4, 0.7, 1.0, 
+  //                  0.4, 0.7, 1.0, 
+  //                  0.4, 0.7, 1.0};
 
 	//gold
 	//float newcbo[] = {1.0, 0.77, 0.03, 
- //                   1.0, 0.77, 0.03, 
- //                   1.0, 0.77, 0.03};
+  //                  1.0, 0.77, 0.03, 
+  //                  1.0, 0.77, 0.03};
 
-	//grey
-	//float newcbo[] = {0.6, 0.6, 0.6, 
-  //                  0.6, 0.6, 0.6, 
-  //                   0.6, 0.6, 0.6};
+	clearBuffers(glm::vec2(width, height));
+  dptr=NULL;
 
-  cbo = newcbo;
+	//------------------------------
+  //draw the small box
+  //------------------------------
+  vbo = meshes[3]->getVBO();
+  vbosize = meshes[3]->getVBOsize();
+	float grey[] = {0.6, 0.6, 0.6, 
+                    0.6, 0.6, 0.6, 
+                    0.6, 0.6, 0.6};
+	cbo = grey;
   cbosize = 9;
-
-  nbo = mesh->getNBO();
-  nbosize = mesh->getNBOsize();
-
-  ibo = mesh->getIBO();
-  ibosize = mesh->getIBOsize();
+  nbo = meshes[3]->getNBO();
+  nbosize = meshes[3]->getNBOsize();
+  ibo = meshes[3]->getIBO();
+  ibosize = meshes[3]->getIBOsize();
 
   cudaGLMapBufferObject((void**)&dptr, pbo);
   cudaRasterizeCore(dptr, glm::vec2(width, height), eye, center, frame, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize);
   cudaGLUnmapBufferObject(pbo);
+
+	//vbo = meshes[0]->getVBO();
+	//vbosize = meshes[0]->getVBOsize();
 
   vbo = NULL;
   cbo = NULL;
@@ -331,6 +331,8 @@ void initCuda(){
 
   initPBO(&pbo);
 
+	initBuffers(glm::vec2(width, height));
+
   // Clean up on program exit
   atexit(cleanupCuda);
 
@@ -403,6 +405,7 @@ GLuint initShader(const char *vertexShaderPath, const char *fragmentShaderPath){
 void cleanupCuda(){
   if(pbo) deletePBO(&pbo);
   if(displayImage) deleteTexture(&displayImage);
+	freeBuffers();
 }
 
 void deletePBO(GLuint* pbo){
@@ -425,6 +428,7 @@ void deleteTexture(GLuint* tex){
 void shut_down(int return_code){
   kernelCleanup();
   cudaDeviceReset();
+	meshes.clear();
   #ifdef __APPLE__
   glfwTerminate();
   #endif

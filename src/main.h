@@ -51,7 +51,7 @@ GLuint pbo = (GLuint)NULL;
 GLuint displayImage;
 uchar4 *dptr;
 
-obj* mesh;
+vector<obj*> meshes;
 
 float* vbo;
 int vbosize;

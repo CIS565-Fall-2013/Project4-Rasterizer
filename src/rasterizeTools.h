@@ -28,11 +28,21 @@ struct triangle {
 	  p0(vp0), p1(vp1), p2(vp2), pt0(), pt1(), pt2(), c0(vc0), c1(vc1), c2(vc2), n0(vn0), n1(vn1), n2(vn2) {};
 };
 
+struct vertTriangle { //triangle with only vertex positions, used for drawing to sencil 
+	glm::vec3 pt0; //the transformed vertices
+  glm::vec3 pt1;
+  glm::vec3 pt2;
+
+	__host__ __device__ vertTriangle(glm::vec3 vp0, glm::vec3 vp1, glm::vec3 vp2) :
+		pt0(vp0), pt1(vp1), pt2(vp2) {};
+};
+
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;
   glm::vec3 position;
   float z;
+	int s; //stencil
 };
 
 //Multiplies a cudaMat4 matrix and a vec4
