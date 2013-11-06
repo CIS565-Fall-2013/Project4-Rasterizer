@@ -2,7 +2,7 @@
 CUDA (Massively Parallel) Software Rasterizer
 -------------------------------------------
 
-![Wireframe, Backfaces, Normals, Diffuse](screenshots/CUDA-Rasterizer)
+![Wireframe, Backfaces, Normals, Diffuse](screenshots/four_cows_small.png)
 
 USAGE/Features:
 
