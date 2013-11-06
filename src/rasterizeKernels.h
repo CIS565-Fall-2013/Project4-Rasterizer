@@ -19,7 +19,11 @@
 void initBuffers(glm::vec2 resolution);
 void clearBuffers(glm::vec2 resolution);
 void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float* vbo, int vbosize, int* ibo, int ibosize);
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float frame, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize);
+void clearOnStencil(glm::vec2 resolution);
+void cudaRasterizeCore(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center,
+											 float* vbo, int vbosize, float* cbo, int cbosize, float* nbo,
+											 int nbosize, int* ibo, int ibosize, bool stencilTest, bool perPrimitive);
+void renderToPBO(uchar4* PBOpos, glm::vec2 resolution);
 void kernelCleanup();
 void freeBuffers();
 

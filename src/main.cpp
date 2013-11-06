@@ -90,10 +90,17 @@ void runCuda(){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
 
-	//blue
-  //float newcbo[] = {0.4, 0.7, 1.0, 
-  //                  0.4, 0.7, 1.0, 
-  //                  0.4, 0.7, 1.0};
+	float wood[] = {245.0/255.0, 222.0/255.0, 179.0/255.0, 
+                  245.0/255.0, 222.0/255.0, 179.0/255.0, 
+                  245.0/255.0, 222.0/255.0, 179.0/255.0};
+
+  float blue[] = {0.4, 0.7, 1.0, 
+                  0.4, 0.7, 1.0, 
+                  0.4, 0.7, 1.0};
+
+	float pink[] = {1.0, 187.0/255.0, 1.0, 
+                  1.0, 187.0/255.0, 1.0, 
+                  1.0, 187.0/255.0, 1.0};
 
 	//gold
 	//float newcbo[] = {1.0, 0.77, 0.03, 
@@ -101,29 +108,79 @@ void runCuda(){
   //                  1.0, 0.77, 0.03};
 
 	clearBuffers(glm::vec2(width, height));
-  dptr=NULL;
 
 	//------------------------------
   //draw the small box
   //------------------------------
   vbo = meshes[3]->getVBO();
   vbosize = meshes[3]->getVBOsize();
-	float grey[] = {0.6, 0.6, 0.6, 
-                    0.6, 0.6, 0.6, 
-                    0.6, 0.6, 0.6};
-	cbo = grey;
+	cbo = wood;
   cbosize = 9;
   nbo = meshes[3]->getNBO();
   nbosize = meshes[3]->getNBOsize();
   ibo = meshes[3]->getIBO();
   ibosize = meshes[3]->getIBOsize();
 
-  cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), eye, center, frame, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize);
-  cudaGLUnmapBufferObject(pbo);
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, false, false);
 
-	//vbo = meshes[0]->getVBO();
-	//vbosize = meshes[0]->getVBOsize();
+	//------------------------------
+ // draw the floor
+ // ------------------------------
+ // vbo = meshes[4]->getVBO();
+ // vbosize = meshes[4]->getVBOsize();
+	//cbo = wood;
+ // cbosize = 9;
+ // nbo = meshes[4]->getNBO();
+ // nbosize = meshes[4]->getNBOsize();
+ // ibo = meshes[4]->getIBO();
+ // ibosize = meshes[4]->getIBOsize();
+
+ // cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, false, false);
+
+	//------------------------------
+  //draw the portal
+  //------------------------------
+	vbo = meshes[0]->getVBO();
+	vbosize = meshes[0]->getVBOsize();
+	ibo = meshes[0]->getIBO();
+  ibosize = meshes[0]->getIBOsize();
+	
+	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize);
+
+	clearOnStencil(glm::vec2(width, height));
+
+	//------------------------------
+  //draw the big box
+  //------------------------------
+	vbo = meshes[1]->getVBO();
+  vbosize = meshes[1]->getVBOsize();
+	cbo = wood;
+  cbosize = 9;
+  nbo = meshes[1]->getNBO();
+  nbosize = meshes[1]->getNBOsize();
+  ibo = meshes[1]->getIBO();
+  ibosize = meshes[1]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false);
+
+	//------------------------------
+  //draw the bunny
+  //------------------------------
+	vbo = meshes[2]->getVBO();
+  vbosize = meshes[2]->getVBOsize();
+	cbo = blue;
+  cbosize = 9;
+  nbo = meshes[2]->getNBO();
+  nbosize = meshes[2]->getNBOsize();
+  ibo = meshes[2]->getIBO();
+  ibosize = meshes[2]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true);
+
+	dptr=NULL;
+	cudaGLMapBufferObject((void**)&dptr, pbo);
+	renderToPBO(dptr, glm::vec2(width, height));
+	cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
   cbo = NULL;
@@ -189,7 +246,7 @@ void runCuda(){
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, 
         GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
-    glClear(GL_COLOR_BUFFER_BIT);   
+		glClear(GL_COLOR_BUFFER_BIT); 
 
     // VAO, shader program, and texture already bound
     glDrawElements(GL_TRIANGLES, 6,  GL_UNSIGNED_SHORT, 0);

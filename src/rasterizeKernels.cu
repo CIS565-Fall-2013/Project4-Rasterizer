@@ -112,6 +112,21 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
     }
 }
 
+//Clears depth buffer if it passes the stencil test
+__global__ void clearDepthBufferOnStencil(glm::vec2 resolution, fragment* buffer, fragment frag){
+    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+    int index = x + (y * resolution.x);
+    if(x<=resolution.x && y<=resolution.y){
+			if (buffer[index].s == 1) {
+				fragment f = frag;
+				f.position.x = x;
+				f.position.y = y;
+				buffer[index] = f;
+			}
+    }
+}
+
 //Kernel that writes the image to the OpenGL PBO directly. 
 __global__ void sendImageToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3* image){
   
@@ -235,108 +250,279 @@ __device__ bool isInScreen(glm::vec3 p, glm::vec2 resolution) {
 	return (p.x > 0&& p.x < resolution.x && p.y > 0 && p.y < resolution.y);
 }
 
-__global__ void rasterizationKernel(triangle* primitives, int primitiveCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 view) {
+//primitive parallel rasterization
+__global__ void rasterizationPerPrimKernel(triangle* primitives, int primitiveCount, fragment* depthbuffer, glm::vec2 resolution, bool stencilTest) {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if (index < primitiveCount) {
 		triangle prim = primitives[index];
-		//bool offScreen = !isInScreen(prim.pt0, resolution) && !isInScreen(prim.pt1, resolution) && !isInScreen(prim.pt2, resolution);
-		//bool backface = glm::dot(view, prim.n0) > 0 && glm::dot(view, prim.n1) > 0 && glm::dot(view, prim.n2) > 0;
-		//if (!offScreen && !backface) {
-			float topy = min(min(prim.pt0.y, prim.pt1.y), prim.pt2.y);
-			float boty = max(max(prim.pt0.y, prim.pt1.y), prim.pt2.y);
-			int top = max((int)floor(topy), 0);
-			int bot = min((int)ceil(boty), (int)resolution.y);
+		float topy = min(min(prim.pt0.y, prim.pt1.y), prim.pt2.y);
+		float boty = max(max(prim.pt0.y, prim.pt1.y), prim.pt2.y);
+		int top = max((int)floor(topy), 0);
+		int bot = min((int)ceil(boty), (int)resolution.y);
 
-			for (int y=top; y<bot; ++y) {
-				float dy0 = prim.pt0.y - y;
-				float dy1 = prim.pt1.y - y;
-				float dy2 = prim.pt2.y - y;
-				int onPositiveSide = (int)(dy0>=0) + (int)(dy1>=0) + (int)(dy2>=0);
-				int onNegativeSide = (int)(dy0<=0) + (int)(dy1<=0) + (int)(dy2<=0);
+		for (int y=top; y<bot; ++y) {
+			float dy0 = prim.pt0.y - y;
+			float dy1 = prim.pt1.y - y;
+			float dy2 = prim.pt2.y - y;
+			int onPositiveSide = (int)(dy0>=0) + (int)(dy1>=0) + (int)(dy2>=0);
+			int onNegativeSide = (int)(dy0<=0) + (int)(dy1<=0) + (int)(dy2<=0);
 
-				glm::vec3 intersection1, intersection2;
-				if (onPositiveSide == 3 || onNegativeSide == 3) {
-					if (dy0 == 0) {
-						intersection1 = prim.pt0;
-						intersection2 = prim.pt0;
-					}
-					else if (dy1 == 0) {
-						intersection1 = prim.pt1;
-						intersection2 = prim.pt1;
-					}
-					else if (dy2 == 0) {
-						intersection1 = prim.pt2;
-						intersection2 = prim.pt2;
-					}
+			glm::vec3 intersection1, intersection2;
+			if (onPositiveSide == 3 || onNegativeSide == 3) {
+				if (dy0 == 0) {
+					intersection1 = prim.pt0;
+					intersection2 = prim.pt0;
 				}
-				else if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline
-																// doesn't really happen due to the floating point error
-					if (dy0 == 0) {
-						intersection1 = prim.pt0;
-						intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
-					}
-					else if (dy1 == 0) {
-						intersection1 = prim.pt1;
-						intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
-					}
-					else { // dy2 == 0
-						intersection1 = prim.pt2;
-						intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, y);
-					}
+				else if (dy1 == 0) {
+					intersection1 = prim.pt1;
+					intersection2 = prim.pt1;
 				}
-				else if (onPositiveSide == 2) {
-					if (dy0 < 0) {
-						intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
-						intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
-					}
-					else if (dy1 < 0) {
-						intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
-						intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
-					}
-					else { // dy2 < 0
-						intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
-						intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
-					}
+				else if (dy2 == 0) {
+					intersection1 = prim.pt2;
+					intersection2 = prim.pt2;
 				}
-				else { // onNegativeSide == 2
-					if (dy0 > 0) {
-						intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
-						intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
-					}
-					else if (dy1 > 0) {
-						intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
-						intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
-					}
-					else { // dy2 > 0
-						intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
-						intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
-					}
+			}
+			else if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline
+															// doesn't really happen due to the floating point error
+				if (dy0 == 0) {
+					intersection1 = prim.pt0;
+					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
 				}
+				else if (dy1 == 0) {
+					intersection1 = prim.pt1;
+					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+				}
+				else { // dy2 == 0
+					intersection1 = prim.pt2;
+					intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+				}
+			}
+			else if (onPositiveSide == 2) {
+				if (dy0 < 0) {
+					intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
+					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+				}
+				else if (dy1 < 0) {
+					intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+				}
+				else { // dy2 < 0
+					intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
+					intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
+				}
+			}
+			else { // onNegativeSide == 2
+				if (dy0 > 0) {
+					intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, y);
+					intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, y);
+				}
+				else if (dy1 > 0) {
+					intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, y);
+					intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, y);
+				}
+				else { // dy2 > 0
+					intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, y);
+					intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, y);
+				}
+			}
 
-				// make sure intersection1's x value is less than intersection2's
-				if (intersection2.x < intersection1.x) {
-					glm::vec3 temp = intersection1;
-					intersection1 = intersection2;
-					intersection2 = temp;
-				}
+			// make sure intersection1's x value is less than intersection2's
+			if (intersection2.x < intersection1.x) {
+				glm::vec3 temp = intersection1;
+				intersection1 = intersection2;
+				intersection2 = temp;
+			}
 
-				int left = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
-				int right = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
-				for (int x=left; x<=right; ++x) {
-					int pixelIndex = (resolution.x-1-x) + (resolution.y-1-y) * resolution.x;
-					float t = (x-intersection1.x)/(intersection2.x-intersection1.x);
-					glm::vec3 point = t*intersection2 + (1-t)*intersection1;
-					if (point.z > depthbuffer[pixelIndex].z) {
+			int left = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
+			int right = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
+			for (int x=left; x<=right; ++x) {
+				int pixelIndex = (resolution.x-1-x) + (resolution.y-1-y) * resolution.x;
+				float t = (x-intersection1.x)/(intersection2.x-intersection1.x);
+				glm::vec3 point = t*intersection2 + (1-t)*intersection1;
+				bool draw = true;
+				if (stencilTest) {
+					draw = (depthbuffer[pixelIndex].s == 1) && (point.z > depthbuffer[pixelIndex].z);
+				}
+				else {
+					draw = (point.z > depthbuffer[pixelIndex].z);
+				}
+				if (draw) {
+					glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
+					depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
+					depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
+					depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
+					depthbuffer[pixelIndex].z = point.z;
+				}
+			}
+		}
+	}
+}
+
+//scanline parallel rasterization
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, bool stencilTest){
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index < resolution.y){
+    for (int i=0; i<primitivesCount; ++i) {
+      triangle prim = primitives[i];
+      float dy0 = prim.pt0.y - index;
+      float dy1 = prim.pt1.y - index;
+      float dy2 = prim.pt2.y - index;
+      int onPositiveSide = (int)(dy0>=-FLT_EPSILON) + (int)(dy1>=-FLT_EPSILON) + (int)(dy2>=-FLT_EPSILON);
+      int onNegativeSide = (int)(dy0<=FLT_EPSILON) + (int)(dy1<=FLT_EPSILON) + (int)(dy2<=FLT_EPSILON);
+      if (onPositiveSide != 3 && onNegativeSide != 3) { // the primitive intersects the scanline
+        glm::vec3 intersection1, intersection2;
+        if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline                                                                                               // doesn't really happen due to the floating point error
+          if (dy0 == 0) {
+                  intersection1 = prim.pt0;
+                  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+          }
+          else if (dy1 == 0) {
+                  intersection1 = prim.pt1;
+                  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+          }
+          else { // dy2 == 0
+                  intersection1 = prim.pt2;
+                  intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+          }
+        }
+        else if (onPositiveSide == 2) {
+          if (dy0 < 0) {
+                  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
+                  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+          }
+          else if (dy1 < 0) {
+                  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+                  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+          }
+          else { // dy2 < 0
+                  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
+                  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
+          }
+        }
+        else { // onNegativeSide == 2
+          if (dy0 > 0) {
+                  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
+                  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+          }
+          else if (dy1 > 0) {
+                  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+                  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+          }
+          else { // dy2 > 0
+                  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
+                  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
+          }
+        }
+
+        // make sure intersection1's x value is less than intersection2's
+        if (intersection2.x < intersection1.x) {
+          glm::vec3 temp = intersection1;
+          intersection1 = intersection2;
+          intersection2 = temp;
+        }
+
+        int start = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
+        int end = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
+        for (int j=start; j<=end; ++j) {
+          int pixelIndex = (resolution.x-1-j) + (resolution.y-1-index) * resolution.x;
+          float t = (j-intersection1.x)/(intersection2.x-intersection1.x);
+          glm::vec3 point = t*intersection2 + (1-t)*intersection1;
+					bool draw = true;
+					if (stencilTest) {
+						draw = (depthbuffer[pixelIndex].s == 1) && (point.z > depthbuffer[pixelIndex].z);
+					}
+					else {
+						draw = (point.z > depthbuffer[pixelIndex].z);
+					}
+					if (draw) {
 						glm::vec3 bc = calculateBarycentricCoordinate(prim, glm::vec2(point.x, point.y));
 						depthbuffer[pixelIndex].color = prim.c0 * bc.x + prim.c1 * bc.y + prim.c2 * bc.z;
 						depthbuffer[pixelIndex].normal = glm::normalize(prim.n0 * bc.x + prim.n1 * bc.y + prim.n2 * bc.z);
 						depthbuffer[pixelIndex].position = prim.p0 * bc.x + prim.p1 * bc.y + prim.p2 * bc.z;
 						depthbuffer[pixelIndex].z = point.z;
 					}
-				}
-			}
-		//}
-	}
+        }
+      }
+    }
+  }
+}
+
+//rasterization for stencil buffer
+__global__ void rasterizationStencilKernel(vertTriangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index < resolution.y){
+    for (int i=0; i<primitivesCount; ++i) {
+      vertTriangle prim = primitives[i];
+      float dy0 = prim.pt0.y - index;
+      float dy1 = prim.pt1.y - index;
+      float dy2 = prim.pt2.y - index;
+      int onPositiveSide = (int)(dy0>=-FLT_EPSILON) + (int)(dy1>=-FLT_EPSILON) + (int)(dy2>=-FLT_EPSILON);
+      int onNegativeSide = (int)(dy0<=FLT_EPSILON) + (int)(dy1<=FLT_EPSILON) + (int)(dy2<=FLT_EPSILON);
+      if (onPositiveSide != 3 && onNegativeSide != 3) { // the primitive intersects the scanline
+        glm::vec3 intersection1, intersection2;
+        if (onPositiveSide == 2 && onNegativeSide == 2) { // one vertex is on the scanline                                                                                               // doesn't really happen due to the floating point error
+          if (dy0 == 0) {
+                  intersection1 = prim.pt0;
+                  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+          }
+          else if (dy1 == 0) {
+                  intersection1 = prim.pt1;
+                  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+          }
+          else { // dy2 == 0
+                  intersection1 = prim.pt2;
+                  intersection2 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+          }
+        }
+        else if (onPositiveSide == 2) {
+          if (dy0 < 0) {
+                  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
+                  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+          }
+          else if (dy1 < 0) {
+                  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+                  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+          }
+          else { // dy2 < 0
+                  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
+                  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
+          }
+        }
+        else { // onNegativeSide == 2
+          if (dy0 > 0) {
+                  intersection1 = getScanlineIntersection(prim.pt0, prim.pt1, index);
+                  intersection2 = getScanlineIntersection(prim.pt0, prim.pt2, index);
+          }
+          else if (dy1 > 0) {
+                  intersection1 = getScanlineIntersection(prim.pt1, prim.pt0, index);
+                  intersection2 = getScanlineIntersection(prim.pt1, prim.pt2, index);
+          }
+          else { // dy2 > 0
+                  intersection1 = getScanlineIntersection(prim.pt2, prim.pt0, index);
+                  intersection2 = getScanlineIntersection(prim.pt2, prim.pt1, index);
+          }
+        }
+
+        // make sure intersection1's x value is less than intersection2's
+        if (intersection2.x < intersection1.x) {
+          glm::vec3 temp = intersection1;
+          intersection1 = intersection2;
+          intersection2 = temp;
+        }
+
+        int start = min((int)(resolution.x)-1,max(0, (int)floor(intersection1.x)));
+        int end = min((int)(resolution.x-1),max(0, (int)floor(intersection2.x)));
+        for (int j=start; j<=end; ++j) {
+          int pixelIndex = (resolution.x-1-j) + (resolution.y-1-index) * resolution.x;
+          float t = (j-intersection1.x)/(intersection2.x-intersection1.x);
+          glm::vec3 point = t*intersection2 + (1-t)*intersection1;
+          if (point.z > depthbuffer[pixelIndex].z) {
+            depthbuffer[pixelIndex].s = 1;
+          }
+        }
+      }
+    }
+  }
 }
 
 //TODO: Implement a fragment shader
@@ -348,6 +534,11 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 		glm::vec3 lightDir = glm::normalize(glm::vec3(lightPos - depthbuffer[index].position));
 		float diffuseTerm = glm::clamp(glm::dot(lightDir, depthbuffer[index].normal), 0.0f, 0.8f);
 	  depthbuffer[index].color = (0.2f+diffuseTerm) * lightColor * depthbuffer[index].color;
+
+		//set background color
+		if (depthbuffer[index].z == -FLT_MAX) {
+			depthbuffer[index].color = glm::vec3(0.6, 0.6, 0.6);
+		}
   }
 }
 
@@ -382,6 +573,7 @@ void clearBuffers(glm::vec2 resolution) {
 	
 	//kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
+	cudaDeviceSynchronize();
 
 	fragment frag;
   frag.color = glm::vec3(0,0,0);
@@ -390,6 +582,7 @@ void clearBuffers(glm::vec2 resolution) {
   frag.z = -FLT_MAX;
 	frag.s = 0;
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
+	cudaDeviceSynchronize();
 }
 
 void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float* vbo, int vbosize, int* ibo, int ibosize) {
@@ -431,15 +624,38 @@ void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, 
 	primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   stencilPrimitiveKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_ibo, ibosize, stencilPrimitives);
   cudaDeviceSynchronize();
+
+	//------------------------------
+  //rasterization
+  //------------------------------
+	int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
+	rasterizationStencilKernel<<<scanlineBlocks, tileSize>>>(stencilPrimitives, ibosize/3, depthbuffer, resolution);
+	cudaDeviceSynchronize();
+
+	cudaFree(stencilPrimitives);
 }
 
-// Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float frame, float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize){
-  // set up crucial magic
+// Clear the depth buffer based on stencil test
+void clearOnStencil(glm::vec2 resolution) {
+	// set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
   dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
 
+	fragment frag;
+	frag.color = glm::vec3(0,0,0);
+	frag.normal = glm::vec3(0,0,0);
+	frag.position = glm::vec3(0,0,0);
+	frag.z = -FLT_MAX;
+	frag.s = 1;
+	clearDepthBufferOnStencil<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, frag);
+	cudaDeviceSynchronize();
+}
+
+// Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
+void cudaRasterizeCore(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center,
+											 float* vbo, int vbosize, float* cbo, int cbosize, float* nbo,
+											 int nbosize, int* ibo, int ibosize, bool stencilTest, bool perPrimitive){
   //------------------------------
   //memory stuff
   //------------------------------
@@ -462,7 +678,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   cudaMalloc((void**)&device_nbo, nbosize*sizeof(float));
   cudaMemcpy( device_nbo, nbo, nbosize*sizeof(float), cudaMemcpyHostToDevice);
 
-  tileSize = 64;
+  int tileSize = 64;
 
   //------------------------------
   //compute the camera matrix
@@ -502,15 +718,30 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   //------------------------------
   //rasterization
   //------------------------------
- // int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
-	//rasterizationKernel<<<scanlineBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, glm::normalize(center-eye));
-
-	//parallel by primitive
-	rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, center-eye);
+	if (perPrimitive) {
+		//parallel by primitive
+		rasterizationPerPrimKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, stencilTest);
+	}
+	else {
+		int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
+		rasterizationKernel<<<scanlineBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, stencilTest);
+	}
 
   cudaDeviceSynchronize();
 
-  //------------------------------
+  kernelCleanup();
+
+  checkCUDAError("Kernel failed!");
+}
+
+//fragment shader and render
+void renderToPBO(uchar4* PBOpos, glm::vec2 resolution) {
+	// set up crucial magic
+  int tileSize = 8;
+  dim3 threadsPerBlock(tileSize, tileSize);
+  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
+
+	//------------------------------
   //fragment shader
   //------------------------------
   fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, lightPos, lightColor);
@@ -523,10 +754,6 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye, glm:
   sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
 
   cudaDeviceSynchronize();
-
-  kernelCleanup();
-
-  checkCUDAError("Kernel failed!");
 }
 
 void kernelCleanup(){
