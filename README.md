@@ -1,7 +1,7 @@
 -------------------------------------------
 CUDA (Massively Parallel) Software Rasterizer
 -------------------------------------------
-This rasterizer DOES NOT USE OPENGL to draw triangles! I am using CUDA to draw triangles and do shading IN SOFTWARE! 
+This rasterizer DOES NOT USE OPENGL to draw triangles! I am using CUDA to draw triangles and do shading FROM SCRATCH, in software! 
 
 Video and full description available at http://lightspeedbanana.blogspot.com/2013/11/cuda-rasterizer.html.
 
