@@ -419,24 +419,8 @@ void initLights()
 	lightsize = 4;
 	lights = new light[lightsize];
 
-	// first light
-	lights[0].color = vec3(1,0,0);
-	lights[0].position = vec3(0, 0.f, 2.f);
-
-	// second light
-	lights[1].color = vec3(0,1,0);
-	lights[1].position = vec3(-3.f, 5.f, 1.f);
-
-	// third light
-	lights[2].color = vec3(0,0,1);
-	lights[2].position = vec3(3.f, 5.f, 1.f);
-
-	// fourth light
-	lights[3].color = vec3(1,1,1);
-	lights[3].position = vec3(0.0f, 2.5f, 2.f);
-
 	//// first light
-	//lights[0].color = vec3(0,1,1);
+	//lights[0].color = vec3(1,0,0);
 	//lights[0].position = vec3(0, 0.f, 2.f);
 
 	//// second light
@@ -448,8 +432,24 @@ void initLights()
 	//lights[2].position = vec3(3.f, 5.f, 1.f);
 
 	//// fourth light
-	//lights[3].color = vec3(1,0,0);
+	//lights[3].color = vec3(1,1,1);
 	//lights[3].position = vec3(0.0f, 2.5f, 2.f);
+
+	// first light
+	lights[0].color = vec3(0,1,1);
+	lights[0].position = vec3(0, 0.f, 2.f);
+
+	// second light
+	lights[1].color = vec3(0,1,0);
+	lights[1].position = vec3(-3.f, 5.f, 1.f);
+
+	// third light
+	lights[2].color = vec3(0,0,1);
+	lights[2].position = vec3(3.f, 5.f, 1.f);
+
+	// fourth light
+	lights[3].color = vec3(1,0,0);
+	lights[3].position = vec3(0.0f, 2.5f, 2.f);
 }
 
 void initTextures(){

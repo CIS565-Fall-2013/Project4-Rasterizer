@@ -379,7 +379,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					
 					// trying out atomicDiff version
 					//if (z > depthbuffer[depthBufferId].position.z)
-					//if (atomicDiff(&(depthbuffer[depthBufferId].position.z), z) > 0)
+					//if (atomicDiff(&(depthbuffer[depthBufferId].depth), z) > 0)
 					if (z > depthbuffer[depthBufferId].depth)
 					{
 						depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z; // point in world space

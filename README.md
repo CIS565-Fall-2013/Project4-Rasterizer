@@ -18,7 +18,7 @@ are not facing the camera will be discarded. Next, the rasterization kernel will
 based on barycentric coordinates of each primitive and write the result to the depth buffer. The depth buffer is then
 passed to the fragment shader for simple lambertian shading. The results are then filled into the framebuffer and shown on screen.
 
-[Video](http://youtu.be/VETewtqqOCI)
+[Video](http://youtu.be/7bn5c_cOV4E)
 
 Anti-aliasing comparison:
 Without anti-aliasing:
