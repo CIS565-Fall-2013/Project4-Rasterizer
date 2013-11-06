@@ -2,6 +2,8 @@
 CUDA (Massively Parallel) Software Rasterizer
 -------------------------------------------
 
+![Wireframe, Backfaces, Normals, Diffuse](screenshots/CUDA-Rasterizer)
+
 USAGE/Features:
 
 1. Click and drag (camera move)
