@@ -125,7 +125,7 @@ VIDEOS OF RESULTS
 
 This is the video of my CUDA rasterizer including mouse interaction and keyboard interaction
 
-[![ScreenShot](https://raw.github.com/GabriellaQiong/Project4-Rasterizer/master/videoscreenshot.JPG)](http://www.youtube.com/watch?v=rb--TBxSOmw)
+[![ScreenShot](https://raw.github.com/GabriellaQiong/Project4-Rasterizer/master/videoscreenshot.PNG)](http://www.youtube.com/watch?v=rb--TBxSOmw)
 
 The youtube links are here if you cannot open the video in the markdown file: http://www.youtube.com/watch?v=rb--TBxSOmw
 
