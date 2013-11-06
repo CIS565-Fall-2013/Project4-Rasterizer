@@ -16,8 +16,10 @@ Above, performance on different models.
 
 ![Rotation Field Visualization](screenshots/rot_field_small.png)
 Above, visualization of the rotation field in a deforming bar for my research with Dr. Kavan (http://www.seas.upenn.edu/~ladislav/).
-
-USAGE/Features:
+![Overlap Visualization](screenshots/overlap_comparison.png)
+For our research, it's important that we check for overlapping geometry. Here
+is a comparison between the standard MATLAB plot and this rasterizer,
+visualizing overlapping bits.
 
 1. Click and drag (camera move)
 2. WASD (camera move)
