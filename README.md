@@ -9,10 +9,13 @@ Above, clockwise from upper left: Wireframe, Backfaces, Diffuse, Normals.
 ![Culling On](http://i.imgur.com/MfPH4gT.gif)
 ![Culling Off](screenshots/culling_off.gif)
 
-Culling on vs. Culling Off
+Above, Culling on vs. Culling Off
 
 ![Performance Experiment](screenshots/perf_comparison_small.png)
 Above, performance on different models. 
+
+![Rotation Field Visualization](screenshots/rot_field_small.png)
+Above, visualization of the rotation field in a deforming bar for my research with Dr. Kavan (http://www.seas.upenn.edu/~ladislav/).
 
 USAGE/Features:
 
