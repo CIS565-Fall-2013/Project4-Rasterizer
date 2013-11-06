@@ -3,6 +3,7 @@ CUDA (Massively Parallel) Software Rasterizer
 -------------------------------------------
 
 ![Wireframe, Backfaces, Normals, Diffuse](screenshots/four_cows_small.png)
+Above, clockwise from upper left: Wireframe, Backfaces, Diffuse, Normals.
 
 USAGE/Features:
 
