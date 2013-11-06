@@ -1,7 +1,7 @@
 -------------------------------------------
 CUDA (Massively Parallel) Software Rasterizer
 -------------------------------------------
-Video and full description avialable at http://lightspeedbanana.blogspot.com/2013/11/cuda-rasterizer.html.
+Video and full description available at http://lightspeedbanana.blogspot.com/2013/11/cuda-rasterizer.html.
 
 ![Wireframe, Backfaces, Normals, Diffuse](screenshots/four_cows_small.png)
 
@@ -21,7 +21,9 @@ Above, visualization of the rotation field in a deforming bar for my research wi
 For our research, it's important that we check for overlapping geometry. Here
 is a comparison between the standard MATLAB plot and this rasterizer,
 visualizing overlapping bits.
-
+-------------------------------------------
+USAGE/CAMERA
+-------------------------------------------
 1. Click and drag (camera move)
 2. WASD (camera move)
 3. Q and E (zoom in and out)
@@ -38,12 +40,12 @@ Reason why is we need to sample tris below the Nyquist limit).
 on top of each other. This works bets when we use a LARGER step (see #7) for
 sampling.
 
+-------------------------------------------
+Credits
+-------------------------------------------
 Credits: 
-0. Interactive camera is mostly based on my Pathtracer's interactive camera,
+1. Interactive camera is mostly based on my Pathtracer's interactive camera,
 which is based on my CIS277 interactive camera.
-1. Some commented out code is from some snippets from http://sol.gfxile.net/tri/index.html. The sort I did myself without looking at the code there. The gradient calculation I did steal (but that's basically the only way to calculate gradient, and it's also three lines). The pseudocode/algorithm description is what I did, but that's something I did myself, since a full implentation isn't on that blog post.
-2. Got the line-drawing algorithm from Norm's slides
-3. Base code from CIS565/Karl Li/Liam Boone
-
-Known Issues:
-Zooming the camera inside the body causes a crash.
+2. Some commented out code is from some snippets from http://sol.gfxile.net/tri/index.html. The sort I did myself without looking at the code there. The gradient calculation I did steal (but that's basically the only way to calculate gradient, and it's also three lines). The pseudocode/algorithm description is what I did, but that's something I did myself, since a full implementation isn't on that blog post.
+3. Got the line-drawing algorithm from CIS560 slides.
+4. Base code from CIS565/Karl Li/Liam Boone.
