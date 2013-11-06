@@ -375,15 +375,17 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					int depthBufferId = y * resolution.x + x;
 					
 					float z = getZAtCoordinate(bc, tri);
-					//float z = getZWorldAtCoordinate(bcw, tri);
+					//float z = -getZWorldAtCoordinate(bcw, tri);
 					
 					// trying out atomicDiff version
 					//if (z > depthbuffer[depthBufferId].position.z)
-					if (atomicDiff(&(depthbuffer[depthBufferId].position.z), z) > 0)
+					//if (atomicDiff(&(depthbuffer[depthBufferId].position.z), z) > 0)
+					if (z > depthbuffer[depthBufferId].depth)
 					{
 						depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z; // point in world space
 						depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
 						depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;		// normal in world space
+						depthbuffer[depthBufferId].depth = z;
 					}
 				}
 			}
@@ -490,6 +492,7 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 	frag.color = glm::vec3(0,0,0);
 	frag.normal = glm::vec3(0,0,0);
 	frag.position = glm::vec3(0,0,-10000);
+	frag.depth = -1e6;
 	clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer,frag);
 
 	//------------------------------
