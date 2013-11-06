@@ -7,8 +7,9 @@ Above, clockwise from upper left: Wireframe, Backfaces, Diffuse, Normals.
 ![Culling On](http://i.imgur.com/MfPH4gT.gif)
 ![Culling Off](screenshots/culling_off.gif)
 Culling on vs. Culling Off
-
+![Performance Experiment](screenshots/perf_comparison_small.png)
 Performance on different models. 
+
 USAGE/Features:
 
 1. Click and drag (camera move)
