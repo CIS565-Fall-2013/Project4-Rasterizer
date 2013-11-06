@@ -2,13 +2,13 @@
 CUDA (Massively Parallel) Software Rasterizer
 -------------------------------------------
 
+Clockwise from upper left: Wireframe, Backfaces, Diffuse, Normals.
 ![Wireframe, Backfaces, Normals, Diffuse](screenshots/four_cows_small.png)
-Above, clockwise from upper left: Wireframe, Backfaces, Diffuse, Normals.
+Culling on vs. Culling Off
 ![Culling On](http://i.imgur.com/MfPH4gT.gif)
 ![Culling Off](screenshots/culling_off.gif)
-Culling on vs. Culling Off
-![Performance Experiment](screenshots/perf_comparison_small.png)
 Performance on different models. 
+![Performance Experiment](screenshots/perf_comparison_small.png)
 
 USAGE/Features:
 
