@@ -19,8 +19,8 @@ Above, performance on different models.
 Above, visualization of the rotation field in a deforming bar for my research with Dr. Kavan (http://www.seas.upenn.edu/~ladislav/).
 ![Overlap Visualization](screenshots/overlap_comparison.png)
 For our research, it's important that we check for overlapping geometry. Here
-is a comparison between the standard MATLAB plot and this rasterizer,
-visualizing overlapping bits.
+is a comparison between the standard MATLAB plot and this rasterizer, visualizing overlapping bits.
+
 -------------------------------------------
 USAGE/CAMERA
 -------------------------------------------
