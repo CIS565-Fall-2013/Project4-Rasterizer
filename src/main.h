@@ -53,6 +53,9 @@ uchar4 *dptr;
 
 obj* mesh;
 
+vector<obj*> meshVector;
+int* stencilBuffer;
+
 float* vbo;
 int vbosize;
 float* cbo;
@@ -70,7 +73,7 @@ glm::vec3 lookat(0.0f, 0.0f, 0.0f);
 glm::vec3 up(0.0f,1.0f,0.0f);
 glm::vec4 lightPos(5.0f, 5.0f, 3.0f, 1.0f);
 float fovy = 60;
-float eyeDis = 3.3f;
+float eyeDis = 5.3f;
 float rRotx = 0;
 float rRoty = 0;
 float zNear = 0.1f;
@@ -79,7 +82,7 @@ float zFar = 100.f;
 char keyValue = 'q';
 
 
-#define STENCIL 0
+#define STENCIL 1
 #define FIRST 2
 
 

@@ -9,23 +9,34 @@
 
 int main(int argc, char** argv){
 
-  bool loadedScene = false;
-  //for(int i=1; i<argc; i++){
-    string header; string data;
-    //istringstream liness(argv[i]);
-    //getline(liness, header, '='); getline(liness, data, '=');
-    //if(strcmp(header.c_str(), "mesh")==0){
-      //renderScene = new scene(data);
+	 bool loadedScene = false;
+	//for(int i=1; i<argc; i++){
+	string header; string data;
+	//istringstream liness(argv[i]);
+	//getline(liness, header, '='); getline(liness, data, '=');
+	//if(strcmp(header.c_str(), "mesh")==0){
+		//renderScene = new scene(data);
 
 	//laoding file for obj
-	  data = "../../objs/bunny.obj";
-      mesh = new obj();
-      objLoader* loader = new objLoader(data, mesh);
-      mesh->buildVBOs();
-      delete loader;
-      loadedScene = true;	  
-    //}
-  //}
+	data = "../../objs/plane.obj";
+	mesh = new obj();
+	objLoader* loader = new objLoader(data, mesh);
+	mesh->buildVBOs();
+	meshVector.push_back(mesh);
+
+	data = "../../objs/bunny.obj";
+	mesh = new obj();
+	loader = new objLoader(data, mesh);
+	mesh->buildVBOs();
+	meshVector.push_back(mesh);
+
+	delete loader;
+	loadedScene = true;	  
+	  
+//}
+//}
+
+	stencilBuffer = new int[width*height];
 
 #if STENCIL == 1
 	  isStencil = true;
@@ -90,6 +101,18 @@ int main(int argc, char** argv){
   return 0;
 }
 
+
+void resetStencil()
+{
+	for(int i = 0; i < width; i++)
+		for(int j = 0; j < height; j++)
+		{
+			int index = i + j * width;
+			stencilBuffer[index] = 0;
+		}
+}
+
+
 //-------------------------------
 //---------RUNTIME STUFF---------
 //-------------------------------
@@ -97,34 +120,6 @@ int main(int argc, char** argv){
 void runCuda(){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
-  dptr=NULL;
-
-  vbo = mesh->getVBO();  
-  vbosize = mesh->getVBOsize();
-  
-  vector<float> test;
-
-  nbo = mesh->getNBO();
-  nbosize = mesh->getNBOsize();
- 
-
-  float newcbo[] = {1.0, 1.0, 1.0, 
-                    0.0, 1.0, 1.0, 
-                    1.0, 0.0, 1.0,
-  
-					0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
-                    1.0, 0.0, 0.0,
-  
-					0.0, 1.0, 0.0, 
-                    0.0, 0.0, 1.0, 
-                    };
-  cbo = newcbo;
-  cbosize = 24;
-
-  ibo = mesh->getIBO();
-  ibosize = mesh->getIBOsize();
-  
   //Time
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
@@ -140,16 +135,55 @@ void runCuda(){
   cameraPosition.z = lookat.z + eyeDis * glm::cos(rRoty) * glm::sin(rRotx);
 
   modelView = glm::lookAt(cameraPosition, lookat, up);
+	
+ 
+  
+  
+  
+  float newcbo[] = {1.0, 1.0, 1.0, 
+                    0.0, 1.0, 1.0, 
+                    1.0, 0.0, 1.0,
+  
+					0.0, 1.0, 0.0, 
+                    0.0, 0.0, 1.0, 
+                    1.0, 0.0, 0.0,
+  
+					0.0, 1.0, 0.0, 
+                    0.0, 0.0, 1.0, 
+                    };
+  cbo = newcbo;
+  cbosize = 24;
 
+
+  resetStencil();
+  initalKernel(glm::vec2(width, height), stencilBuffer);
+  for(int i = 0; i < meshVector.size(); i++)
+  {
+	  dptr=NULL;
+
+	  vbo = meshVector[i]->getVBO();  
+	  vbosize = meshVector[i]->getVBOsize();
+  
+	  nbo = meshVector[i]->getNBO();
+	  nbosize = meshVector[i]->getNBOsize(); 
+
+	  ibo = meshVector[i]->getIBO();
+	  ibosize = meshVector[i]->getIBOsize(); 
+
+	
+	  cudaRasterizeCore(glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, 
+		  projection*modelView, viewPort, lightPos, cameraPosition, lookat, isStencil, i+1, secondObj, keyValue, stencilBuffer);
+	  
+
+	  vbo = NULL;	  
+	  ibo = NULL;
+	  nbo = NULL;
+  }
+    
   cudaGLMapBufferObject((void**)&dptr, pbo);
-  cudaRasterizeCore(dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, projection*modelView, viewPort, lightPos, cameraPosition, lookat, isStencil, firstObj, secondObj, keyValue);
+  renderKernel(dptr, glm::vec2(width, height));
   cudaGLUnmapBufferObject(pbo);
-
-  vbo = NULL;
   cbo = NULL;
-  ibo = NULL;
-  nbo = NULL;
-
 
   cudaEventRecord( stop, 0);
   cudaEventSynchronize( stop );

@@ -23,7 +23,7 @@ float* device_nbo;
 triangle* primitives;
 bool* lockbuffer;
 
-int* stencilbuffer;
+int* cudastencilbuffer;
 
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
@@ -106,13 +106,13 @@ __global__ void clearDepthBuffer(glm::vec2 resolution, fragment* buffer, fragmen
 }
 
 //clears the stencil buffer
-__global__ void clearStencilBuffer(glm::vec2 resolution, int* stencilbuffer, int inital)
+__global__ void clearStencilBuffer(glm::vec2 resolution, int* cudastencilbuffer, int inital)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
     int index = x + (y * resolution.x);
     if(x<=resolution.x && y<=resolution.y){
-		stencilbuffer[index] = inital;
+		cudastencilbuffer[index] = inital;
 	}
 }
 
@@ -329,9 +329,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 __global__ void rasterizationKernelStencil(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, glm::vec3 cameraPos, glm::vec3 lookAt, 
-										   int* stencilbuffer, int start, int end, int stencilValue, int colorRepresent){
+										   int* cudastencilbuffer, int stencilValue, int colorRepresent){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if(index<end && index>=start){
+  if(index<primitivesCount){
 	  
 	  if(primitives[index].isRender){
 		  glm::vec3 minP, maxP;
@@ -360,7 +360,6 @@ __global__ void rasterizationKernelStencil(triangle* primitives, int primitivesC
 			  float triArea = (calculateSignedArea(primitives[index]));
 			  glm::vec3 bCoordinate = calculateBarycentricCoordinate(primitives[index], glm::vec2((int)minP.x,(int)minP.y));	
 			  	 
-			  //if(triArea < 0){
 			for(int j = minP.y; j <= maxP.y; j++)
 			{		
 				//glm::vec3 temp = bCoordinate;
@@ -372,7 +371,7 @@ __global__ void rasterizationKernelStencil(triangle* primitives, int primitivesC
 					if(isBarycentricCoordInBounds(Evalue))
 					{			
 						int depthIndex = i + j*resolution.x;							
-						if(stencilValue == stencilbuffer[depthIndex] + 1){
+						if(stencilValue == cudastencilbuffer[depthIndex] + 1 || stencilValue == cudastencilbuffer[depthIndex]){
 							float interpolateZ = -getZAtCoordinate(Evalue, primitives[index]);							
 							if(fAtomicMin(&depthbuffer[depthIndex].position.z, interpolateZ))
 							{							
@@ -383,7 +382,7 @@ __global__ void rasterizationKernelStencil(triangle* primitives, int primitivesC
 									depthbuffer[depthIndex].color = glm::abs(depthbuffer[depthIndex].normal);
 								else 
 									depthbuffer[depthIndex].color = Evalue.x * primitives[index].c0 + Evalue.y * primitives[index].c1 + Evalue.z * primitives[index].c2;
-								stencilbuffer[depthIndex] = 1;
+								cudastencilbuffer[depthIndex] = stencilValue;
 							}						
 						}						
 					}
@@ -395,7 +394,6 @@ __global__ void rasterizationKernelStencil(triangle* primitives, int primitivesC
 				bCoordinate = Tvalue;	
 			}
 		 }
-	  //}
 	}
   }
 }
@@ -453,10 +451,10 @@ __global__ void antialiasing(fragment* depthbuffer, glm::vec2 resolution)
 	}
 }
 
-// Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, 
-					   glm::mat4 modelViewProjection, glm::mat4 viewPort, glm::vec4 lightPos, glm::vec3 cameraPos, glm::vec3 lookAt, bool isStencil, int first, int second, char keyValue){
- // set up crucial magic
+
+void initalKernel(glm::vec2 resolution, int* stencilBuffer)
+{
+	// set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
   dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
@@ -474,8 +472,9 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   cudaMalloc((void**)&lockbuffer, (int)resolution.x*(int)resolution.y*sizeof(bool));
 
   //set up stencilbuffer
-  stencilbuffer = NULL;
-  cudaMalloc((void**)&stencilbuffer, (int)resolution.x*(int)resolution.y*sizeof(int));
+  cudastencilbuffer = NULL;
+  cudaMalloc((void**)&cudastencilbuffer, (int)resolution.x*(int)resolution.y*sizeof(int));
+  cudaMemcpy( cudastencilbuffer, stencilBuffer, (int)resolution.x*(int)resolution.y*sizeof(int), cudaMemcpyHostToDevice);
 
   //kernel launches to black out accumulated/unaccumlated pixel buffers and clear our scattering states
   clearImage<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, framebuffer, glm::vec3(0,0,0));
@@ -485,9 +484,18 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   frag.normal = glm::vec3(0,0,0);
   frag.position = glm::vec3(0,0,10000);
   clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, frag, lockbuffer);
+}
 
-  int stencilValue = 0;
-  clearStencilBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, stencilbuffer, stencilValue);
+
+// Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
+void cudaRasterizeCore(glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, 
+					   glm::mat4 modelViewProjection, glm::mat4 viewPort, glm::vec4 lightPos, glm::vec3 cameraPos, glm::vec3 lookAt, bool isStencil, int first, int second, char keyValue, int* stencilBuffer){
+ //// set up crucial magic
+  int tileSize = 8;
+  dim3 threadsPerBlock(tileSize, tileSize);
+  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
+
+  clearZbuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer); 
 
   //keyvalue
   int colorRepresent;
@@ -521,7 +529,6 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   tileSize = 32;
   int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
-
   
   //------------------------------
   //vertex shader
@@ -549,23 +556,11 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   //------------------------------
   //rasterization
   //------------------------------
-  if(!isStencil)
-	  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, colorRepresent, lockbuffer);
-  else{
-
-	int start = first;
-	int end = second;
-	rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, stencilbuffer, start, end, ++stencilValue, colorRepresent);
-	cudaDeviceSynchronize();
-	//clearDepthBuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, frag, lockbuffer);
-	clearZbuffer<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer);
-	cudaDeviceSynchronize();
-
-	start = second;
-	end = ibosize/3;
-	rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, stencilbuffer, start, end, ++stencilValue, colorRepresent);
-	cudaDeviceSynchronize();
-  }
+  //if(!isStencil)
+	//  rasterizationKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, colorRepresent, lockbuffer);
+  //else{	
+  rasterizationKernelStencil<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, cameraPos, lookAt, cudastencilbuffer, first, colorRepresent);		
+  //}
   cudaDeviceSynchronize();
   //------------------------------
   //fragment shader
@@ -584,12 +579,23 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
   antialiasing<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution);
 
   cudaDeviceSynchronize();
-#endif
+#endif 
+  
+  cudaMemcpy( stencilBuffer, cudastencilbuffer, (int)resolution.x*(int)resolution.y*sizeof(int), cudaMemcpyDeviceToHost);  
+}
+
+void renderKernel(uchar4* PBOpos, glm::vec2 resolution)
+{
+ 
   //------------------------------
   //write fragments to framebuffer
   //------------------------------
+  int tileSize = 8;
+  dim3 threadsPerBlock(tileSize, tileSize);
+  dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
+
   render<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, framebuffer);
-  sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);
+  sendImageToPBO<<<fullBlocksPerGrid, threadsPerBlock>>>(PBOpos, resolution, framebuffer);  
 
   cudaDeviceSynchronize();
 
@@ -597,6 +603,7 @@ void cudaRasterizeCore(uchar4* PBOpos, glm::vec2 resolution, float frame, float*
 
   checkCUDAError("Kernel failed!");
 }
+
 
 void kernelCleanup(){
   cudaFree( primitives );
@@ -606,7 +613,7 @@ void kernelCleanup(){
   cudaFree( device_nbo );
   cudaFree( framebuffer );
   cudaFree( depthbuffer );
-  cudaFree( stencilbuffer );
+  cudaFree( cudastencilbuffer );
   cudaFree( lockbuffer );
 }
 

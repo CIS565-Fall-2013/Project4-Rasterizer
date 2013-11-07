@@ -22,9 +22,11 @@
 #define ANTIALIASING 1
 
 void kernelCleanup();
-void cudaRasterizeCore(uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, 
-					   glm::mat4 modelViewProjection, glm::mat4 viewPort, glm::vec4 lightPos, glm::vec3 cameraPosition, glm::vec3 lookAt, bool isStencil, int first, int second, char keyValue);
+void cudaRasterizeCore(glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, 
+					   glm::mat4 modelViewProjection, glm::mat4 viewPort, glm::vec4 lightPos, glm::vec3 cameraPosition, glm::vec3 lookAt, bool isStencil, int first, int second, char keyValue, int* stencilBuffer);
 
+void initalKernel(glm::vec2 resolution, int* stencilBuffer);
+void renderKernel(uchar4* PBOpos, glm::vec2 resolution);
 
 
 
