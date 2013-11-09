@@ -37,6 +37,15 @@ struct vertTriangle { //triangle with only vertex positions, used for drawing to
 		pt0(vp0), pt1(vp1), pt2(vp2) {};
 };
 
+struct light {
+	glm::vec3 color;
+	glm::vec3 pos;
+
+	__host__ __device__ light() : color(), pos() {};
+	__host__ __device__ light(glm::vec3 c, glm::vec3 p) :
+		color(c), pos(p) {};
+};
+
 struct fragment{
   glm::vec3 color;
   glm::vec3 normal;

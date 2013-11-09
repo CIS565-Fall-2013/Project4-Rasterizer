@@ -98,9 +98,13 @@ void runCuda(){
                   0.4, 0.7, 1.0, 
                   0.4, 0.7, 1.0};
 
-	float pink[] = {1.0, 187.0/255.0, 1.0, 
-                  1.0, 187.0/255.0, 1.0, 
-                  1.0, 187.0/255.0, 1.0};
+	float pink[] = {1.0, 166.0/255.0, 186.0/255.0, 
+                  1.0, 166.0/255.0, 186.0/255.0, 
+                  1.0, 166.0/255.0, 186.0/255.0};
+	
+	float white[] = {1.0, 1.0, 1.0,
+									 1.0, 1.0, 1.0,
+									 1.0, 1.0, 1.0};
 
 	//gold
 	//float newcbo[] = {1.0, 0.77, 0.03, 
@@ -168,7 +172,7 @@ void runCuda(){
   //------------------------------
 	vbo = meshes[2]->getVBO();
   vbosize = meshes[2]->getVBOsize();
-	cbo = blue;
+	cbo = pink;
   cbosize = 9;
   nbo = meshes[2]->getNBO();
   nbosize = meshes[2]->getNBOsize();
@@ -179,7 +183,7 @@ void runCuda(){
 
 	dptr=NULL;
 	cudaGLMapBufferObject((void**)&dptr, pbo);
-	renderToPBO(dptr, glm::vec2(width, height));
+	renderToPBO(dptr, glm::vec2(width, height), eye);
 	cudaGLUnmapBufferObject(pbo);
 
   vbo = NULL;
@@ -389,6 +393,7 @@ void initCuda(){
   initPBO(&pbo);
 
 	initBuffers(glm::vec2(width, height));
+	initLights();
 
   // Clean up on program exit
   atexit(cleanupCuda);

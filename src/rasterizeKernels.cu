@@ -30,8 +30,8 @@ float fovy = 60;
 float zNear = 0.01;
 float zFar = 1000;
 
-glm::vec3 lightColor(1, 1, 1);
-glm::vec3 lightPos(4, 4, 4);
+light* lights;
+int lightsize = 4;
 
 void checkCUDAError(const char *msg) {
   cudaError_t err = cudaGetLastError();
@@ -526,14 +526,42 @@ __global__ void rasterizationStencilKernel(vertTriangle* primitives, int primiti
 }
 
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 lightPos, glm::vec3 lightColor){
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, glm::vec3 eye, light* lights, int lightsize){
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
   int index = x + (y * resolution.x);
   if(x<=resolution.x && y<=resolution.y){
-		glm::vec3 lightDir = glm::normalize(glm::vec3(lightPos - depthbuffer[index].position));
-		float diffuseTerm = glm::clamp(glm::dot(lightDir, depthbuffer[index].normal), 0.0f, 0.8f);
-	  depthbuffer[index].color = (0.2f+diffuseTerm) * lightColor * depthbuffer[index].color;
+		glm::vec3 diffuseColor(0);
+		glm::vec3 specularColor(0);
+		float ks = 0;
+		if (glm::distance(depthbuffer[index].color, glm::vec3(1.0, 166.0/255.0, 186.0/255.0)) < 0.0001) {
+			ks = 0.3;
+		}
+		glm::vec3 norm =  depthbuffer[index].normal;
+		glm::vec3 pos = depthbuffer[index].position;
+		for (int i=0; i<lightsize; ++i) {
+			//diffuse component
+			glm::vec3 lightDir = glm::normalize(glm::vec3(lights[i].pos - pos));
+			float diffuseTerm = glm::clamp(glm::dot(lightDir, norm), 0.0f, 1.0f);
+			diffuseColor += diffuseTerm * lights[i].color;
+
+			//specular component
+			if (ks > 0.0001) {
+				glm::vec3 LR; // reflected light direction
+				if (glm::length(lightDir - norm) < 0.0001) {
+					LR = norm;
+				}
+				else if (abs(glm::dot(lightDir, norm)) < 0.0001) {
+					LR = -lightDir;
+				}
+				else {
+					LR = glm::normalize(-lightDir - 2.0f * glm::dot(-lightDir, norm) * norm);
+				}
+				float specularTerm = min(1.0f, pow(max(0.0f, glm::dot(LR, glm::normalize(eye - pos))), 20.0f));
+				specularColor += specularTerm * glm::vec3(1.0f);
+			}
+		}
+		depthbuffer[index].color = diffuseColor * depthbuffer[index].color + ks * specularColor;
 
 		//set background color
 		if (depthbuffer[index].z == -FLT_MAX) {
@@ -552,6 +580,24 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
   if(x<=resolution.x && y<=resolution.y){
     framebuffer[index] = depthbuffer[index].color;
   }
+}
+
+void initLights() {
+	light l1(glm::vec3(0.8, 0.8, 0.8), glm::vec3(4, 4, 4));
+	light l2(glm::vec3(0.4, 0.4, 0.4), glm::vec3(-4, 4, 4));
+	light l3(glm::vec3(0.3, 0.3, 0.3), glm::vec3(0, 0, -5));
+	light l4(glm::vec3(0.3, 0.3, 0.3), glm::vec3(0, -5, 0));
+	light* cpulights = new light[lightsize];
+	cpulights[0] = l1;
+	cpulights[1] = l2;
+	cpulights[2] = l3;
+	cpulights[3] = l4;
+	
+	checkCUDAError("Kernel failed!");
+	cudaMalloc((void**)&lights, lightsize*sizeof(light));
+	checkCUDAError("Kernel failed!");
+	cudaMemcpy(lights, cpulights, lightsize*sizeof(light), cudaMemcpyHostToDevice);
+	checkCUDAError("Kernel failed!");
 }
 
 void initBuffers(glm::vec2 resolution) {
@@ -735,7 +781,7 @@ void cudaRasterizeCore(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center,
 }
 
 //fragment shader and render
-void renderToPBO(uchar4* PBOpos, glm::vec2 resolution) {
+void renderToPBO(uchar4* PBOpos, glm::vec2 resolution, glm::vec3 eye) {
 	// set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -744,7 +790,7 @@ void renderToPBO(uchar4* PBOpos, glm::vec2 resolution) {
 	//------------------------------
   //fragment shader
   //------------------------------
-  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, lightPos, lightColor);
+  fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, eye, lights, lightsize);
 
   cudaDeviceSynchronize();
   //------------------------------
