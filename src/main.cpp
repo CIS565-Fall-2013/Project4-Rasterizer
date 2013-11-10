@@ -104,6 +104,9 @@ void runCuda(){
 
 	clearBuffers(glm::vec2(width, height));
 
+	//rotation matrix
+	glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), (float)(20-frame), 0.0f, 1.0f, 0.0f);
+
 	//------------------------------
   //draw the caps
   //------------------------------
@@ -116,7 +119,7 @@ void runCuda(){
   ibo = meshes[12]->getIBO();
   ibosize = meshes[12]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, false, false, 0);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, false, false, 0);
 
 	//------------------------------
   //draw the portals
@@ -126,28 +129,28 @@ void runCuda(){
 	vbosize = meshes[0]->getVBOsize();
 	ibo = meshes[0]->getIBO();
   ibosize = meshes[0]->getIBOsize();
-	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize, 1);
+	drawToStencilBuffer(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, ibo, ibosize, 1);
 
 	//portal 2
 	vbo = meshes[1]->getVBO();
 	vbosize = meshes[1]->getVBOsize();
 	ibo = meshes[1]->getIBO();
   ibosize = meshes[1]->getIBOsize();
-	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize, 2);
+	drawToStencilBuffer(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, ibo, ibosize, 2);
 
 	//portal 3
 	vbo = meshes[2]->getVBO();
 	vbosize = meshes[2]->getVBOsize();
 	ibo = meshes[2]->getIBO();
   ibosize = meshes[2]->getIBOsize();
-	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize, 3);
+	drawToStencilBuffer(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, ibo, ibosize, 3);
 
 	//portal 4
 	vbo = meshes[3]->getVBO();
 	vbosize = meshes[3]->getVBOsize();
 	ibo = meshes[3]->getIBO();
   ibosize = meshes[3]->getIBOsize();
-	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize, 4);
+	drawToStencilBuffer(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, ibo, ibosize, 4);
 
 	//------------------------------
   //draw box 1
@@ -163,7 +166,7 @@ void runCuda(){
   ibo = meshes[4]->getIBO();
   ibosize = meshes[4]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 1);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 1);
 
 	//------------------------------
   //draw bunny
@@ -177,7 +180,7 @@ void runCuda(){
   ibo = meshes[5]->getIBO();
   ibosize = meshes[5]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 1);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 1);
 
 	//------------------------------
   //draw box 2
@@ -193,7 +196,7 @@ void runCuda(){
   ibo = meshes[6]->getIBO();
   ibosize = meshes[6]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 2);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 2);
 
 	//------------------------------
   //draw dragon
@@ -207,7 +210,7 @@ void runCuda(){
   ibo = meshes[7]->getIBO();
   ibosize = meshes[7]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 2);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 2);
 
 	//------------------------------
   //draw box 3
@@ -223,7 +226,7 @@ void runCuda(){
   ibo = meshes[8]->getIBO();
   ibosize = meshes[8]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 3);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 3);
 
 	//------------------------------
   //draw cow
@@ -237,7 +240,7 @@ void runCuda(){
   ibo = meshes[9]->getIBO();
   ibosize = meshes[9]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 3);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 3);
 
 	//------------------------------
   //draw box 4
@@ -253,7 +256,7 @@ void runCuda(){
   ibo = meshes[10]->getIBO();
   ibosize = meshes[10]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 4);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 4);
 
 	//------------------------------
   //draw buddha
@@ -267,7 +270,7 @@ void runCuda(){
   ibo = meshes[11]->getIBO();
   ibosize = meshes[11]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 4);
+  cudaRasterizeCore(glm::vec2(width, height), rotation, eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 4);
 
 	dptr=NULL;
 	cudaGLMapBufferObject((void**)&dptr, pbo);

@@ -176,6 +176,28 @@ __host__ __device__ glm::vec3 transformPos(glm::vec3 v, glm::mat4 matrix, glm::v
 	return glm::vec3(v4);
 }
 
+__global__ void transformVertices(float* vbo, int vbosize, glm::mat4 modelMatrix) {
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index<vbosize/3){
+	  glm::vec4 v(vbo[index*3], vbo[index*3+1], vbo[index*3+2], 1);
+		v = modelMatrix * v;
+		vbo[index*3] = v.x;
+	  vbo[index*3+1] = v.y;
+	  vbo[index*3+2] = v.z;
+	}
+}
+
+__global__ void transformNormals(float* nbo, int nbosize, glm::mat4 modelMatrix) {
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if(index<nbosize/3){
+		glm::vec4 n(nbo[index*3], nbo[index*3+1], nbo[index*3+2], 0);
+		n = modelMatrix * n;
+		nbo[index*3] = n.x;
+	  nbo[index*3+1] = n.y;
+	  nbo[index*3+2] = n.z;
+	}
+}
+
 //TODO: Implement primative assembly
 __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int cbosize, float* nbo, int nbosize, int* ibo, int ibosize, triangle* primitives){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -599,6 +621,8 @@ void initLights() {
 	checkCUDAError("Kernel failed!");
 	cudaMemcpy(lights, cpulights, lightsize*sizeof(light), cudaMemcpyHostToDevice);
 	checkCUDAError("Kernel failed!");
+
+	delete [] cpulights;
 }
 
 void initBuffers(glm::vec2 resolution) {
@@ -632,7 +656,7 @@ void clearBuffers(glm::vec2 resolution) {
 	cudaDeviceSynchronize();
 }
 
-void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float* vbo, int vbosize, int* ibo, int ibosize, int stencil) {
+void drawToStencilBuffer(glm::vec2 resolution, glm::mat4 rotation, glm::vec3 eye, glm::vec3 center, float* vbo, int vbosize, int* ibo, int ibosize, int stencil) {
 	// set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -662,6 +686,7 @@ void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, 
   //------------------------------
 	tileSize = 64;
 	int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
+	transformVertices<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, rotation);
 	vertexShadeKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, cameraMatrix, resolution);
   cudaDeviceSynchronize();
 
@@ -699,10 +724,42 @@ void clearOnStencil(glm::vec2 resolution, int stencil) {
 	cudaDeviceSynchronize();
 }
 
+__global__ void stencilTestKernel(bool* result, glm::vec2 resolution, fragment* depthbuffer, int stencil) {
+	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+  int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+  int index = x + (y * resolution.x);
+  if(x<=resolution.x && y<=resolution.y){
+		if (depthbuffer[index].s == stencil) {
+			result[0] = true;
+		}
+	}
+}
+
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
-void cudaRasterizeCore(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center,
+void cudaRasterizeCore(glm::vec2 resolution, glm::mat4 rotation, glm::vec3 eye, glm::vec3 center,
 											 float* vbo, int vbosize, float* cbo, int cbosize, float* nbo,
 											 int nbosize, int* ibo, int ibosize, bool stencilTest, bool perPrimitive, int stencil){
+	//------------------------------
+  //test stencil values, if there's no buffer with desired stencil value, return
+  //------------------------------
+	if (stencilTest) {
+		int tileSize = 8;
+		dim3 threadsPerBlock(tileSize, tileSize);
+		dim3 fullBlocksPerGrid((int)ceil(float(resolution.x)/float(tileSize)), (int)ceil(float(resolution.y)/float(tileSize)));
+
+		bool cpuresult[1] = {false};
+		bool* result;
+		cudaMalloc((void**)&result, sizeof(bool));
+		cudaMemcpy(result, cpuresult, sizeof(bool), cudaMemcpyHostToDevice);
+		stencilTestKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(result, resolution, depthbuffer, stencil);
+
+		bool* cpuresult2 = new bool[1];
+		cudaMemcpy(cpuresult2, result, sizeof(bool), cudaMemcpyDeviceToHost);
+		if (!cpuresult2[0]) {
+			return;
+		}
+	}
+
   //------------------------------
   //memory stuff
   //------------------------------
@@ -735,10 +792,17 @@ void cudaRasterizeCore(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center,
   glm::mat4 lookatMatrix = glm::lookAt(eye, center, up);
   glm::mat4 cameraMatrix = perspMatrix * lookatMatrix;
 
+	//------------------------------
+  //transform vertices and normals
+  //------------------------------
+	int primitiveBlocks = ceil(((float)vbosize/3)/((float)tileSize));
+	transformVertices<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, rotation);
+	transformNormals<<<primitiveBlocks, tileSize>>>(device_nbo, nbosize, rotation);
+
   //------------------------------
   //primitive assembly
   //------------------------------
-  int primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
+  primitiveBlocks = ceil(((float)ibosize/3)/((float)tileSize));
   primitiveAssemblyKernel<<<primitiveBlocks, tileSize>>>(device_vbo, vbosize, device_cbo, cbosize, device_nbo, nbosize, device_ibo, ibosize, primitives);
 
   cudaDeviceSynchronize();
