@@ -90,96 +90,184 @@ void runCuda(){
   // Map OpenGL buffer object for writing from CUDA on a single GPU
   // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
 
-	float wood[] = {245.0/255.0, 222.0/255.0, 179.0/255.0, 
-                  245.0/255.0, 222.0/255.0, 179.0/255.0, 
-                  245.0/255.0, 222.0/255.0, 179.0/255.0};
+	float wood[] = {245.0/255.0, 222.0/255.0, 179.0/255.0};
 
-  float blue[] = {0.4, 0.7, 1.0, 
-                  0.4, 0.7, 1.0, 
-                  0.4, 0.7, 1.0};
+  float blue[] = {0.4, 0.7, 1.0};
 
-	float pink[] = {1.0, 166.0/255.0, 186.0/255.0, 
-                  1.0, 166.0/255.0, 186.0/255.0, 
-                  1.0, 166.0/255.0, 186.0/255.0};
+	float pink[] = {1.0, 166.0/255.0, 186.0/255.0};
 	
-	float white[] = {1.0, 1.0, 1.0,
-									 1.0, 1.0, 1.0,
-									 1.0, 1.0, 1.0};
+	float white[] = {1.0, 1.0, 1.0};
 
-	//gold
-	//float newcbo[] = {1.0, 0.77, 0.03, 
-  //                  1.0, 0.77, 0.03, 
-  //                  1.0, 0.77, 0.03};
+	float gold[] = {1.0, 0.77, 0.03};
+
+	float green[] = {50.0/255.0, 205.0/255.0, 50.0/255.0};
 
 	clearBuffers(glm::vec2(width, height));
 
 	//------------------------------
-  //draw the small box
+  //draw the caps
   //------------------------------
-  vbo = meshes[3]->getVBO();
-  vbosize = meshes[3]->getVBOsize();
+  vbo = meshes[12]->getVBO();
+  vbosize = meshes[12]->getVBOsize();
 	cbo = wood;
-  cbosize = 9;
-  nbo = meshes[3]->getNBO();
-  nbosize = meshes[3]->getNBOsize();
-  ibo = meshes[3]->getIBO();
-  ibosize = meshes[3]->getIBOsize();
+  cbosize = 3;
+  nbo = meshes[12]->getNBO();
+  nbosize = meshes[12]->getNBOsize();
+  ibo = meshes[12]->getIBO();
+  ibosize = meshes[12]->getIBOsize();
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, false, false);
-
-	//------------------------------
- // draw the floor
- // ------------------------------
- // vbo = meshes[4]->getVBO();
- // vbosize = meshes[4]->getVBOsize();
-	//cbo = wood;
- // cbosize = 9;
- // nbo = meshes[4]->getNBO();
- // nbosize = meshes[4]->getNBOsize();
- // ibo = meshes[4]->getIBO();
- // ibosize = meshes[4]->getIBOsize();
-
- // cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, false, false);
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, false, false, 0);
 
 	//------------------------------
-  //draw the portal
+  //draw the portals
   //------------------------------
+	//portal 1
 	vbo = meshes[0]->getVBO();
 	vbosize = meshes[0]->getVBOsize();
 	ibo = meshes[0]->getIBO();
   ibosize = meshes[0]->getIBOsize();
-	
-	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize);
+	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize, 1);
 
-	clearOnStencil(glm::vec2(width, height));
-
-	//------------------------------
-  //draw the big box
-  //------------------------------
+	//portal 2
 	vbo = meshes[1]->getVBO();
-  vbosize = meshes[1]->getVBOsize();
-	cbo = wood;
-  cbosize = 9;
-  nbo = meshes[1]->getNBO();
-  nbosize = meshes[1]->getNBOsize();
-  ibo = meshes[1]->getIBO();
+	vbosize = meshes[1]->getVBOsize();
+	ibo = meshes[1]->getIBO();
   ibosize = meshes[1]->getIBOsize();
+	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize, 2);
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false);
+	//portal 3
+	vbo = meshes[2]->getVBO();
+	vbosize = meshes[2]->getVBOsize();
+	ibo = meshes[2]->getIBO();
+  ibosize = meshes[2]->getIBOsize();
+	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize, 3);
+
+	//portal 4
+	vbo = meshes[3]->getVBO();
+	vbosize = meshes[3]->getVBOsize();
+	ibo = meshes[3]->getIBO();
+  ibosize = meshes[3]->getIBOsize();
+	drawToStencilBuffer(glm::vec2(width, height), eye, center, vbo, vbosize, ibo, ibosize, 4);
 
 	//------------------------------
-  //draw the bunny
+  //draw box 1
   //------------------------------
-	vbo = meshes[2]->getVBO();
-  vbosize = meshes[2]->getVBOsize();
-	cbo = pink;
-  cbosize = 9;
-  nbo = meshes[2]->getNBO();
-  nbosize = meshes[2]->getNBOsize();
-  ibo = meshes[2]->getIBO();
-  ibosize = meshes[2]->getIBOsize();
+	clearOnStencil(glm::vec2(width, height), 1);
 
-  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true);
+	vbo = meshes[4]->getVBO();
+  vbosize = meshes[4]->getVBOsize();
+	cbo = wood;
+  cbosize = 3;
+  nbo = meshes[4]->getNBO();
+  nbosize = meshes[4]->getNBOsize();
+  ibo = meshes[4]->getIBO();
+  ibosize = meshes[4]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 1);
+
+	//------------------------------
+  //draw bunny
+  //------------------------------
+	vbo = meshes[5]->getVBO();
+  vbosize = meshes[5]->getVBOsize();
+	cbo = blue;
+  cbosize = 3;
+  nbo = meshes[5]->getNBO();
+  nbosize = meshes[5]->getNBOsize();
+  ibo = meshes[5]->getIBO();
+  ibosize = meshes[5]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 1);
+
+	//------------------------------
+  //draw box 2
+  //------------------------------
+	clearOnStencil(glm::vec2(width, height), 2);
+
+	vbo = meshes[6]->getVBO();
+  vbosize = meshes[6]->getVBOsize();
+	cbo = wood;
+  cbosize = 3;
+  nbo = meshes[6]->getNBO();
+  nbosize = meshes[6]->getNBOsize();
+  ibo = meshes[6]->getIBO();
+  ibosize = meshes[6]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 2);
+
+	//------------------------------
+  //draw dragon
+  //------------------------------
+	vbo = meshes[7]->getVBO();
+  vbosize = meshes[7]->getVBOsize();
+	cbo = gold;
+  cbosize = 3;
+  nbo = meshes[7]->getNBO();
+  nbosize = meshes[7]->getNBOsize();
+  ibo = meshes[7]->getIBO();
+  ibosize = meshes[7]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 2);
+
+	//------------------------------
+  //draw box 3
+  //------------------------------
+	clearOnStencil(glm::vec2(width, height), 3);
+
+	vbo = meshes[8]->getVBO();
+  vbosize = meshes[8]->getVBOsize();
+	cbo = wood;
+  cbosize = 3;
+  nbo = meshes[8]->getNBO();
+  nbosize = meshes[8]->getNBOsize();
+  ibo = meshes[8]->getIBO();
+  ibosize = meshes[8]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 3);
+
+	//------------------------------
+  //draw cow
+  //------------------------------
+	vbo = meshes[9]->getVBO();
+  vbosize = meshes[9]->getVBOsize();
+	cbo = green;
+  cbosize = 3;
+  nbo = meshes[9]->getNBO();
+  nbosize = meshes[9]->getNBOsize();
+  ibo = meshes[9]->getIBO();
+  ibosize = meshes[9]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 3);
+
+	//------------------------------
+  //draw box 4
+  //------------------------------
+	clearOnStencil(glm::vec2(width, height), 4);
+
+	vbo = meshes[10]->getVBO();
+  vbosize = meshes[10]->getVBOsize();
+	cbo = wood;
+  cbosize = 3;
+  nbo = meshes[10]->getNBO();
+  nbosize = meshes[10]->getNBOsize();
+  ibo = meshes[10]->getIBO();
+  ibosize = meshes[10]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, false, 4);
+
+	//------------------------------
+  //draw buddha
+  //------------------------------
+	vbo = meshes[11]->getVBO();
+  vbosize = meshes[11]->getVBOsize();
+	cbo = pink;
+  cbosize = 3;
+  nbo = meshes[11]->getNBO();
+  nbosize = meshes[11]->getNBOsize();
+  ibo = meshes[11]->getIBO();
+  ibosize = meshes[11]->getIBOsize();
+
+  cudaRasterizeCore(glm::vec2(width, height), eye, center, vbo, vbosize, cbo, cbosize, nbo, nbosize, ibo, ibosize, true, true, 4);
 
 	dptr=NULL;
 	cudaGLMapBufferObject((void**)&dptr, pbo);

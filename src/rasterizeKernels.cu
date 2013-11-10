@@ -118,7 +118,7 @@ __global__ void clearDepthBufferOnStencil(glm::vec2 resolution, fragment* buffer
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
     int index = x + (y * resolution.x);
     if(x<=resolution.x && y<=resolution.y){
-			if (buffer[index].s == 1) {
+			if (buffer[index].s == frag.s) {
 				fragment f = frag;
 				f.position.x = x;
 				f.position.y = y;
@@ -188,8 +188,8 @@ __global__ void primitiveAssemblyKernel(float* vbo, int vbosize, float* cbo, int
 	  glm::vec3 p1(vbo[v1*3], vbo[v1*3+1], vbo[v1*3+2]);
 	  glm::vec3 p2(vbo[v2*3], vbo[v2*3+1], vbo[v2*3+2]);
 	  glm::vec3 c0(cbo[0], cbo[1], cbo[2]);
-	  glm::vec3 c1(cbo[3], cbo[4], cbo[5]);
-	  glm::vec3 c2(cbo[6], cbo[7], cbo[8]);
+	  glm::vec3 c1(cbo[0], cbo[1], cbo[2]);
+	  glm::vec3 c2(cbo[0], cbo[1], cbo[2]);
 	  //glm::vec3 c0(cbo[v0*3], cbo[v0*3+1], cbo[v0*3+2]);
 	  //glm::vec3 c1(cbo[v1*3], cbo[v1*3+1], cbo[v1*3+2]);
 	  //glm::vec3 c2(cbo[v2*3], cbo[v2*3+1], cbo[v2*3+2]);
@@ -251,7 +251,7 @@ __device__ bool isInScreen(glm::vec3 p, glm::vec2 resolution) {
 }
 
 //primitive parallel rasterization
-__global__ void rasterizationPerPrimKernel(triangle* primitives, int primitiveCount, fragment* depthbuffer, glm::vec2 resolution, bool stencilTest) {
+__global__ void rasterizationPerPrimKernel(triangle* primitives, int primitiveCount, fragment* depthbuffer, glm::vec2 resolution, bool stencilTest, int stencil) {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 	if (index < primitiveCount) {
 		triangle prim = primitives[index];
@@ -341,7 +341,7 @@ __global__ void rasterizationPerPrimKernel(triangle* primitives, int primitiveCo
 				glm::vec3 point = t*intersection2 + (1-t)*intersection1;
 				bool draw = true;
 				if (stencilTest) {
-					draw = (depthbuffer[pixelIndex].s == 1) && (point.z > depthbuffer[pixelIndex].z);
+					draw = (depthbuffer[pixelIndex].s == stencil) && (point.z > depthbuffer[pixelIndex].z);
 				}
 				else {
 					draw = (point.z > depthbuffer[pixelIndex].z);
@@ -359,7 +359,7 @@ __global__ void rasterizationPerPrimKernel(triangle* primitives, int primitiveCo
 }
 
 //scanline parallel rasterization
-__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, bool stencilTest){
+__global__ void rasterizationKernel(triangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, bool stencilTest, int stencil){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index < resolution.y){
     for (int i=0; i<primitivesCount; ++i) {
@@ -429,7 +429,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
           glm::vec3 point = t*intersection2 + (1-t)*intersection1;
 					bool draw = true;
 					if (stencilTest) {
-						draw = (depthbuffer[pixelIndex].s == 1) && (point.z > depthbuffer[pixelIndex].z);
+						draw = (depthbuffer[pixelIndex].s == stencil) && (point.z > depthbuffer[pixelIndex].z);
 					}
 					else {
 						draw = (point.z > depthbuffer[pixelIndex].z);
@@ -448,7 +448,7 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 }
 
 //rasterization for stencil buffer
-__global__ void rasterizationStencilKernel(vertTriangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution){
+__global__ void rasterizationStencilKernel(vertTriangle* primitives, int primitivesCount, fragment* depthbuffer, glm::vec2 resolution, int stencil){
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
   if(index < resolution.y){
     for (int i=0; i<primitivesCount; ++i) {
@@ -517,7 +517,8 @@ __global__ void rasterizationStencilKernel(vertTriangle* primitives, int primiti
           float t = (j-intersection1.x)/(intersection2.x-intersection1.x);
           glm::vec3 point = t*intersection2 + (1-t)*intersection1;
           if (point.z > depthbuffer[pixelIndex].z) {
-            depthbuffer[pixelIndex].s = 1;
+            depthbuffer[pixelIndex].s = stencil;
+						depthbuffer[pixelIndex].z = point.z;
           }
         }
       }
@@ -534,7 +535,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 		glm::vec3 diffuseColor(0);
 		glm::vec3 specularColor(0);
 		float ks = 0;
-		if (glm::distance(depthbuffer[index].color, glm::vec3(1.0, 166.0/255.0, 186.0/255.0)) < 0.0001) {
+		if (glm::distance(depthbuffer[index].color, glm::vec3(245.0/255.0, 222.0/255.0, 179.0/255.0)) > 0.1) {
 			ks = 0.3;
 		}
 		glm::vec3 norm =  depthbuffer[index].normal;
@@ -631,7 +632,7 @@ void clearBuffers(glm::vec2 resolution) {
 	cudaDeviceSynchronize();
 }
 
-void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float* vbo, int vbosize, int* ibo, int ibosize) {
+void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, float* vbo, int vbosize, int* ibo, int ibosize, int stencil) {
 	// set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -675,14 +676,14 @@ void drawToStencilBuffer(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center, 
   //rasterization
   //------------------------------
 	int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
-	rasterizationStencilKernel<<<scanlineBlocks, tileSize>>>(stencilPrimitives, ibosize/3, depthbuffer, resolution);
+	rasterizationStencilKernel<<<scanlineBlocks, tileSize>>>(stencilPrimitives, ibosize/3, depthbuffer, resolution, stencil);
 	cudaDeviceSynchronize();
 
 	cudaFree(stencilPrimitives);
 }
 
 // Clear the depth buffer based on stencil test
-void clearOnStencil(glm::vec2 resolution) {
+void clearOnStencil(glm::vec2 resolution, int stencil) {
 	// set up crucial magic
   int tileSize = 8;
   dim3 threadsPerBlock(tileSize, tileSize);
@@ -693,7 +694,7 @@ void clearOnStencil(glm::vec2 resolution) {
 	frag.normal = glm::vec3(0,0,0);
 	frag.position = glm::vec3(0,0,0);
 	frag.z = -FLT_MAX;
-	frag.s = 1;
+	frag.s = stencil;
 	clearDepthBufferOnStencil<<<fullBlocksPerGrid, threadsPerBlock>>>(resolution, depthbuffer, frag);
 	cudaDeviceSynchronize();
 }
@@ -701,7 +702,7 @@ void clearOnStencil(glm::vec2 resolution) {
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center,
 											 float* vbo, int vbosize, float* cbo, int cbosize, float* nbo,
-											 int nbosize, int* ibo, int ibosize, bool stencilTest, bool perPrimitive){
+											 int nbosize, int* ibo, int ibosize, bool stencilTest, bool perPrimitive, int stencil){
   //------------------------------
   //memory stuff
   //------------------------------
@@ -766,11 +767,11 @@ void cudaRasterizeCore(glm::vec2 resolution, glm::vec3 eye, glm::vec3 center,
   //------------------------------
 	if (perPrimitive) {
 		//parallel by primitive
-		rasterizationPerPrimKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, stencilTest);
+		rasterizationPerPrimKernel<<<primitiveBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, stencilTest, stencil);
 	}
 	else {
 		int scanlineBlocks = ceil(((float)resolution.y)/((float)tileSize));
-		rasterizationKernel<<<scanlineBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, stencilTest);
+		rasterizationKernel<<<scanlineBlocks, tileSize>>>(primitives, ibosize/3, depthbuffer, resolution, stencilTest, stencil);
 	}
 
   cudaDeviceSynchronize();
