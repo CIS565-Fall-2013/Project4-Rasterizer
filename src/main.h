@@ -68,8 +68,8 @@ int ibosize;
 
 int width=1280; int height=720;
 
-glm::vec3 eye(0, 0, 4);
-glm::vec3 center(0, 0, 0);
+glm::vec3 eye(0, 0.25, 4);
+glm::vec3 center(0, 0.25, 0);
 
 //-------------------------------
 //-------------MAIN--------------
