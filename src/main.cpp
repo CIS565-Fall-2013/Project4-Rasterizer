@@ -105,7 +105,7 @@ void runCuda(){
 	clearBuffers(glm::vec2(width, height));
 
 	//rotation matrix
-	glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), (float)(20-frame), 0.0f, 1.0f, 0.0f);
+	glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), 20.0f-0.5f*frame, 0.0f, 1.0f, 0.0f);
 
 	//------------------------------
   //draw the caps
