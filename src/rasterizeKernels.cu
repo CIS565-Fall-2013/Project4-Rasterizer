@@ -511,7 +511,8 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 	//modelMatrix = glm::scale(modelMatrix, vec3(2,2,2));
 #if TURN_TABLE == 1
 	float d = (int)frame % 361;
-	modelMatrix = glm::rotate(modelMatrix, -d, vec3(0,1,0));
+	modelMatrix = glm::rotate(modelMatrix, d, vec3(0,1,0));
+	modelMatrix = glm::rotate(modelMatrix, -90.0f, vec3(1,0,0));
 #endif
 
 	// retrieve camera information

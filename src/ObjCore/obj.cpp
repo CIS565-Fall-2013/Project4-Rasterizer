@@ -265,6 +265,15 @@ void obj::setColor(glm::vec3 newColor){
 	defaultColor = newColor;
 }
 
+void obj::changeColor(glm::vec3 newColor){
+	cbosize = ibosize*3;
+	for(int i=0; i<(cbosize/3); i++){
+		int j = i*3;
+		cbo[j+0] = newColor[0]; cbo[j+1] = newColor[1]; cbo[j+2] = newColor[2];
+	}
+	defaultColor = newColor;
+}
+
 vector<glm::vec4>* obj::getPoints(){
     return &points;
 }

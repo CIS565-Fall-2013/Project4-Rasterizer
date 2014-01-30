@@ -115,7 +115,7 @@ void runCuda()
 	cbosize = 9;
 #elif RGBONLY == 0
 	vec3 defaultColor(0.5f, 0.5f, 0.5f);
-	mesh->setColor(defaultColor);
+	mesh->changeColor(defaultColor);
 	cbo = mesh->getCBO();
 	cbosize = mesh->getCBOsize();
 #endif
@@ -144,12 +144,13 @@ void runCuda()
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&time, start, stop);
 	printf("runCuda runtime: %3.1f ms \n", time);
+
 }
 
 #ifdef __APPLE__
 
   void display(){
-      runCuda();
+      //runCuda();
       time_t seconds2 = time (NULL);
 
       if(seconds2-seconds >= 1){
@@ -401,7 +402,7 @@ void initCamera()
 {
 	cam = new camera();
 	vec3 up = vec3(0,1,0);
-	vec3 cameraPosition = vec3(0, 0, 1.0);
+	vec3 cameraPosition = vec3(0, 0, 5.0);
 	mat4 projection = glm::perspective(-fovy, float(width)/float(height), zNear, zFar); // LOOK: Passed in -fovy to have the image rightside up
     mat4 view = glm::lookAt(cameraPosition, center, up);
 	cam->zFar = zFar;

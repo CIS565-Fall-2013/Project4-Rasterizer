@@ -56,6 +56,7 @@ public:
 	float* getBoundingBox();    //returns vbo-formatted bounding box
 	float getTop();
 	void setColor(glm::vec3);
+	void changeColor(glm::vec3 newColor);
 	glm::vec3 getColor();
 	float* getVBO();
 	float* getCBO();
