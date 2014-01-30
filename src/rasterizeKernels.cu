@@ -165,10 +165,10 @@ __global__ void vertexShadeKernel(float* vbo, float* wvbo, int vbosize, float* n
 	  // set up vbo
 	  vec4 hPoint(vbo[id1], vbo[id2], vbo[id3], 1.0f);
 	  
-	  vec4 worldPoint = mv * hPoint;
-	  wvbo[id1] = worldPoint.x;
-	  wvbo[id2] = worldPoint.y;
-	  wvbo[id3] = worldPoint.z;
+	  vec4 viewspacePoint = mv * hPoint;
+	  wvbo[id1] = viewspacePoint.x;
+	  wvbo[id2] = viewspacePoint.y;
+	  wvbo[id3] = viewspacePoint.z;
 
 	  // to clip
 	  hPoint = mvp * hPoint;
@@ -382,9 +382,9 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 					//if (atomicDiff(&(depthbuffer[depthBufferId].depth), z) > 0)
 					if (z > depthbuffer[depthBufferId].depth)
 					{
-						depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z; // point in world space
+						depthbuffer[depthBufferId].position = tri.pw0 * bc.x + tri.pw1 * bc.y + tri.pw2 * bc.z; // point in camera space
 						depthbuffer[depthBufferId].color = tri.c0 * bc.x + tri.c1 * bc.y + tri.c2 * bc.z;
-						depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;		// normal in world space
+						depthbuffer[depthBufferId].normal = tri.n0 * bc.x + tri.n1 * bc.y + tri.n2 * bc.z;		// normal in camera space
 						depthbuffer[depthBufferId].depth = z;
 					}
 				}
@@ -393,8 +393,13 @@ __global__ void rasterizationKernel(triangle* primitives, int primitivesCount, f
 	}
 }
 
+__device__ float linearizeDepth(float exp_depth, float near, float far)
+{
+	return (2 * near) / (far + near - exp_depth * (far - near));
+}
+
 //TODO: Implement a fragment shader
-__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, light* lights, int numlights)
+__global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution, vec3 camPos, light* lights, int numlights, float near, float far, int mode)
 {
   int x = (blockIdx.x * blockDim.x) + threadIdx.x;
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -402,7 +407,7 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
   if(x<=resolution.x && y<=resolution.y)
   {
 	  vec3 finalColor = vec3(0,0,0);
-	  vec3 ambientColor = vec3(0.1,0.1,0.1);
+	  vec3 ambientColor = vec3(0.2,0.2,0.2);
 	  vec3 matColor = depthbuffer[index].color;
 
 	  for (int i = 0 ; i < numlights ; ++i)
@@ -411,7 +416,45 @@ __global__ void fragmentShadeKernel(fragment* depthbuffer, glm::vec2 resolution,
 		  vec3 normal = depthbuffer[index].normal;
 		  vec3 L = lights[i].position - pos;
 		  float diffuseTerm = clamp(dot(normal, normalize(L)), 0.0f, 1.0f);
-		  finalColor += clamp(lights[i].color * diffuseTerm * matColor, 0.0, 1.0);
+
+		  if (mode == DISPLAY_DIFFUSE_SPEC)
+		  {
+			  vec3 viewVector = normalize(camPos - pos);
+			  vec3 reflected = 2.f * normal * (dot(normal, L)) - L;
+			  float shiny = 2.f;
+			  float ks = 0.02f;
+			  float kd = 0.8f;
+
+			  vec3 specular = lights[i].color * (float)pow(max(0.0f, dot(reflected, viewVector)), shiny);
+			  finalColor += clamp(kd * lights[i].color * diffuseTerm * matColor + ks*specular, 0.0, 1.0);
+		  }
+		  else if (mode == DISPLAY_TOON)
+		  {
+			  vec3 toonColor = matColor * lights[i].color;
+
+			  if (diffuseTerm > 0.98f)
+				  finalColor += vec3(1,1,1);
+			  else if (diffuseTerm > 0.95f)
+				  finalColor += clamp(toonColor, 0.0, 1.0);
+			  else if (diffuseTerm > 0.5f)
+				  finalColor += 0.6f * clamp(toonColor, 0.0, 1.0);
+			  else if (diffuseTerm > 0.25f)
+				  finalColor += 0.4f * clamp(toonColor, 0.0, 1.0);
+			  else
+				  finalColor += 0.2f * clamp(toonColor, 0.0, 1.0);
+		  }
+		  else if (mode == DISPLAY_NORMAL)
+		  {
+			  finalColor = normal;
+			  break;
+		  }
+		  else if (mode == DISPLAY_DEPTH)
+		  {
+			  float depth = depthbuffer[index].position.z; // need to use camera space z
+			  float linDepth =  3000.f*pow(linearizeDepth(depth, near, far),2);
+			  finalColor = vec3(linDepth, linDepth, linDepth);
+			  break;
+		  }
 	  }
 
 	  finalColor += ambientColor;
@@ -470,7 +513,8 @@ __global__ void render(glm::vec2 resolution, fragment* depthbuffer, glm::vec3* f
 // Wrapper for the __global__ call that sets up the kernel calls and does a ton of memory management
 void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float frame, 
 					   float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, 
-					   float* nbo, int nbosize, light* lights, int lightsize)
+					   float* nbo, int nbosize, light* lights, int lightsize,
+					   float alpha, float beta, int mode)
 {
 	// set up crucial magic
 	int tileSize = 8;
@@ -509,12 +553,12 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 	// turn table
 	mat4 modelMatrix(1);
 	//modelMatrix = glm::scale(modelMatrix, vec3(2,2,2));
+	float d = 0;
 #if TURN_TABLE == 1
-	float d = (int)frame % 361;
-	modelMatrix = glm::rotate(modelMatrix, d, vec3(0,1,0));
-	modelMatrix = glm::rotate(modelMatrix, -90.0f, vec3(1,0,0));
+	d = (int)frame % 361;
 #endif
-
+	modelMatrix = glm::rotate(modelMatrix, d+alpha, vec3(0,1,0));
+	modelMatrix = glm::rotate(modelMatrix, -90.0f-beta, vec3(1,0,0));
 	// retrieve camera information
 	mat4 viewMatrix = cam->view;
 	mat4 projectionMatrix = cam->projection;
@@ -562,7 +606,7 @@ void cudaRasterizeCore(camera* cam, uchar4* PBOpos, glm::vec2 resolution, float 
 	//fragment shader
 	//------------------------------
 #if ENABLE_FRAG_SHADER == 1
-	fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, device_lights, lightsize);
+	fragmentShadeKernel<<<fullBlocksPerGrid, threadsPerBlock>>>(depthbuffer, resolution, cam->position, device_lights, lightsize, zNear, zFar, mode);
 	cudaDeviceSynchronize();
 #endif
 	//checkCUDAErrorWithLine("fragment shader kernel failed");

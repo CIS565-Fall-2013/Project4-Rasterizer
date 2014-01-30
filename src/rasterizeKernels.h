@@ -21,7 +21,7 @@
 #define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
 #define BACK_FACE_CULLING 1
 #define TURN_TABLE 1
-#define ANTIALIASING 1
+#define ANTIALIASING 0
 #define ENABLE_FRAG_SHADER 1
 
 using glm::mat4;
@@ -36,6 +36,6 @@ using glm::normalize;
 
 void printVAO(float* device_vao, int size);
 void kernelCleanup();
-void cudaRasterizeCore(camera* cam, uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, light* lights, int lightsize);
+void cudaRasterizeCore(camera* cam, uchar4* pos, glm::vec2 resolution, float frame, float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, light* lights, int lightsize, float alpha, float beta, int mode);
 void allocateDeviceMemory( float* vbo, int vbosize, float* cbo, int cbosize, int* ibo, int ibosize, float* nbo, int nbosize, light* lights, int lightsize);
 #endif //RASTERIZEKERNEL_H

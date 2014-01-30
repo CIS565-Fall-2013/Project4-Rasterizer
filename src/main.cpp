@@ -127,7 +127,7 @@ void runCuda()
 
 	updateCamera();
 
-	cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, lights, lightsize);
+	cudaRasterizeCore(cam, dptr, glm::vec2(width, height), frame, vbo, vbosize, cbo, cbosize, ibo, ibosize, nbo, nbosize, lights, lightsize, alpha, beta, displayMode);
 	cudaGLUnmapBufferObject(pbo);
 
 	vbo = NULL;
@@ -144,7 +144,6 @@ void runCuda()
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&time, start, stop);
 	printf("runCuda runtime: %3.1f ms \n", time);
-
 }
 
 #ifdef __APPLE__
@@ -216,8 +215,20 @@ void runCuda()
 		switch (key) 
 		{
 			case(27):
-			shut_down(1);    
-			break;
+				shut_down(1);    
+				break;
+			case('4'):
+				displayMode = (int)DISPLAY_TOON;
+				break;
+			case('1'):
+				displayMode = (int)DISPLAY_DEPTH;
+				break;
+			case('2'):
+				displayMode = (int)DISPLAY_NORMAL;
+				break;
+			case('3'):
+				displayMode = (int)DISPLAY_DIFFUSE_SPEC;
+				break;
 		}
 	}
 
@@ -281,9 +292,9 @@ void runCuda()
 			vec2 delta = (position - lastMousePosition) * speed;
 
 			if (delta.x > 0)
-				cam->position.z += 0.1f;
-			else if (delta.x < 0)
 				cam->position.z -= 0.1f;
+			else if (delta.x < 0)
+				cam->position.z += 0.1f;
 
 			lastMousePosition = position;
 		}
@@ -291,13 +302,10 @@ void runCuda()
 
 	void updateCamera()
 	{
-		// update position
-		//cam->position = vec3(cam->position.x, cam->position.y, zDistance);
-
 		// update orientation
 		mat4 cameraTransform(1);
-		cameraTransform = rotate(cameraTransform, alpha, vec3(0,1,0));
-		cameraTransform = rotate(cameraTransform, beta, vec3(1,0,0));
+		//cameraTransform = rotate(cameraTransform, alpha, vec3(0,1,0)); // pass this information to cuda wrapper
+		//cameraTransform = rotate(cameraTransform, beta, vec3(1,0,0));
 
 		vec4 pos4 = (cameraTransform * vec4(cam->position, 1.0));
 		vec4 up4 = (cameraTransform * vec4(cam->up, 0.0));
@@ -318,8 +326,8 @@ void runCuda()
 		if (beta != 0)
 			printf("beta = %f\n", beta);
 
-		alpha = 0;
-		beta = 0;
+		//alpha = 0; // commented this out because now alpha and beta are cumulative and are passed to cuda side to modify the model matrix
+		//beta = 0;
 		
 
 		zTranslateDistance = 0;
@@ -437,7 +445,7 @@ void initLights()
 	//lights[3].position = vec3(0.0f, 2.5f, 2.f);
 
 	// first light
-	lights[0].color = vec3(0,1,1);
+	lights[0].color = vec3(0,0,1);
 	lights[0].position = vec3(0, 0.f, 2.f);
 
 	// second light
@@ -445,7 +453,7 @@ void initLights()
 	lights[1].position = vec3(-3.f, 5.f, 1.f);
 
 	// third light
-	lights[2].color = vec3(0,0,1);
+	lights[2].color = vec3(0.5,0.5,0.5);
 	lights[2].position = vec3(3.f, 5.f, 1.f);
 
 	// fourth light

@@ -89,13 +89,14 @@ float alpha = 0.0f;
 float beta = 0.0f;
 bool altLmbDown = false;
 bool altRmbDown = false;
+int displayMode = (int)Display::DISPLAY_DIFFUSE_SPEC;
 vec2 lastMousePosition = vec2(0,0);
 
 //-------------------------------
 //----------CUDA STUFF-----------
 //-------------------------------
 
-int width=720; int height=720;
+int width=1280; int height=720;
 
 //-------------------------------
 //-------------MAIN--------------
