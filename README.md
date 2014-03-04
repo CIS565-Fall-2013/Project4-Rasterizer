@@ -9,6 +9,12 @@ Yingting Xiao
 
 ![alt tag](https://raw.github.com/YingtingXiao/Project4-Rasterizer/master/renders/dragon.PNG)
 
+* Portal effect done with stencil buffer
+
+Demo1: http://vimeo.com/78774305
+
+Demo2: http://vimeo.com/79052953
+
 ---
 Requirements completed
 ---
@@ -65,7 +71,3 @@ Future work
 ---
 
 Some pixels are flicking due to multiple threads accessing the same depth buffer. I want to eliminate this by locking the memory, as suggested by Hao in the Google group.
-
-I also really want to implement this, once I figure out how...
-
-https://www.youtube.com/watch?v=5DKIP9N-OB4
