@@ -5,15 +5,15 @@ Fall 2013
 Yingting Xiao
 ---
 
-![alt tag](https://raw.github.com/YingtingXiao/Project4-Rasterizer/master/renders/bunny.PNG)
-
-![alt tag](https://raw.github.com/YingtingXiao/Project4-Rasterizer/master/renders/dragon.PNG)
-
 * Portal effect done with stencil buffer
 
 Demo1: http://vimeo.com/78774305
 
 Demo2: http://vimeo.com/79052953
+
+![alt tag](https://raw.github.com/YingtingXiao/Project4-Rasterizer/master/renders/bunny.PNG)
+
+![alt tag](https://raw.github.com/YingtingXiao/Project4-Rasterizer/master/renders/dragon.PNG)
 
 ---
 Requirements completed
