@@ -18,7 +18,7 @@ Above, Culling on vs. Culling Off
 Above, performance on different models. 
 
 ![Rotation Field Visualization](screenshots/rot_field_small.png)
-Above, I used my rasterizer to visualize the rotation field in a deforming bar for my research with Dr. Kavan (http://www.seas.upenn.edu/~ladislav/). My rasterizer can render the finite-element discretization of the bar (center), and render the average rotation at each element (right).
+Above, I used my rasterizer to visualize the rotation field in a deforming bar. My rasterizer can render the finite-element discretization of the bar (center), and render the average rotation at each element (right).
 ![Overlap Visualization](screenshots/overlap_comparison.png)
 For our research, it's important that we check for overlapping geometry. Above
 is a comparison between the standard MATLAB plot and this rasterizer, visualizing overlapping bits. This is easy to do with a CUDA rasterizer, and tricky to do in MATLAB.
